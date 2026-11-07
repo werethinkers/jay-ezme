@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 204,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build204/EzMe-3.44-macOS.zip",
-  "sha256": "5d27440e811af05158fbc1386f76f4f7a5702e162943734a6bf4f5ccd66afdc2",
-  "notes": "- Fixed: the \"Check for updates\" button is back, in the top bar next to Browser panel. It turns coral and says \"Update ready\" when a new build is out. It is also in the EzMe menu at the top of your Mac screen.",
-  "published": "2026-11-07T20:56:36Z",
+  "build": 206,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build206/EzMe-3.44-macOS.zip",
+  "sha256": "5d2b12422ac0a156b3f4205a9e25e3e5209e0abe88c6644d6541189131b78df2",
+  "notes": "- Browser: pick your own size. The \"Browser\" button in the top bar now has Small, Medium, Large and Huge panels, and you can also drag the thin bar on the panel edge to any width.\n- Browser: new Full screen mode. It fills the screen and keeps only a thin tab row and address bar, with no frames around them. Press Esc or the small \"Exit full screen\" button to come back.",
+  "published": "2026-11-07T21:11:22Z",
   "minimumSystemVersion": "14.0"
 }
