@@ -210,16 +210,9 @@ struct EzMeFindAnythingCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("What do you want to type?").font(.system(size: 22, weight: .bold, design: .rounded))
+            Text("What do you want to type?").font(.system(size: 24, weight: .bold, design: .serif)).foregroundStyle(Butter.cocoa)
             Text("Describe it in your own words. You don't need to remember the shortcut.").foregroundStyle(.secondary)
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.purple)
-                TextField("Try “80s picture”, “bank details” or “thank you email”", text: $query)
-                    .textFieldStyle(.plain).font(.system(size: 17))
-            }
-            .padding(14)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.purple.opacity(0.35)))
+            MerlinBar(text: $query, placeholder: "Try “80s picture”, “bank details” or “thank you email”")
             if !results.isEmpty {
                 VStack(spacing: 6) {
                     ForEach(results) { clip in
@@ -227,9 +220,9 @@ struct EzMeFindAnythingCard: View {
                             HStack(spacing: 12) {
                                 Text("\\" + clip.key.drop(while: { $0 == "/" || $0 == "\\" }))
                                     .font(.system(.body, design: .monospaced).bold())
-                                    .foregroundStyle(.purple)
+                                    .foregroundStyle(Butter.coral)
                                     .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(Color.purple.opacity(0.1), in: RoundedRectangle(cornerRadius: 6))
+                                    .background(Butter.honey.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(clip.name).font(.body.weight(.semibold)).foregroundStyle(.primary)
                                     Text(clip.text.replacingOccurrences(of: "\n", with: " ")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
@@ -238,7 +231,7 @@ struct EzMeFindAnythingCard: View {
                                 Text(clip.group).font(.caption).foregroundStyle(.secondary)
                             }
                             .padding(10)
-                            .background(Color.white.opacity(0.8), in: RoundedRectangle(cornerRadius: 10))
+                            .background(Butter.cream, in: RoundedRectangle(cornerRadius: 10))
                         }
                         .buttonStyle(.plain)
                     }
@@ -249,12 +242,12 @@ struct EzMeFindAnythingCard: View {
                     Text("Nothing saved for “\(query)” yet.").foregroundStyle(.secondary)
                     Spacer()
                     Button("Create \\\(EzMeWords.suggestedTrigger(for: query, existing: Set(clips.map(\.key))).dropFirst())") { onCreate(query) }
-                        .buttonStyle(.borderedProminent).tint(.purple)
+                        .buttonStyle(.borderedProminent).tint(Butter.coral)
                 }
             }
         }
         .padding(22)
-        .background(LinearGradient(colors: [Color.purple.opacity(0.10), Color.blue.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 18))
+        .background(Butter.honey.opacity(0.45), in: RoundedRectangle(cornerRadius: 18))
     }
 }
 
@@ -270,33 +263,34 @@ struct EzMeMapCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Where things live").font(.headline)
+            ButterAccordion("Where things live", subtitle: "Shortcuts, collections, create and apps in one glance", icon: "square.grid.2x2", open: true) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                 ForEach(areas, id: \.0) { area in
                     Button { go(area.1) } label: {
                         VStack(alignment: .leading, spacing: 6) {
-                            Image(systemName: area.2).font(.title2).foregroundStyle(.purple)
+                            Image(systemName: area.2).font(.title2).foregroundStyle(Butter.coral)
                             Text(area.0).font(.headline).foregroundStyle(.primary)
                             Text(area.3).font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
                         .padding(14)
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.purple.opacity(0.15)))
+                        .background(Butter.cream, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Butter.honey))
                     }
                     .buttonStyle(.plain)
                 }
             }
+            }
+            ButterAccordion("The naming rule", subtitle: "How shortcut names are made", icon: "lightbulb") {
             HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "lightbulb.fill").foregroundStyle(.orange)
+                Image(systemName: "lightbulb.fill").foregroundStyle(Butter.coral)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("The naming rule").font(.subheadline.bold())
                     Text("Every shortcut is its key words joined, with short forms: “80's picture” is \\80spic, “email signature” is \\mailsig, “thank you note” is \\thxnote. Forgot one? Type \\ and describe it.")
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(12)
-            .background(Color.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+            }
         }
     }
 }
@@ -359,9 +353,9 @@ struct EzMeTriggerSuggestion: View {
         VStack(alignment: .leading, spacing: 4) {
             if !name.trimmingCharacters(in: .whitespaces).isEmpty {
                 HStack(spacing: 8) {
-                    Image(systemName: "sparkles").foregroundStyle(.purple)
+                    Image(systemName: "sparkles").foregroundStyle(Butter.coral)
                     Text("Suggested:").foregroundStyle(.secondary)
-                    Text(suggestion).font(.system(.body, design: .monospaced).bold()).foregroundStyle(.purple)
+                    Text(suggestion).font(.system(.body, design: .monospaced).bold()).foregroundStyle(Butter.coral)
                     if key != suggestion { Button("Use") { key = suggestion; lastAuto = suggestion }.controlSize(.small) }
                     Spacer()
                 }

@@ -1,4 +1,4 @@
-- New: Ezyourlife apps work like built-in shortcuts. Type \ and a few words ("invoice", "reply to a review"), pick the app, fill its boxes and press Run and paste. The answer lands in the text box you were typing in.
-- New: boxes fill themselves. Business name, owner, city, GSTIN and the other details saved in your Ezyourlife profile are filled in for you, and the answers you gave last time for that app are remembered. EzMe tells you what it filled.
-- New: every answer you paste is saved as a shortcut in "Ezyourlife results", so it syncs with the rest of your library and you can search for it later with \.
-- New: Preview first runs the app and shows the answer before you paste it.
+- New look, "Butter Desk": butter and cocoa colours with coral accents instead of purple, on every screen. The left sidebar is now a row of top tabs (Home, Library, Create, Apps & web, Setup), with pills for the screens inside each tab.
+- Merlin bar: every search box now uses the same pill-shaped bar, including Home, shortcuts, live values, media and saved links.
+- Collapsible sections: the boxed sections on Settings, Live values, Media and more, the How EzMe works guide steps, and the Home map are now accordions you can open and close.
+- Screen banners use one calm cocoa style.
