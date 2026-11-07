@@ -54,7 +54,7 @@ final class EzMeUpdater: ObservableObject {
     /// and the person has not chosen to skip that build.
     func checkOnLaunch() {
         let last = UserDefaults.standard.double(forKey: lastCheckKey)
-        guard Date().timeIntervalSince1970 - last > 6 * 3600 else { return }
+        guard Self.testFeedURL != nil || Date().timeIntervalSince1970 - last > 6 * 3600 else { return }
         Task { await check(userInitiated: false) }
     }
 
@@ -69,9 +69,14 @@ final class EzMeUpdater: ObservableObject {
         phase = .checking
         do {
             // Ask the database and the website feed together and take the newest build either one knows.
-            async let fromDatabase = Self.fetchFromDatabase()
-            async let fromWebsite = Self.fetchFromWebsite()
-            let candidates = [await fromDatabase, await fromWebsite].compactMap { $0 }
+            let candidates: [EzMeUpdateManifest]
+            if let testFeed = Self.testFeedURL {
+                candidates = [await Self.fetchFromWebsite(testFeed)].compactMap { $0 }
+            } else {
+                async let fromDatabase = Self.fetchFromDatabase()
+                async let fromWebsite = Self.fetchFromWebsite(Self.feedURL)
+                candidates = [await fromDatabase, await fromWebsite].compactMap { $0 }
+            }
             guard let manifest = candidates.max(by: { $0.build < $1.build }) else {
                 throw EzMeUpdateError.message("The update server did not answer. Check your connection and try again.")
             }
@@ -82,12 +87,25 @@ final class EzMeUpdater: ObservableObject {
                 phase = .available(manifest)
                 let skipped = UserDefaults.standard.integer(forKey: skippedBuildKey)
                 if userInitiated || skipped != manifest.build { showSheet = true }
+                if Self.testFeedURL != nil && UserDefaults.standard.bool(forKey: "EzMeAutoInstallUpdate") { install() }
             } else {
                 phase = .upToDate
             }
         } catch {
             phase = userInitiated ? .failed(Self.describe(error)) : .idle
         }
+    }
+
+    /// Test hook used by the Mac smoke test: a feed on this Mac only (http://127.0.0.1 or localhost),
+    /// set with `defaults write com.ezme.mac EzMeUpdateFeed <url>`. Ignored for any other host.
+    nonisolated static var testFeedURL: URL? {
+        guard let value = UserDefaults.standard.string(forKey: "EzMeUpdateFeed"), let url = URL(string: value),
+              isLocalTestURL(url) else { return nil }
+        return url
+    }
+
+    nonisolated static func isLocalTestURL(_ url: URL) -> Bool {
+        url.scheme == "http" && (url.host == "127.0.0.1" || url.host == "localhost")
     }
 
     nonisolated static var userAgent: String {
@@ -114,8 +132,8 @@ final class EzMeUpdater: ObservableObject {
     }
 
     /// update/latest.json on the website (fallback when the database can't be reached).
-    nonisolated static func fetchFromWebsite() async -> EzMeUpdateManifest? {
-        var request = URLRequest(url: feedURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+    nonisolated static func fetchFromWebsite(_ feed: URL) async -> EzMeUpdateManifest? {
+        var request = URLRequest(url: feed, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         guard let result = try? await URLSession.shared.data(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
@@ -160,7 +178,7 @@ final class EzMeUpdater: ObservableObject {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("EzMeUpdate-\(UUID().uuidString)", isDirectory: true)
         do {
-            guard let url = URL(string: manifest.url), url.scheme == "https" else {
+            guard let url = URL(string: manifest.url), url.scheme == "https" || (Self.testFeedURL != nil && Self.isLocalTestURL(url)) else {
                 throw EzMeUpdateError.message("The update link is not secure.")
             }
             try fm.createDirectory(at: work, withIntermediateDirectories: true)
@@ -203,7 +221,11 @@ final class EzMeUpdater: ObservableObject {
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
             try process.run()
-            NSApp.terminate(nil)
+            // Close the sheet, then quit. If AppKit doesn't quit within a few seconds (seen on macOS 15
+            // with a sheet open), exit anyway so the installer can swap the bundle and relaunch.
+            showSheet = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { NSApp.terminate(nil) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { exit(0) }
         } catch {
             try? fm.removeItem(at: work)
             Self.logEvent("update_failed", targetBuild: manifest.build, detail: Self.describe(error))
@@ -284,7 +306,9 @@ final class EzMeUpdater: ObservableObject {
     #!/bin/sh
     PID="$1"; NEW="$2"; CURRENT="$3"; DEST="$4"; WORK="$5"
     i=0
-    while kill -0 "$PID" 2>/dev/null && [ $i -lt 150 ]; do sleep 0.2; i=$((i+1)); done
+    while kill -0 "$PID" 2>/dev/null && [ $i -lt 75 ]; do sleep 0.2; i=$((i+1)); done
+    if kill -0 "$PID" 2>/dev/null; then kill -TERM "$PID" 2>/dev/null; sleep 3; fi
+    if kill -0 "$PID" 2>/dev/null; then kill -KILL "$PID" 2>/dev/null; sleep 1; fi
     BACKUP="$WORK/EzMe-previous.app"
     if ! mv "$CURRENT" "$BACKUP"; then open "$CURRENT"; exit 1; fi
     if ditto "$NEW" "$DEST"; then
@@ -372,7 +396,7 @@ struct EzMeUpdateSheet: View {
                 Image(systemName: "arrow.down.app.fill").font(.system(size: 34)).foregroundStyle(.purple)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("EzMe updates").font(.title2.bold())
-                    Text("This Mac has version \(updater.currentVersion) (build \(updater.currentBuild)).")
+                    Text("This Mac has version \(updater.currentVersion) (build \(String(updater.currentBuild))).")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
@@ -411,7 +435,7 @@ struct EzMeUpdateSheet: View {
             Label("You have the latest version.", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
         case .available(let manifest):
             VStack(alignment: .leading, spacing: 8) {
-                Text("Version \(manifest.version) (build \(manifest.build)) is ready.").font(.headline)
+                Text("Version \(manifest.version) (build \(String(manifest.build))) is ready.").font(.headline)
                 if let notes = manifest.notes, !notes.isEmpty {
                     ScrollView { Text(notes).font(.callout).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
                         .frame(maxHeight: 180)

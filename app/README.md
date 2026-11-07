@@ -17,6 +17,12 @@ The EzMe Mac app (SwiftUI, Apple silicon, macOS 14+). The website at the reposit
 
 GitHub Actions (`.github/workflows/release-app.yml`) then builds the app on a Mac, publishes a GitHub Release and rewrites `update/latest.json`. The site's Download button reads that file, and installed copies of EzMe find the new build the next time they check. Pull requests only build the app, so a broken change shows up before it ships. The build number is 168 plus the workflow run number, so every release is newer than the last.
 
+## Testing on a Mac
+
+`.github/workflows/mac-smoke-test.yml` runs on every pull request that touches `app/` (and on demand from the Actions tab). On a GitHub macOS machine it installs the build in /Applications, checks it launches and keeps running, then serves a newer build from a local feed and checks the updater installs it and relaunches EzMe. It also checks the signature, architecture, bundled resources and crash reports. `app/tests/mac-smoke-test.sh` is the script; screenshots and logs are kept as the run's artifact.
+
+The updater's test hook (`defaults write com.ezme.mac EzMeUpdateFeed http://127.0.0.1:...`) only accepts a feed on the same Mac, so it can't point real users anywhere else.
+
 ## How the updater works
 
 1. At launch (at most every six hours) or when asked, reads the newest stable row of `app_releases` in the Lovable Cloud database and `https://ezme.ezyourlife.com/update/latest.json`, and takes whichever has the higher build.

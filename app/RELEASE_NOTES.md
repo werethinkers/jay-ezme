@@ -1,2 +1,2 @@
-- New: EzMe now updates itself. Use "Check for updates" in the sidebar or EzMe > Check for Updates… in the menu bar.
-- Updates download from ezme.ezyourlife.com, are checked, installed in place and EzMe reopens. Your shortcuts and settings are kept.
+- Fixed: installing an update now always closes the old copy of EzMe and opens the new one.
+- Build numbers in the update window no longer show a thousands separator.
