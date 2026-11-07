@@ -1,4 +1,1 @@
-- Fixed: Ezyourlife apps now open and run inside the small popup. The big EzMe window no longer jumps to the front.
-- Faster: EzMe checks permissions less often and remembers pictures instead of reloading them from disk every time the screen redraws, which removes most of the lag.
-- Easier: every screen now has a one-line "what is this?" strip under the tabs, in plain words.
-- AppBuilder: a short "5 easy steps" guide, a plain sentence on every step with "Start here" and "Optional" tags, and clearer buttons ("Make it" instead of "Generate Output").
+- Fixed: the "Check for updates" button is back, in the top bar next to Browser panel. It turns coral and says "Update ready" when a new build is out. It is also in the EzMe menu at the top of your Mac screen.
