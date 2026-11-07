@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 200,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build200/EzMe-3.44-macOS.zip",
-  "sha256": "df8a035ec98f92736dbc3e261354c019d1f7404a39a38679d4464a311c4c8151",
-  "notes": "- New look, \"Butter Desk\": butter and cocoa colours with coral accents instead of purple, on every screen. The left sidebar is now a row of top tabs (Home, Library, Create, Apps & web, Setup), with pills for the screens inside each tab.\n- Merlin bar: every search box now uses the same pill-shaped bar, including Home, shortcuts, live values, media and saved links.\n- Collapsible sections: the boxed sections on Settings, Live values, Media and more, the How EzMe works guide steps, and the Home map are now accordions you can open and close.\n- Screen banners use one calm cocoa style.",
-  "published": "2026-11-07T20:16:02Z",
+  "build": 202,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build202/EzMe-3.44-macOS.zip",
+  "sha256": "b6ce071ba21e6e46a8dbe3c609679e9d693e6f3ed7ea36d9a6783212e1d9009c",
+  "notes": "- Fixed: Ezyourlife apps now open and run inside the small popup. The big EzMe window no longer jumps to the front.\n- Faster: EzMe checks permissions less often and remembers pictures instead of reloading them from disk every time the screen redraws, which removes most of the lag.\n- Easier: every screen now has a one-line \"what is this?\" strip under the tabs, in plain words.\n- AppBuilder: a short \"5 easy steps\" guide, a plain sentence on every step with \"Start here\" and \"Optional\" tags, and clearer buttons (\"Make it\" instead of \"Generate Output\").",
+  "published": "2026-11-07T20:36:59Z",
   "minimumSystemVersion": "14.0"
 }
