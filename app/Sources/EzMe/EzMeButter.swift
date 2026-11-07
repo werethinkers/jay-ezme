@@ -77,6 +77,7 @@ struct ButterTopBar: View {
                     .help(area.items.map { $0.title }.joined(separator: ", "))
                 }
                 Spacer()
+                ButterUpdateButton()
                 Button(action: onToggleBrowser) {
                     HStack(spacing: 6) {
                         Image(systemName: "sidebar.right")
@@ -222,5 +223,26 @@ enum EzMeImageCache {
         guard let image = NSImage(contentsOfFile: path) else { return nil }
         cache.setObject(image, forKey: key)
         return image
+    }
+}
+
+/// "Check for updates" in the top bar. Turns coral with "Update ready" when a new build is out.
+struct ButterUpdateButton: View {
+    @ObservedObject private var updater = EzMeUpdater.shared
+
+    var body: some View {
+        Button { updater.checkFromMenu() } label: {
+            HStack(spacing: 6) {
+                Image(systemName: updater.updateAvailable ? "arrow.down.circle.fill" : "arrow.triangle.2.circlepath")
+                Text(updater.updateAvailable ? "Update ready" : "Check for updates")
+            }
+            .font(.system(size: 12, weight: .semibold))
+            .padding(.horizontal, 11).padding(.vertical, 6)
+            .foregroundStyle(updater.updateAvailable ? Butter.cream : Butter.cocoa)
+            .background(updater.updateAvailable ? Butter.coral : Color.clear, in: Capsule())
+            .overlay(Capsule().stroke(updater.updateAvailable ? Butter.coral : Butter.honey, lineWidth: 1.5))
+        }
+        .buttonStyle(.plain)
+        .help("Version \(updater.currentVersion) (build \(updater.currentBuild))")
     }
 }
