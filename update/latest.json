@@ -1,9 +1,9 @@
 {
   "version": "3.40",
-  "build": 182,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.40-build182/EzMe-3.40-macOS.zip",
-  "sha256": "b18ed9e324979f7061d273320f133f2ad2dee4122bee0c6596092e1661ffdb61",
-  "notes": "- Fixed: installing an update now always closes the old copy of EzMe and opens the new one.\n- Build numbers in the update window no longer show a thousands separator.",
-  "published": "2026-11-07T10:43:35Z",
+  "build": 183,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.40-build183/EzMe-3.40-macOS.zip",
+  "sha256": "e31bfa2d8dba8e28640c93c15572cac954eccb1c79fdd500cede6468975533a3",
+  "notes": "- Changed: App Builder steps now run Action, Information, Collection, Function, Selection. Formula is now called Function and Template is now called Selection.",
+  "published": "2026-11-07T11:10:23Z",
   "minimumSystemVersion": "14.0"
 }
