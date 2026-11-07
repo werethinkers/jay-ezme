@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 202,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build202/EzMe-3.44-macOS.zip",
-  "sha256": "b6ce071ba21e6e46a8dbe3c609679e9d693e6f3ed7ea36d9a6783212e1d9009c",
-  "notes": "- Fixed: Ezyourlife apps now open and run inside the small popup. The big EzMe window no longer jumps to the front.\n- Faster: EzMe checks permissions less often and remembers pictures instead of reloading them from disk every time the screen redraws, which removes most of the lag.\n- Easier: every screen now has a one-line \"what is this?\" strip under the tabs, in plain words.\n- AppBuilder: a short \"5 easy steps\" guide, a plain sentence on every step with \"Start here\" and \"Optional\" tags, and clearer buttons (\"Make it\" instead of \"Generate Output\").",
-  "published": "2026-11-07T20:36:59Z",
+  "build": 204,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build204/EzMe-3.44-macOS.zip",
+  "sha256": "5d27440e811af05158fbc1386f76f4f7a5702e162943734a6bf4f5ccd66afdc2",
+  "notes": "- Fixed: the \"Check for updates\" button is back, in the top bar next to Browser panel. It turns coral and says \"Update ready\" when a new build is out. It is also in the EzMe menu at the top of your Mac screen.",
+  "published": "2026-11-07T20:56:36Z",
   "minimumSystemVersion": "14.0"
 }
