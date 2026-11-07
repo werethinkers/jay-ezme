@@ -116,6 +116,7 @@ struct EzyField: Identifiable, Codable, Hashable {
     var options: [String]?
     var `default`: String?
     var help: String?
+    var profile: String?
 }
 
 struct EzyAppDetail: Codable {
@@ -386,6 +387,28 @@ enum EzyLink {
         }
     }
 
+    /// The person's saved business details on ezyourlife.com (business name, city, GSTIN…), used to fill app boxes.
+    @Published var profile: [String: String] = [:]
+    private var profileLoaded: Date?
+
+    func refreshProfile(force: Bool = false) async {
+        guard isConnected else { return }
+        if !force, let t = profileLoaded, Date().timeIntervalSince(t) < 600 { return }
+        guard let r = try? await request("/profile"), let p = r["profile"] as? [String: Any] else { return } // older API: no profile, nothing to fill
+        profile = p.compactMapValues { ($0 as? String).flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 } }
+        profileLoaded = Date()
+    }
+
+    /// Answers typed last time for this app (not kept for apps that hold personal text).
+    func lastValues(_ appID: String) -> [String: String] {
+        (UserDefaults.standard.dictionary(forKey: "ezyLast." + appID) as? [String: String]) ?? [:]
+    }
+    func rememberValues(_ appID: String, _ values: [String: String], fields: [EzyField]) {
+        var keep = [String: String]()
+        for f in fields where f.type != "textarea" && f.type != "rows" { if let v = values[f.key], !v.isEmpty, v.count < 200 { keep[f.key] = v } }
+        UserDefaults.standard.set(keep, forKey: "ezyLast." + appID)
+    }
+
     func search(_ q: String) async -> [EzyApp] {
         let encoded = q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         guard let r = try? await request("/apps?runnable=true&limit=8&q=\(encoded)", auth: false) else { return rank(q) }
@@ -505,6 +528,7 @@ enum EzyLink {
     @Published var message = ""
     @Published var topupURL: String?
     @Published var refineText = ""
+    @Published var filledNote = ""
     @Published var variant = ""
     @Published var style = ""
     @Published var aspect = ""
@@ -514,7 +538,7 @@ enum EzyLink {
 
     func reset() {
         phase = .ask; question = ""; matches = []; detail = nil; values = [:]; fixed = []; output = ""; imageDataURL = nil
-        message = ""; topupURL = nil; refineText = ""; template = ""; request = ""; chatText = ""; variant = ""; style = ""; aspect = ""
+        message = ""; topupURL = nil; refineText = ""; template = ""; request = ""; chatText = ""; variant = ""; style = ""; aspect = ""; filledNote = ""
     }
 
     func findApps() async {
@@ -533,9 +557,17 @@ enum EzyLink {
         do {
             let d = try await api.detail(appID)
             detail = d
+            await api.refreshProfile()
+            let last = api.lastValues(appID)
             var v = [String: String]()
-            for f in d.fields ?? [] { if let def = f.default { v[f.key] = def } }
+            var fromProfile = [String]()
+            for f in d.fields ?? [] {
+                if let def = f.default { v[f.key] = def }
+                if let saved = last[f.key], !saved.isEmpty { v[f.key] = saved }
+                if let pk = f.profile, let known = api.profile[pk], !known.isEmpty { v[f.key] = known; fromProfile.append(f.label) }
+            }
             for (k, val) in preset { v[k] = val }
+            filledNote = fromProfile.isEmpty ? "" : "Filled from your Ezyourlife profile: " + fromProfile.joined(separator: ", ")
             values = v
             fixed = Set(preset.filter { !$0.value.isEmpty }.map { $0.key })
             self.template = template
@@ -574,6 +606,7 @@ enum EzyLink {
             }
             output = r.text
             imageDataURL = r.imageDataURL
+            api.rememberValues(d.id, values, fields: d.fields ?? [])
             message = "\(ezyCredits(r.credits)) used" + (r.balance.map { " · \($0) left" } ?? "")
         } catch let EzyError.server(_, msg, topup) {
             message = msg; topupURL = topup
@@ -745,6 +778,7 @@ struct EzyRunPanelView: View {
     @ObservedObject var api = Ezyourlife.shared
     var close: () -> Void
     var paste: () -> Void
+    var runAndPaste: () -> Void = {}
     var save: (Clip) -> Void
     @FocusState private var askFocused: Bool
 
@@ -774,9 +808,12 @@ struct EzyRunPanelView: View {
                 askBody
             } else {
                 ScrollView { EzyFieldsForm(model: model).padding(2) }.frame(maxHeight: 300)
+                if !model.filledNote.isEmpty { Text(model.filledNote).font(.system(size: 11, weight: .semibold)).foregroundStyle(EzyColor.muted) }
                 HStack {
-                    Button(model.busy ? "Working…" : "\(model.detail?.cta ?? "Make it") · \(ezyCredits(model.detail?.credits))") { Task { await model.runApp() } }
-                        .buttonStyle(EzyButtonStyle()).disabled(model.busy || !api.isConnected).keyboardShortcut(.defaultAction)
+                    Button(model.busy ? "Working…" : "Run and paste · \(ezyCredits(model.detail?.credits))") { runAndPaste() }
+                        .buttonStyle(EzyButtonStyle()).disabled(model.busy || !api.isConnected || !model.missingRequired.isEmpty).keyboardShortcut(.defaultAction)
+                    Button("Preview first") { Task { await model.runApp() } }
+                        .buttonStyle(EzyButtonStyle(fill: .white)).disabled(model.busy || !api.isConnected)
                     if !model.missingRequired.isEmpty { Text("Not filled: \(model.missingRequired.joined(separator: ", "))").font(.caption).foregroundStyle(EzyColor.muted).lineLimit(1) }
                     Spacer()
                     if let w = api.wallet { Text("\(w.balance) credits").font(.system(size: 12, weight: .semibold)) }
@@ -868,6 +905,7 @@ struct EzyRunPanelView: View {
             p.isMovableByWindowBackground = true
             p.delegate = self
             let view = EzyRunPanelView(model: model, close: { [weak self] in self?.hide() }, paste: { [weak self] in self?.pasteResult() },
+                                       runAndPaste: { [weak self] in self?.runAndPaste() },
                                        save: { [weak self] clip in self?.saveShortcut?(clip); self?.model.message = "Saved as \(displayTrigger(clip.key))" })
             let host = NSHostingView(rootView: view.ezyLight())
             host.sizingOptions = [.preferredContentSize]
@@ -885,9 +923,28 @@ struct EzyRunPanelView: View {
     func pasteResult() {
         let text = model.finalText
         guard !text.isEmpty else { return }
+        saveResultToLibrary(text)
         let app = returnApp, count = removeCount
         hide()
         EzyPaste.paste(text, into: app, removeCount: count)
+    }
+
+    /// One click: run the app, then paste its answer where the person was typing.
+    func runAndPaste() {
+        Task {
+            await model.runApp()
+            if !model.output.isEmpty { pasteResult() }
+        }
+    }
+
+    /// Every pasted answer is kept as a shortcut in "Ezyourlife results", so it syncs to the cloud with the rest of the library.
+    private func saveResultToLibrary(_ text: String) {
+        guard let d = model.detail, model.imageDataURL == nil else { return }
+        let stamp = DateFormatter(); stamp.dateFormat = "yyMMdd-HHmmss"
+        let nice = DateFormatter(); nice.dateFormat = "d MMM, h:mm a"
+        let key = "/ezr-" + d.id + "-" + stamp.string(from: Date())
+        let clip = Clip(key: key, name: "\(d.name) · \(nice.string(from: Date()))", text: text, group: "Ezyourlife results")
+        saveShortcut?(clip)
     }
 
     func hide() { panel?.orderOut(nil) }
