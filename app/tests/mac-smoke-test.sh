@@ -92,6 +92,16 @@ defaults write com.ezme.mac EzMeAutoInstallUpdate -bool NO
 stop_app
 kill $SERVER 2>/dev/null
 
+# 3b. Signed-in screens (screenshot mode: throwaway profile, no cloud)
+EZME_UI_PREVIEW=1 /Applications/EzMe.app/Contents/MacOS/EzMe >/dev/null 2>&1 &
+PREVIEW_PID=$!
+sleep 15
+if kill -0 "$PREVIEW_PID" 2>/dev/null; then pass "signed-in Home screen opens"; else fail "EzMe quit while showing the Home screen"; fi
+osascript -e 'tell application "EzMe" to activate' >/dev/null 2>&1; sleep 2
+screencapture -x "$OUT/3-home.png" 2>/dev/null
+kill "$PREVIEW_PID" 2>/dev/null; sleep 2; pkill -x EzMe 2>/dev/null
+rm -rf ~/Library/Application\ Support/MiniJ/Profiles/"$(printf 'preview@ezme.test' | base64 | tr '/+' '_-' | tr -d '=')" 2>/dev/null
+
 # 4. Crash reports
 if ls ~/Library/Logs/DiagnosticReports/EzMe* >/dev/null 2>&1; then
   fail "crash report found"; cp ~/Library/Logs/DiagnosticReports/EzMe* "$OUT/" 2>/dev/null

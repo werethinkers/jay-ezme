@@ -40,6 +40,7 @@ final class EzMeCloud: ObservableObject {
     nonisolated static let bucket = "ezme-media"
     private static let sessionAccount = "ezme.cloud.session"
     private static let settingsPath = "settings.plist"
+    private static let secretsPath = "keys.plist"
     private static let manifestName = ".ezme-sync-manifest.json"
     private static let profileToken = "{{EZME_PROFILE}}"
 
@@ -190,6 +191,7 @@ final class EzMeCloud: ObservableObject {
             try? FileManager.default.removeItem(at: Self.profileDirectory(identity: session.email))
         }
         for key in Self.syncedDefaultsKeys() { UserDefaults.standard.removeObject(forKey: key) }
+        for account in Self.syncedKeychainAccounts() { _ = KeyStore.save("", account: account) }
         _ = KeyStore.save("", account: Self.sessionAccount)
         session = nil
         profile = nil
@@ -283,6 +285,15 @@ final class EzMeCloud: ObservableObject {
             manifest[Self.settingsPath] = ManifestEntry(sha: settingsSHA, remote: settingsSHA)
         }
 
+        // AI provider keys and other EzMe Keychain items, so they follow the account too.
+        let secrets = Self.secretsSnapshot()
+        let secretsSHA = Self.sha256(secrets)
+        seenText.insert(Self.secretsPath)
+        if manifest[Self.secretsPath]?.sha != secretsSHA {
+            try await upsertFile(path: Self.secretsPath, content: secrets, sha: secretsSHA, session: session)
+            manifest[Self.secretsPath] = ManifestEntry(sha: secretsSHA, remote: secretsSHA)
+        }
+
         // Everything in subfolders (attachments, media) goes to storage.
         var seenMedia = Set<String>()
         for (path, url) in mediaFiles(in: folder) {
@@ -327,6 +338,8 @@ final class EzMeCloud: ObservableObject {
             let local = detokenize(content, folder: folder, json: file.path.hasSuffix(".json"))
             if file.path == Self.settingsPath {
                 Self.applySettings(local)
+            } else if file.path == Self.secretsPath {
+                Self.applySecrets(content)
             } else if Self.isSafeRelativePath(file.path) {
                 try local.write(to: folder.appendingPathComponent(file.path), atomically: true, encoding: .utf8)
             }
@@ -334,7 +347,7 @@ final class EzMeCloud: ObservableObject {
             changed = true
         }
         for key in manifest.keys where !key.hasPrefix("media:") && !remotePaths.contains(key) && manifest[key]?.remote != nil {
-            if key != Self.settingsPath { try? fm.removeItem(at: folder.appendingPathComponent(key)) }
+            if key != Self.settingsPath && key != Self.secretsPath { try? fm.removeItem(at: folder.appendingPathComponent(key)) }
             manifest[key] = nil
             changed = true
         }
@@ -436,6 +449,28 @@ final class EzMeCloud: ObservableObject {
               let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any] else { return }
         let defaults = UserDefaults.standard
         for (key, value) in values where !localOnlyKeys.contains(key) { defaults.set(value, forKey: key) }
+    }
+
+    // MARK: - Keychain items (AI keys and similar)
+
+    /// Keychain items that travel with the account. The sign-in session and old local passwords stay out.
+    static func syncedKeychainAccounts() -> [String] {
+        KeyStore.allAccounts().filter { $0 != sessionAccount && !$0.hasPrefix("ezme.local.user.") }
+    }
+
+    static func secretsSnapshot() -> String {
+        var values: [String: String] = [:]
+        for account in syncedKeychainAccounts() { if let value = KeyStore.load(account: account), !value.isEmpty { values[account] = value } }
+        guard let data = try? PropertyListSerialization.data(fromPropertyList: values, format: .xml, options: 0) else { return "" }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    static func applySecrets(_ text: String) {
+        guard let data = text.data(using: .utf8),
+              let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: String] else { return }
+        for (account, value) in values where account != sessionAccount && !account.hasPrefix("ezme.local.user.") {
+            if KeyStore.load(account: account) != value { _ = KeyStore.save(value, account: account) }
+        }
     }
 
     // MARK: - Paths
@@ -707,7 +742,7 @@ struct EzMeCloudSignInView: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).frame(maxWidth: 460)
             }
             Spacer()
-            Text("Your workspace is stored in your private EzMe cloud account. When you sign out, EzMe removes it from this Mac. AI provider keys stay in this Mac's Keychain.")
+            Text("Everything you save, including your AI keys, lives in your private EzMe cloud account. When you sign out, EzMe removes it from this Mac.")
                 .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 520).padding(.bottom, 24)
         }
         .padding(28)
