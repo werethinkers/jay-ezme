@@ -271,7 +271,7 @@ struct EzMeMapCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Where things live").font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 12)], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
                 ForEach(areas, id: \.0) { area in
                     Button { go(area.1) } label: {
                         VStack(alignment: .leading, spacing: 6) {
