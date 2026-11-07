@@ -27,4 +27,4 @@ Repo `werethinkers/jay-ezme` is the single source of truth. Work on `main` only.
 
 ## Known
 
-- Branch `claude/ezme-cloud-sync` (3.41, Google sign-in and cloud sync) is separate work. Do not merge it unless asked, and keep `VERSION` below 3.41 on `main` until it lands.
+- 3.41 adds cloud sync with email-and-password accounts (Supabase Auth in the EzMe Marketing Backend). Google sign-in was tried and dropped on 2026-11-07. The Mac smoke test checks that email sign-in is enabled.
