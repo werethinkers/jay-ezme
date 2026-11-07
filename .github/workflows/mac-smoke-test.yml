@@ -1,0 +1,43 @@
+name: Test EzMe on a Mac
+
+# Builds EzMe, installs it on a GitHub macOS machine, checks it launches and keeps running,
+# and checks the in-app updater installs a newer build and relaunches. Screenshots and logs
+# are kept as an artifact.
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/mac-smoke-test.yml"
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: BUILD_NUMBER=$((5000 + GITHUB_RUN_NUMBER)) OUT_DIR="$RUNNER_TEMP/out" ./app/build.sh
+
+      - name: Install, launch and update
+        run: ./app/tests/mac-smoke-test.sh "$RUNNER_TEMP/out/EzMe-$(tr -d '[:space:]' < app/VERSION)-macOS.zip" "$RUNNER_TEMP/results"
+
+      - name: Keep screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EzMe-mac-test-results
+          path: ${{ runner.temp }}/results
+          retention-days: 14
+
+      - name: Print small screenshots
+        if: always()
+        run: |
+          for f in "$RUNNER_TEMP"/results/*.png; do
+            [ -f "$f" ] || continue
+            sips -Z 900 -s format jpeg -s formatOptions 45 "$f" --out "$f.jpg" >/dev/null
+            echo "=== SCREENSHOT $(basename "$f") ==="
+            base64 -b 0 -i "$f.jpg"; echo
+            echo "=== END SCREENSHOT ==="
+          done

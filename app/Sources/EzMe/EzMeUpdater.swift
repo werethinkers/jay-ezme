@@ -54,7 +54,7 @@ final class EzMeUpdater: ObservableObject {
     /// and the person has not chosen to skip that build.
     func checkOnLaunch() {
         let last = UserDefaults.standard.double(forKey: lastCheckKey)
-        guard Date().timeIntervalSince1970 - last > 6 * 3600 else { return }
+        guard Self.testFeedURL != nil || Date().timeIntervalSince1970 - last > 6 * 3600 else { return }
         Task { await check(userInitiated: false) }
     }
 
@@ -69,9 +69,14 @@ final class EzMeUpdater: ObservableObject {
         phase = .checking
         do {
             // Ask the database and the website feed together and take the newest build either one knows.
-            async let fromDatabase = Self.fetchFromDatabase()
-            async let fromWebsite = Self.fetchFromWebsite()
-            let candidates = [await fromDatabase, await fromWebsite].compactMap { $0 }
+            let candidates: [EzMeUpdateManifest]
+            if let testFeed = Self.testFeedURL {
+                candidates = [await Self.fetchFromWebsite(testFeed)].compactMap { $0 }
+            } else {
+                async let fromDatabase = Self.fetchFromDatabase()
+                async let fromWebsite = Self.fetchFromWebsite(Self.feedURL)
+                candidates = [await fromDatabase, await fromWebsite].compactMap { $0 }
+            }
             guard let manifest = candidates.max(by: { $0.build < $1.build }) else {
                 throw EzMeUpdateError.message("The update server did not answer. Check your connection and try again.")
             }
@@ -82,12 +87,25 @@ final class EzMeUpdater: ObservableObject {
                 phase = .available(manifest)
                 let skipped = UserDefaults.standard.integer(forKey: skippedBuildKey)
                 if userInitiated || skipped != manifest.build { showSheet = true }
+                if Self.testFeedURL != nil && UserDefaults.standard.bool(forKey: "EzMeAutoInstallUpdate") { install() }
             } else {
                 phase = .upToDate
             }
         } catch {
             phase = userInitiated ? .failed(Self.describe(error)) : .idle
         }
+    }
+
+    /// Test hook used by the Mac smoke test: a feed on this Mac only (http://127.0.0.1 or localhost),
+    /// set with `defaults write com.ezme.mac EzMeUpdateFeed <url>`. Ignored for any other host.
+    nonisolated static var testFeedURL: URL? {
+        guard let value = UserDefaults.standard.string(forKey: "EzMeUpdateFeed"), let url = URL(string: value),
+              isLocalTestURL(url) else { return nil }
+        return url
+    }
+
+    nonisolated static func isLocalTestURL(_ url: URL) -> Bool {
+        url.scheme == "http" && (url.host == "127.0.0.1" || url.host == "localhost")
     }
 
     nonisolated static var userAgent: String {
@@ -114,8 +132,8 @@ final class EzMeUpdater: ObservableObject {
     }
 
     /// update/latest.json on the website (fallback when the database can't be reached).
-    nonisolated static func fetchFromWebsite() async -> EzMeUpdateManifest? {
-        var request = URLRequest(url: feedURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+    nonisolated static func fetchFromWebsite(_ feed: URL) async -> EzMeUpdateManifest? {
+        var request = URLRequest(url: feed, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         guard let result = try? await URLSession.shared.data(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
@@ -160,7 +178,7 @@ final class EzMeUpdater: ObservableObject {
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("EzMeUpdate-\(UUID().uuidString)", isDirectory: true)
         do {
-            guard let url = URL(string: manifest.url), url.scheme == "https" else {
+            guard let url = URL(string: manifest.url), url.scheme == "https" || (Self.testFeedURL != nil && Self.isLocalTestURL(url)) else {
                 throw EzMeUpdateError.message("The update link is not secure.")
             }
             try fm.createDirectory(at: work, withIntermediateDirectories: true)
