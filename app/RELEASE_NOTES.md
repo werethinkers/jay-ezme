@@ -1,2 +1,5 @@
-- Fixed: installing an update now always closes the old copy of EzMe and opens the new one.
-- Build numbers in the update window no longer show a thousands separator.
+- New: sign in with Google. Your shortcuts, collections, records, media and settings are stored in your private EzMe cloud account and sync across your Macs.
+- Changes upload within a few seconds and other Macs pick them up within a minute (or when you switch back to EzMe).
+- Signing out removes your workspace from this Mac.
+- If you used a local EzMe account before, your shortcuts move to your cloud account the first time you sign in.
+- AI provider keys stay in each Mac's Keychain.
