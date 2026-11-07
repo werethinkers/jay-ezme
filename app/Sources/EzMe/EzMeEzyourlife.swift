@@ -225,7 +225,7 @@ enum EzyLink {
     @Published var status = ""
     @Published var isConnecting = false
     private var authSession: ASWebAuthenticationSession?
-    private let presenter = EzMeAuthPresenter()
+    private let presenter = EzyAuthPresenter()
     private var loadingCatalogue = false
 
     var isConnected: Bool { !(apiKey ?? "").isEmpty }
@@ -1103,5 +1103,11 @@ struct EzyCreditsView: View {
             .padding(16).ezyBlock(EzyColor.cream, radius: 16, shadow: 3)
         }
         .task { await api.refreshWallet() }
+    }
+}
+
+final class EzyAuthPresenter: NSObject, ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        NSApp.keyWindow ?? NSApp.windows.first ?? ASPresentationAnchor()
     }
 }

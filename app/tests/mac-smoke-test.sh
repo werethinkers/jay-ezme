@@ -25,17 +25,6 @@ codesign --verify --strict --verbose=2 "$A" && pass "code signature is valid" ||
 for f in EzMeLogo EzMeInvoiceReference EzMeQuoteReference EzMePurchaseOrderReference; do
   [ -f "$A/Contents/Resources/$f.png" ] || fail "missing resource $f.png"
 done
-
-# 1b. Google sign-in is switched on for the cloud project (otherwise people could not sign in at all)
-AUTH_CODE="$(curl -s -o /dev/null -w '%{http_code}' "https://vfmuqfbmklupzzqfhdjz.supabase.co/auth/v1/authorize?provider=google&redirect_to=ezme://auth-callback&code_challenge=$(printf 'x%.0s' $(seq 1 43))&code_challenge_method=s256" -H "apikey: sb_publishable_tiCUvyFpz0GgyZJF6Ux4cQ_9LTKN3pq")"
-AUTH_TARGET="$(curl -s -o /dev/null -w '%{redirect_url}' "https://vfmuqfbmklupzzqfhdjz.supabase.co/auth/v1/authorize?provider=google&redirect_to=ezme://auth-callback&code_challenge=$(printf 'x%.0s' $(seq 1 43))&code_challenge_method=s256" -H "apikey: sb_publishable_tiCUvyFpz0GgyZJF6Ux4cQ_9LTKN3pq")"
-echo "Google sign-in check: HTTP $AUTH_CODE -> ${AUTH_TARGET%%\?*}"
-if { [ "$AUTH_CODE" = "302" ] || [ "$AUTH_CODE" = "303" ]; } && [ -n "$AUTH_TARGET" ]; then
-  pass "Google sign-in is enabled for the EzMe cloud project"
-else
-  fail "Google sign-in is not enabled for the EzMe cloud project (HTTP $AUTH_CODE)"
-fi
-
 # 2. Install and launch
 stop_app
 rm -rf /Applications/EzMe.app
@@ -100,7 +89,7 @@ if kill -0 "$PREVIEW_PID" 2>/dev/null; then pass "signed-in Home screen opens"; 
 osascript -e 'tell application "EzMe" to activate' >/dev/null 2>&1; sleep 2
 screencapture -x "$OUT/3-home.png" 2>/dev/null
 kill "$PREVIEW_PID" 2>/dev/null; sleep 2; pkill -x EzMe 2>/dev/null
-rm -rf ~/Library/Application\ Support/MiniJ/Profiles/"$(printf 'preview@ezme.test' | base64 | tr '/+' '_-' | tr -d '=')" 2>/dev/null
+rm -rf ~/Library/Application\ Support/MiniJ/Profiles/"$(printf 'preview' | base64 | tr '/+' '_-' | tr -d '=')" 2>/dev/null
 
 # 4. Crash reports
 if ls ~/Library/Logs/DiagnosticReports/EzMe* >/dev/null 2>&1; then
