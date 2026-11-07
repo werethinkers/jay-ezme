@@ -48,6 +48,9 @@ enum ButterNav {
 struct ButterTopBar: View {
     @Binding var section: String
     var browserPanelVisible: Bool
+    var browserWidth: CGFloat
+    var onPanelSize: (CGFloat) -> Void
+    var onFullScreen: () -> Void
     var onToggleBrowser: () -> Void
     var onOpen: (String) -> Void
 
@@ -78,17 +81,28 @@ struct ButterTopBar: View {
                 }
                 Spacer()
                 ButterUpdateButton()
-                Button(action: onToggleBrowser) {
+                Menu {
+                    Button(browserPanelVisible ? "Hide browser panel" : "Show browser panel", action: onToggleBrowser)
+                    Divider()
+                    Button("Small panel") { onPanelSize(360) }
+                    Button("Medium panel") { onPanelSize(560) }
+                    Button("Large panel") { onPanelSize(820) }
+                    Button("Huge panel") { onPanelSize(1100) }
+                    Divider()
+                    Button("Full screen browser") { onFullScreen() }
+                } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "sidebar.right")
-                        Text(browserPanelVisible ? "Hide browser" : "Browser panel")
+                        Text(browserPanelVisible ? "Browser panel" : "Browser")
                     }
                     .font(.system(size: 12, weight: .semibold))
                     .padding(.horizontal, 11).padding(.vertical, 6)
                     .foregroundStyle(Butter.cocoa)
                     .overlay(Capsule().stroke(Butter.honey, lineWidth: 1.5))
                 }
-                .buttonStyle(.plain)
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
             }
             .padding(.horizontal, 18).padding(.vertical, 10)
 
@@ -244,5 +258,27 @@ struct ButterUpdateButton: View {
         }
         .buttonStyle(.plain)
         .help("Version \(updater.currentVersion) (build \(updater.currentBuild))")
+    }
+}
+
+/// Drag this thin bar to make the browser panel as wide as you like.
+struct ButterResizeHandle: View {
+    @Binding var width: CGFloat
+    @State private var startWidth: CGFloat?
+
+    var body: some View {
+        Rectangle()
+            .fill(Butter.honey)
+            .frame(width: 5)
+            .overlay(Capsule().fill(Butter.cocoa.opacity(0.35)).frame(width: 3, height: 36))
+            .contentShape(Rectangle())
+            .onHover { inside in if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() } }
+            .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                .onChanged { value in
+                    if startWidth == nil { startWidth = width }
+                    width = min(1400, max(320, (startWidth ?? width) - value.translation.width))
+                }
+                .onEnded { _ in startWidth = nil })
+            .help("Drag to resize the browser")
     }
 }
