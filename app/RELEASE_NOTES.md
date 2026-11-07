@@ -1,8 +1,4 @@
-- New: sign in with Google. Your shortcuts, collections, records, media, settings and AI keys are stored in your private EzMe cloud account and sync across your Macs.
-- Changes upload within a few seconds and other Macs pick them up within a minute (or when you switch back to EzMe).
-- Signing out removes your workspace and keys from this Mac.
-- If you used a local EzMe account before, your shortcuts move to your cloud account the first time you sign in.
 - New: phrase search. Type \ and describe what you want ("80s picture", "bank details") and EzMe finds the shortcut, even if you forgot its name.
-- New: guessable shortcut names. EzMe suggests a name from what the shortcut is, using one simple rule ("80's picture" becomes \80spic).
-- New Home screen and a tidier sidebar, grouped into Your library, Create, Apps & web and Setup.
+- New: guessable shortcut names. EzMe suggests a name from what the shortcut is, using one simple rule ("80's picture" becomes \80spic) and warns you if it is already taken.
+- New: Home screen with a search box and a short map of where things live, and a sidebar grouped into Your library, Create, Apps & web and Setup.
 - Changed: App Builder steps now run Action, Information, Collection, Function, Selection. Formula is now called Function and Template is now called Selection.

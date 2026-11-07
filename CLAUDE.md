@@ -27,4 +27,4 @@ Repo `werethinkers/jay-ezme` is the single source of truth. Work on `main` only.
 
 ## Known
 
-- Branch `claude/ezme-cloud-sync` (3.41, Google sign-in and cloud sync) is separate work. Do not merge it unless asked, and keep `VERSION` below 3.41 on `main` until it lands.
+- Google sign-in and cloud sync were tried in 3.41 and removed on 2026-11-07 (Abhi: "creating chaos"). Accounts are local again. The `workspace_files` table and `ezme-media` bucket from `backend/0002_cloud_workspace.sql` exist in the database but nothing uses them. Bring cloud sync back only when asked, and enable Google plus the `ezme://auth-callback` redirect first.
