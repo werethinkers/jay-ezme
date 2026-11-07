@@ -1,9 +1,9 @@
 {
   "version": "3.40",
-  "build": 176,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.40-build176/EzMe-3.40-macOS.zip",
-  "sha256": "a782288025cdda019d36719bb1c67d819a8f64b84c413a549d8caaae1b15d2e8",
+  "build": 182,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.40-build182/EzMe-3.40-macOS.zip",
+  "sha256": "b18ed9e324979f7061d273320f133f2ad2dee4122bee0c6596092e1661ffdb61",
   "notes": "- Fixed: installing an update now always closes the old copy of EzMe and opens the new one.\n- Build numbers in the update window no longer show a thousands separator.",
-  "published": "2026-11-07T09:00:55Z",
+  "published": "2026-11-07T10:43:35Z",
   "minimumSystemVersion": "14.0"
 }
