@@ -1,9 +1,9 @@
 {
-  "version": "3.38",
-  "build": 168,
-  "url": "https://ezme.ezyourlife.com/downloads/EzMe-3.38-macOS.zip",
-  "sha256": "907f6151a870ee8f4c4b04fe6d4b2ba70f3cec2cfc271d3ac610db9765e5f9cc",
-  "notes": "",
-  "published": "2026-11-07T00:00:00Z",
+  "version": "3.39",
+  "build": 171,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.39-build171/EzMe-3.39-macOS.zip",
+  "sha256": "3c563c4738e8ce5e4efb98ff6e82a26f2d7dd005d3c158ae1fc4e0ac611356af",
+  "notes": "- New: EzMe now updates itself. Use \"Check for updates\" in the sidebar or EzMe > Check for Updates\u2026 in the menu bar.\n- Updates download from ezme.ezyourlife.com, are checked, installed in place and EzMe reopens. Your shortcuts and settings are kept.",
+  "published": "2026-11-07T08:19:58Z",
   "minimumSystemVersion": "14.0"
 }
