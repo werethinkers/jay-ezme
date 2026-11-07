@@ -48,13 +48,20 @@ struct EzyBlock: ViewModifier {
     var radius: CGFloat = 14
     var shadow: CGFloat = 3
     func body(content: Content) -> some View {
+        // Later .background layers sit behind earlier ones, so the card fill goes first and the hard shadow last.
         content
-            .background(RoundedRectangle(cornerRadius: radius).fill(EzyColor.ink).offset(x: shadow, y: shadow))
+            .foregroundStyle(EzyColor.ink)
+            .environment(\.colorScheme, .light)
             .background(RoundedRectangle(cornerRadius: radius).fill(fill))
             .overlay(RoundedRectangle(cornerRadius: radius).stroke(EzyColor.ink, lineWidth: 2))
+            .background(RoundedRectangle(cornerRadius: radius).fill(EzyColor.ink).offset(x: shadow, y: shadow))
     }
 }
 extension View {
+    /// Ezyourlife screens always use the light sticker-sheet look, whatever the Mac's appearance is.
+    func ezyLight() -> some View {
+        self.environment(\.colorScheme, .light).foregroundStyle(EzyColor.ink).tint(EzyColor.ink)
+    }
     func ezyBlock(_ fill: Color = .white, radius: CGFloat = 14, shadow: CGFloat = 3) -> some View { modifier(EzyBlock(fill: fill, radius: radius, shadow: shadow)) }
 }
 
@@ -862,7 +869,7 @@ struct EzyRunPanelView: View {
             p.delegate = self
             let view = EzyRunPanelView(model: model, close: { [weak self] in self?.hide() }, paste: { [weak self] in self?.pasteResult() },
                                        save: { [weak self] clip in self?.saveShortcut?(clip); self?.model.message = "Saved as \(displayTrigger(clip.key))" })
-            let host = NSHostingView(rootView: view)
+            let host = NSHostingView(rootView: view.ezyLight())
             host.sizingOptions = [.preferredContentSize]
             p.contentView = host
             panel = p
@@ -935,7 +942,7 @@ struct EzyAppsView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Ezyourlife apps").font(.system(size: 26, weight: .heavy))
                     Text("\(api.catalogue.filter { $0.runnable }.count) apps you can run from EzMe. Pick one, fill the boxes, and paste or save the result.")
-                        .font(.system(size: 13)).foregroundStyle(.secondary)
+                        .font(.system(size: 13)).foregroundStyle(EzyColor.muted)
                 }
                 Spacer()
                 if let w = api.wallet { EzyBadge(text: "\(w.balance) credits", fill: EzyColor.lime) }
@@ -972,7 +979,7 @@ struct EzyAppsView: View {
                     .ezyBlock(EzyColor.cream, radius: 16, shadow: 4)
                 }
             }
-            if api.catalogue.isEmpty { HStack { ProgressView().controlSize(.small); Text("Loading apps from ezyourlife.com…").foregroundStyle(.secondary) } }
+            if api.catalogue.isEmpty { HStack { ProgressView().controlSize(.small); Text("Loading apps from ezyourlife.com…").foregroundStyle(EzyColor.muted) } }
         }
         .task { await api.refreshCatalogue(); await api.refreshWallet() }
     }
