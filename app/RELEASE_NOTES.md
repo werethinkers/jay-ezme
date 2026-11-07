@@ -1,2 +1,1 @@
-- Fixed: installing an update now always closes the old copy of EzMe and opens the new one.
-- Build numbers in the update window no longer show a thousands separator.
+- Changed: App Builder steps now run Action, Information, Collection, Function, Selection. Formula is now called Function and Template is now called Selection.
