@@ -1,1 +1,2 @@
-- Fixed: the "Check for updates" button is back, in the top bar next to Browser panel. It turns coral and says "Update ready" when a new build is out. It is also in the EzMe menu at the top of your Mac screen.
+- Browser: pick your own size. The "Browser" button in the top bar now has Small, Medium, Large and Huge panels, and you can also drag the thin bar on the panel edge to any width.
+- Browser: new Full screen mode. It fills the screen and keeps only a thin tab row and address bar, with no frames around them. Press Esc or the small "Exit full screen" button to come back.
