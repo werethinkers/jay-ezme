@@ -25,6 +25,13 @@ codesign --verify --strict --verbose=2 "$A" && pass "code signature is valid" ||
 for f in EzMeLogo EzMeInvoiceReference EzMeQuoteReference EzMePurchaseOrderReference; do
   [ -f "$A/Contents/Resources/$f.png" ] || fail "missing resource $f.png"
 done
+
+# 1b. Email sign-in is switched on for the cloud project
+SETTINGS="$(curl -s "https://vfmuqfbmklupzzqfhdjz.supabase.co/auth/v1/settings" -H 'apikey: sb_publishable_tiCUvyFpz0GgyZJF6Ux4cQ_9LTKN3pq')"
+echo "Auth settings: $(echo "$SETTINGS" | head -c 600)"
+if echo "$SETTINGS" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('external',{}).get('email') and not d.get('disable_signup') else 1)"; then pass "email sign-in is enabled for the EzMe cloud project"; else fail "email sign-in is not enabled for the EzMe cloud project"; fi
+if echo "$SETTINGS" | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get('mailer_autoconfirm') else 1)"; then echo "INFO: new accounts sign in right away"; else echo "INFO: new accounts confirm their email first, then sign in"; fi
+
 # 2. Install and launch
 stop_app
 rm -rf /Applications/EzMe.app
@@ -89,7 +96,7 @@ if kill -0 "$PREVIEW_PID" 2>/dev/null; then pass "signed-in Home screen opens"; 
 osascript -e 'tell application "EzMe" to activate' >/dev/null 2>&1; sleep 2
 screencapture -x "$OUT/3-home.png" 2>/dev/null
 kill "$PREVIEW_PID" 2>/dev/null; sleep 2; pkill -x EzMe 2>/dev/null
-rm -rf ~/Library/Application\ Support/MiniJ/Profiles/"$(printf 'preview' | base64 | tr '/+' '_-' | tr -d '=')" 2>/dev/null
+rm -rf ~/Library/Application\ Support/MiniJ/Profiles/"$(printf 'preview@ezme.test' | base64 | tr '/+' '_-' | tr -d '=')" 2>/dev/null
 
 # 4. Crash reports
 if ls ~/Library/Logs/DiagnosticReports/EzMe* >/dev/null 2>&1; then
