@@ -319,6 +319,7 @@ enum EzMeNavigation {
             Item(id: "Ez Studio", title: "Ez Studio", hint: "Make and edit images"),
             Item(id: "Shortcut ideas", title: "Ideas", hint: "Ready-made shortcuts to start from"),
             Item(id: "Marketplace", title: "Marketplace", hint: "Install or share collections"),
+            Item(id: "Ezyourlife apps", title: "Ezyourlife apps", hint: "Run ezyourlife.com apps and PromptMaster"),
         ]),
         Area(title: "APPS & WEB", items: [
             Item(id: "Apps & links", title: "Apps & links", hint: "Open websites and apps by name"),
@@ -327,6 +328,7 @@ enum EzMeNavigation {
         ]),
         Area(title: "SETUP", items: [
             Item(id: "API configuration", title: "AI keys", hint: "Connect OpenAI, Gemini, Claude and others"),
+            Item(id: "Ezyourlife credits", title: "Credits", hint: "Your Ezyourlife wallet, top-ups and shortcut sync"),
             Item(id: "Settings", title: "Account & settings", hint: "Your cloud account, theme and data"),
             Item(id: "User guide", title: "Guide", hint: "How EzMe works"),
         ]),

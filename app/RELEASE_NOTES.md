@@ -5,3 +5,7 @@
 - New: phrase search. Type \ and describe what you want ("80s picture", "bank details") and EzMe finds the shortcut, even if you forgot its name.
 - New: guessable shortcut names. EzMe suggests a name from what the shortcut is, using one simple rule ("80's picture" becomes \80spic).
 - New Home screen and a tidier sidebar, grouped into Your library, Create, Apps & web and Setup.
+- New: Ezyourlife apps inside EzMe. Connect your ezyourlife.com account once and every Ezyourlife app shows up when you type \ (for example \invoice). Pick one, fill its boxes and the answer is pasted where you were typing.
+- New: Ask bar. Press Option-Space anywhere, say what you need, and EzMe finds the right Ezyourlife app or improves your prompt with PromptMaster (magic write and brainstorm).
+- New: Ezyourlife apps tab (under Create) to browse apps by goal, run them, and save any app with your usual answers as a shortcut of your own.
+- New: Credits page (under Setup) shows your Ezyourlife wallet, recent charges and top-up packs, and syncs your shortcuts with the Ezyourlife extension and Speedy Notebook. Apps use the same credits and prices as the website, and a failed run costs nothing.
