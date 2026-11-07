@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>EzMe: Type a backslash. Ho gaya!</title>
+<meta name="description" content="EzMe for Mac turns a backslash and a short key into saved text, media, live values, calculations and AI-written documents, in any app. Local by default.">
+<link rel="canonical" href="https://ezme.ezyourlife.com/">
+<meta name="theme-color" content="#F8F5FC">
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="EzMe">
+<meta property="og:title" content="EzMe: Type a backslash. Ho gaya!">
+<meta property="og:description" content="Shortcuts, live values, a built-in calculator and AI builders for your Mac. Your library stays on your Mac.">
+<meta property="og:url" content="https://ezme.ezyourlife.com/">
+<meta property="og:image" content="https://ezme.ezyourlife.com/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+html{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}
+/* Layout: light lavender ground, dark "night" bands for AI and live values, one interactive demo as the hero's centre of gravity.
+   Single look by choice: the logo is violet and gold ink and needs a light ground. */
+:root{
+  --ground:#F8F5FC; --panel:#FFFFFF; --line:#E4DBF1; --line-2:#D3C6E8;
+  --ink:#1D1035; --ink-2:#51446E; --ink-3:#7A6E94;
+  --violet:#5B2A9E; --violet-soft:#EEE6FA;
+  --gold:#B26A00; --gold-bright:#F2B33D; --gold-soft:#FCEFD3;
+  --night:#150C2B; --night-2:#21153F; --night-line:#352559; --night-ink:#F3EEFB; --night-ink-2:#B9ACD6;
+  --ok:#1F7A4D;
+  --display:"Instrument Serif","Iowan Old Style",Georgia,serif;
+  --sans:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--ground);color:var(--ink);font:400 16px/1.6 var(--sans);margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));-webkit-font-smoothing:antialiased}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--violet);outline-offset:3px;border-radius:6px}
+.wrap{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-weight:400;margin:0;text-wrap:balance}
+h1,h2{font-family:var(--display);letter-spacing:-.01em;line-height:1.02}
+h3{font:600 1.08rem/1.3 var(--sans)}
+p{margin:0}
+.eyebrow{font:600 .74rem/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
+.mono{font-family:var(--mono)}
+.btn{display:inline-flex;align-items:center;gap:.55rem;font:600 .95rem/1 var(--sans);padding:.95rem 1.3rem;border-radius:12px;text-decoration:none;border:1px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s}
+.btn-primary{background:var(--ink);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.15) inset,0 10px 24px -10px rgba(29,16,53,.55)}
+.btn-primary:hover{transform:translateY(-1px);background:#2c1a4d}
+.btn-ghost{background:transparent;border-color:var(--line-2);color:var(--ink)}
+.btn-ghost:hover{background:var(--violet-soft)}
+.btn-gold{background:var(--gold-bright);color:#2A1A00;box-shadow:0 10px 26px -12px rgba(242,179,61,.9)}
+.btn-gold:hover{transform:translateY(-1px)}
+svg.i{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* nav */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(248,245,252,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--ground);z-index:30}
+.nav .wrap{display:flex;align-items:center;gap:1.5rem;height:64px}
+.brand{font:italic 400 1.9rem/1 var(--display);text-decoration:none;letter-spacing:-.01em}
+.brand b{font-weight:400;color:var(--violet)}
+.brand span{color:var(--gold)}
+.nav ul{display:flex;gap:1.6rem;list-style:none;margin:0 auto 0 1.5rem;padding:0}
+.nav ul a{text-decoration:none;color:var(--ink-2);font-weight:500;font-size:.93rem}
+.nav ul a:hover{color:var(--ink)}
+.nav .btn{padding:.65rem 1rem;font-size:.88rem;border-radius:10px}
+
+/* hero */
+.hero{padding-block:clamp(40px,7vw,84px) clamp(48px,7vw,88px)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:clamp(28px,5vw,64px);align-items:center}
+.pill{display:inline-flex;gap:.6rem;align-items:center;font:500 .82rem/1 var(--sans);color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:.45rem .8rem .45rem .5rem}
+.pill i{font-style:normal;background:var(--gold-soft);color:var(--gold);font-weight:700;font-size:.7rem;letter-spacing:.06em;padding:.2rem .5rem;border-radius:99px}
+h1{font-size:clamp(3rem,7.2vw,5.6rem);margin:1.1rem 0 1.1rem}
+h1 em{font-style:italic;color:var(--violet)}
+h1 .bs{font-family:var(--mono);font-size:.78em;color:var(--gold);font-weight:500;margin-right:.04em}
+.lede{font-size:1.15rem;color:var(--ink-2);max-width:34rem}
+.cta-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.8rem}
+.meta-row{display:flex;flex-wrap:wrap;gap:.5rem 1.4rem;margin-top:1.5rem;font-size:.86rem;color:var(--ink-3)}
+.meta-row span{display:inline-flex;gap:.45rem;align-items:center}
+.meta-row svg{color:var(--violet)}
+
+.stage{position:relative}
+.logo-float{position:absolute;right:-4%;top:-92px;width:clamp(150px,22vw,250px);z-index:3;pointer-events:none;animation:bob 7s ease-in-out infinite;filter:drop-shadow(0 14px 22px rgba(91,42,158,.18))}
+@keyframes bob{50%{transform:translateY(-8px) rotate(-.6deg)}}
+.win{background:var(--panel);border:1px solid var(--line-2);border-radius:18px;box-shadow:0 40px 80px -40px rgba(60,30,110,.45),0 2px 0 #fff inset;margin-top:92px;position:relative}
+.win-bar{display:flex;align-items:center;gap:.5rem;padding:.8rem 1rem;border-bottom:1px solid var(--line);font-size:.8rem;color:var(--ink-3)}
+.dots{display:flex;gap:.4rem}.dots i{width:11px;height:11px;border-radius:50%;background:var(--line-2)}
+.win-bar .t{margin-left:.6rem;font-weight:500;color:var(--ink-2)}
+.win-bar .live{margin-left:auto;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ok);display:flex;gap:.4rem;align-items:center}
+.win-bar .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
+#demo-field{display:block;width:100%;min-height:172px;border:0;resize:none;padding:1.1rem 1.2rem;font:400 1rem/1.65 var(--sans);color:var(--ink);background:transparent;border-radius:0 0 18px 18px}
+#demo-field:focus{outline:none;box-shadow:inset 0 -2px 0 var(--violet)}
+.pop{margin:0 .9rem .9rem;background:var(--night);color:var(--night-ink);border-radius:14px;padding:.4rem;box-shadow:0 18px 40px -18px rgba(21,12,43,.8);border:1px solid var(--night-line)}
+.pop[hidden]{display:none!important}
+.pop-head{display:flex;justify-content:space-between;padding:.45rem .7rem .35rem;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--night-ink-2)}
+.pop button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.55rem .7rem;border-radius:9px;cursor:pointer}
+.pop button[aria-selected="true"],.pop button:hover{background:var(--night-2)}
+.pop button:focus-visible{outline:2px solid var(--gold-bright)}
+.pop .k{font:500 .86rem var(--mono);color:var(--gold-bright)}
+.pop .v{font-size:.86rem;color:var(--night-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pop .tag{font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--night-line);color:var(--night-ink-2);padding:.15rem .45rem;border-radius:6px}
+.try{display:flex;flex-wrap:wrap;gap:.45rem;padding:0 .9rem 1rem;align-items:center;font-size:.8rem;color:var(--ink-3)}
+.try button{font:500 .8rem var(--mono);background:var(--violet-soft);color:var(--violet);border:1px solid transparent;border-radius:8px;padding:.3rem .55rem;cursor:pointer}
+.try button:hover{border-color:var(--violet)}
+.toast{position:absolute;left:50%;bottom:-18px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:.82rem;padding:.55rem .9rem;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap}
+.toast.on{opacity:1}
+.fine{font-size:.76rem;color:var(--ink-3);margin-top:1.6rem;text-align:center}
+
+/* trust strip */
+.strip{border-block:1px solid var(--line);background:var(--panel);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
+.strip ul{list-style:none;margin:0;padding:1.1rem 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem 2rem}
+.strip li{display:flex;gap:.7rem;align-items:flex-start;font-size:.88rem;color:var(--ink-2);line-height:1.4}
+.strip li svg{color:var(--violet);margin-top:.1rem}
+.strip li b{display:block;color:var(--ink);font-weight:600}
+
+/* sections */
+section{padding-block:clamp(56px,8vw,104px)}
+.sec-head{max-width:46rem;margin-bottom:clamp(28px,4vw,48px)}
+.sec-head h2{font-size:clamp(2.2rem,4.6vw,3.6rem);margin:.8rem 0 .9rem}
+.sec-head p{color:var(--ink-2);font-size:1.08rem}
+.band{background:var(--night);color:var(--night-ink);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
+.band .sec-head p{color:var(--night-ink-2)}
+.band .eyebrow{color:var(--gold-bright)}
+
+/* how */
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.2rem;counter-reset:s}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:1.5rem;display:flex;flex-direction:column;gap:.8rem}
+.step .no{font:italic 400 2.2rem/1 var(--display);color:var(--gold)}
+.step p{color:var(--ink-2);font-size:.96rem}
+.keys{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:auto;padding-top:.4rem}
+kbd{font:500 .82rem var(--mono);background:var(--violet-soft);color:var(--violet);border-radius:7px;padding:.25rem .5rem;border:1px solid var(--line)}
+
+/* bento */
+.bento{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1.1rem}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1.6rem;display:flex;flex-direction:column;gap:.7rem;min-width:0}
+.card p{color:var(--ink-2);font-size:.96rem}
+.card.dark{background:var(--night);border-color:var(--night);color:var(--night-ink)}
+.card.dark p{color:var(--night-ink-2)}
+.ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;background:var(--violet-soft);color:var(--violet);margin-bottom:.4rem}
+.dark .ic{background:var(--night-2);color:var(--gold-bright)}
+.c7{grid-column:span 7}.c5{grid-column:span 5}.c6{grid-column:span 6}.c4{grid-column:span 4}.c8{grid-column:span 8}
+.vis{margin-top:auto;padding-top:.8rem;display:flex;flex-wrap:wrap;gap:.5rem}
+.chip{font:500 .82rem var(--mono);border-radius:9px;padding:.4rem .65rem;border:1px solid var(--line);background:var(--ground);color:var(--ink)}
+.chip em{font-style:normal;color:var(--gold);font-weight:600}
+.dark .chip{background:var(--night-2);border-color:var(--night-line);color:var(--night-ink)}
+.dark .chip em{color:var(--gold-bright)}
+.calc{width:100%;display:grid;gap:.4rem;font-family:var(--mono);font-size:.88rem}
+.calc div{display:flex;justify-content:space-between;gap:1rem;background:var(--ground);border:1px solid var(--line);border-radius:10px;padding:.55rem .8rem}
+.calc b{color:var(--violet);font-weight:500}
+
+/* all features */
+.groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.1rem}
+.grp{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1.6rem}
+.grp h3{display:flex;gap:.7rem;align-items:center;margin-bottom:1rem}
+.grp h3 .ic{margin:0;width:34px;height:34px}
+.grp ul{list-style:none;padding:0;margin:0;display:grid;gap:.65rem}
+.grp li{display:flex;gap:.6rem;font-size:.93rem;color:var(--ink-2);line-height:1.45}
+.grp li::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--gold-bright);margin-top:.55em}
+.grp li b{color:var(--ink);font-weight:600}
+
+/* docs */
+.docs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(28px,5vw,64px);align-items:center}
+.tpl{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.4rem}
+.tpl span{font-size:.84rem;font-weight:500;background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:.4rem .8rem;color:var(--ink-2)}
+.cats{display:grid;gap:.9rem;margin-top:1.6rem}
+.cats div{display:grid;grid-template-columns:9.5rem minmax(0,1fr);gap:1rem;font-size:.92rem;color:var(--ink-2);padding-top:.9rem;border-top:1px solid var(--line)}
+.cats b{color:var(--ink);font-weight:600}
+.sheets{position:relative;min-height:520px}
+.sheets figure{margin:0;position:absolute;background:#fff;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(60,30,110,.5)}
+.sheets img{display:block;width:100%;height:auto}
+.sheets figcaption{font-size:.72rem;color:var(--ink-3);padding:.45rem .7rem;border-top:1px solid var(--line);background:var(--ground)}
+.sheets .s1{left:0;top:0;width:56%;transform:rotate(-2.5deg)}
+.sheets .s2{right:0;top:60px;width:56%;transform:rotate(2.5deg)}
+
+/* permissions */
+.perm{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:1rem}
+.perm div{border:1px solid var(--night-line);background:var(--night-2);border-radius:16px;padding:1.2rem}
+.perm b{display:block;color:var(--gold-bright);font-weight:600;margin-bottom:.35rem;font-size:.95rem}
+.perm p{font-size:.86rem;color:var(--night-ink-2);line-height:1.5}
+
+/* download */
+.dl{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:clamp(24px,5vw,56px);align-items:center;background:linear-gradient(135deg,var(--violet-soft),var(--gold-soft));border:1px solid var(--line-2);border-radius:28px;padding:clamp(28px,5vw,56px)}
+.dl h2{font-size:clamp(2.4rem,5vw,4rem);margin:.8rem 0 1rem}
+.dl p{color:var(--ink-2);max-width:32rem}
+.tip{grid-column:1/-1;font-size:.88rem;color:var(--ink-2);max-width:none}
+.specs{background:rgba(255,255,255,.75);border:1px solid var(--line);border-radius:18px;padding:1.2rem 1.4rem;display:grid;gap:.1rem}
+.specs div{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;border-bottom:1px solid var(--line);font-size:.92rem}
+.specs div:last-child{border:0}
+.specs span{color:var(--ink-3)}.specs b{font-weight:600;text-align:right}
+footer{padding-block:36px 48px;display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:center;color:var(--ink-3);font-size:.86rem}
+footer .brand{font-size:1.5rem}
+
+@media (max-width:980px){
+  .hero-grid,.docs,.dl{grid-template-columns:minmax(0,1fr)}
+  .strip ul{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .steps,.groups{grid-template-columns:minmax(0,1fr)}
+  .perm{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .c7,.c5,.c6,.c4,.c8{grid-column:span 12}
+  .nav ul{display:none}.nav .btn{margin-left:auto}
+  .logo-float{right:2%}
+  .sheets{min-height:480px}
+}
+@media (max-width:520px){
+  .perm,.strip ul{grid-template-columns:minmax(0,1fr)}
+  .cats div{grid-template-columns:minmax(0,1fr);gap:.3rem}
+  .sheets{min-height:0;display:grid;gap:1rem}
+  .sheets figure{position:static;width:100%!important;transform:none!important}
+  .cta-row .btn{flex:1 1 100%;justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){.logo-float{animation:none}html{scroll-behavior:auto}*{transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-cmd" viewBox="0 0 24 24"><path d="M15 9V6a3 3 0 1 1 3 3zM9 9V6a3 3 0 1 0-3 3zM15 15v3a3 3 0 1 0 3-3zM9 15v3a3 3 0 1 1-3-3zM9 9h6v6H9z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5 12 22l9-4.5"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h.01M12 12h.01M16 12h.01M8 16h.01M12 16h.01M16 16h.01"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-8 8"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="M4 9 5.5 4h13L20 9M4 9v11h16V9M4 9a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0A2.7 2.7 0 0 0 20 9M10 20v-5h4v5"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m9 12 2.2 2.2L15.5 10"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 11h6M9 15h4"/></symbol>
+  </defs>
+</svg>
+
+<nav class="nav" aria-label="Primary">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="EzMe home"><b>ez</b><span>me</span></a>
+    <ul>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#highlights">Highlights</a></li>
+      <li><a href="#documents">Documents</a></li>
+      <li><a href="#everything">All features</a></li>
+      <li><a href="#privacy">Privacy</a></li>
+    </ul>
+    <a class="btn btn-primary" href="#download"><svg class="i"><use href="#i-down"/></svg>Download</a>
+  </div>
+</nav>
+
+<main id="top">
+<header class="hero"><div class="wrap">
+  <div class="hero-grid">
+    <div>
+      <span class="pill"><i>NEW</i> Version 3.38 for Mac</span>
+      <h1><span class="bs">\</span>Type it once.<br><em>Ho gaya!</em></h1>
+      <p class="lede">EzMe turns a backslash and a short key into saved text, media, websites, live values and AI-written documents, inside any app on your Mac.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#download"><svg class="i"><use href="#i-down"/></svg>Download for macOS</a>
+        <a class="btn btn-ghost" href="#everything">See every feature</a>
+      </div>
+      <div class="meta-row">
+        <span><svg class="i"><use href="#i-chip"/></svg>Apple silicon, macOS 14+</span>
+        <span><svg class="i"><use href="#i-lock"/></svg>Library stays on your Mac</span>
+      </div>
+    </div>
+
+    <div class="stage">
+      <img class="logo-float" src="assets/ezme-logo.png" alt="EzMe logo: a genie lamp with violet and gold smoke forming the word ezme, with the tagline Ho Gaya">
+      <div class="win">
+        <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><span class="t">Reply to Meera</span><span class="live">Try it</span></div>
+        <label for="demo-field" class="sr" style="position:absolute;left:-9999px">Practice typing a backslash shortcut</label>
+        <textarea id="demo-field" spellcheck="false">Hi Meera,
+
+Your invoice is ready. \t</textarea>
+        <div class="pop" id="pop" role="listbox" aria-label="Shortcut suggestions"></div>
+        <div class="try" id="try"><span>Or try</span>
+          <button type="button" data-ins="\date">\date</button>
+          <button type="button" data-ins="\2+2">\2+2</button>
+          <button type="button" data-ins="\(12+8)*3">\(12+8)*3</button>
+          <button type="button" data-ins="\london">\london</button>
+          <button type="button" data-ins="\laugh.e">\laugh.e</button>
+          <button type="button" data-ins="\chrome.app">\chrome.app</button>
+        </div>
+        <div class="toast" id="toast" role="status"></div>
+      </div>
+      <p class="fine">Interactive preview with sample shortcuts. In the app, the popup appears in whichever app you are typing in.</p>
+    </div>
+  </div>
+</div></header>
+
+<div class="strip"><div class="wrap"><ul>
+  <li><svg class="i"><use href="#i-lock"/></svg><span><b>Local by default</b>Shortcuts and media live on this Mac. No email or internet needed to make an account.</span></li>
+  <li><svg class="i"><use href="#i-shield"/></svg><span><b>Keys in Keychain</b>Passwords and AI provider keys are stored in macOS Keychain.</span></li>
+  <li><svg class="i"><use href="#i-spark"/></svg><span><b>Bring your own AI</b>OpenAI, Google Gemini, Anthropic Claude or any OpenAI-compatible provider.</span></li>
+  <li><svg class="i"><use href="#i-store"/></svg><span><b>Share what you build</b>Package a collection as a .zip and pass it to someone else.</span></li>
+</ul></div></div>
+
+<section id="how"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">How it works</span>
+    <h2>Three keystrokes between you and done.</h2>
+    <p>No window to open and no app to switch to. EzMe waits in the background until you type a backslash.</p>
+  </div>
+  <div class="steps">
+    <div class="step"><span class="no">1</span><h3>Type a backslash</h3><p>In any text field, type <span class="mono">\</span> followed by the start of a shortcut key. A popup lists everything that matches.</p><div class="keys"><kbd>\</kbd><kbd>inv</kbd></div></div>
+    <div class="step"><span class="no">2</span><h3>Pick, or finish the key</h3><p>Choose a result, or type the full key and press Space. Missing details are collected in a short popup.</p><div class="keys"><kbd>Space</kbd></div></div>
+    <div class="step"><span class="no">3</span><h3>It expands in place</h3><p>Text, live values, calculations, attached media or an AI-generated draft land where your cursor is.</p><div class="keys"><kbd>Done</kbd></div></div>
+  </div>
+</div></section>
+
+<section id="highlights" style="padding-top:0"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Highlights</span>
+    <h2>A small utility with a very long reach.</h2>
+    <p>Six things people notice first.</p>
+  </div>
+  <div class="bento">
+    <article class="card c7">
+      <div class="ic"><svg class="i"><use href="#i-layers"/></svg></div>
+      <h3>Collections that organise themselves</h3>
+      <p>Group shortcuts into built-in or custom collections. Applications, AI engines, websites and media each add their own suffix to the key, so <span class="mono">\chrome.app</span> launches an app and <span class="mono">\logo.media</span> pastes a file.</p>
+      <div class="vis"><span class="chip">\chrome<em>.app</em></span><span class="chip">\copilot<em>.ai</em></span><span class="chip">\news<em>.web</em></span><span class="chip">\logo<em>.media</em></span><span class="chip">\laugh<em>.gif</em></span><span class="chip">\smile<em>.e</em></span></div>
+    </article>
+    <article class="card dark c5">
+      <div class="ic"><svg class="i"><use href="#i-bolt"/></svg></div>
+      <h3>Live values that stay current</h3>
+      <p>Drop a token into any phrase and it fills in at the moment you expand it.</p>
+      <div class="vis"><span class="chip">{{date}}</span><span class="chip">{{time}}</span><span class="chip">{{datetime}}</span><span class="chip">{{weekday}}</span><span class="chip">{{uuid}}</span><span class="chip">{{clipboard}}</span><span class="chip">{{worldclock:<em>Tokyo</em>}}</span></div>
+    </article>
+    <article class="card c5">
+      <div class="ic"><svg class="i"><use href="#i-calc"/></svg></div>
+      <h3>A calculator in the popup</h3>
+      <p>Type an expression after the backslash. The result shows in the popup and pastes when you press Space. Percentages, powers, parentheses and common functions work.</p>
+      <div class="vis"><div class="calc"><div><span>\45+45</span><b>90</b></div><div><span>\(12+8)*3</span><b>60</b></div><div><span>\sqrt(81)</span><b>9</b></div></div></div>
+    </article>
+    <article class="card dark c7">
+      <div class="ic"><svg class="i"><use href="#i-spark"/></svg></div>
+      <h3>Two AI builders, your choice of model</h3>
+      <p><b style="color:var(--night-ink);font-weight:600">Collection Builder</b> researches a topic with web search and returns ready shortcuts with source links. <b style="color:var(--night-ink);font-weight:600">AppBuilder</b> makes reusable actions that combine your saved records, variables and a template into finished output.</p>
+      <div class="vis"><span class="chip">OpenAI</span><span class="chip">Google Gemini</span><span class="chip">Anthropic Claude</span><span class="chip">OpenAI-compatible</span></div>
+    </article>
+    <article class="card c6">
+      <div class="ic"><svg class="i"><use href="#i-globe"/></svg></div>
+      <h3>A browser that knows your shortcuts</h3>
+      <p>EzMe Browser has tabs, named tab groups, favourites and a start page. Import Chrome bookmarks, turn on a magnifier lens for fine detail, and lock the whole workspace behind a six-digit Private Mode passcode.</p>
+    </article>
+    <article class="card c6">
+      <div class="ic"><svg class="i"><use href="#i-img"/></svg></div>
+      <h3>Ez Studio for images and video</h3>
+      <p>Generate images, resize to an exact aspect ratio, trim video, rename files in bulk, or crop any part of your screen and save it straight in as a shortcut.</p>
+    </article>
+  </div>
+</div></section>
+
+<section id="documents" class="band"><div class="wrap">
+  <div class="docs">
+    <div>
+      <span class="eyebrow">Documents and writing</span>
+      <h2 style="font-size:clamp(2.2rem,4.6vw,3.6rem);margin:.8rem 0 1rem;color:var(--night-ink)">From saved records to a finished page.</h2>
+      <p style="color:var(--night-ink-2);font-size:1.08rem;max-width:34rem">Keep customers, products, candidates or contacts as collections. Pick records, fill the gaps, and EzMe builds the document from your template. Totals and GST can be calculated on your Mac with no AI call at all.</p>
+      <div class="cats" style="--c:var(--night-ink-2)">
+        <div style="border-color:var(--night-line);color:var(--night-ink-2)"><b style="color:var(--night-ink)">Finance &amp; billing</b><span>Quotation, invoice, purchase order, payment receipt, payment reminder, business report</span></div>
+        <div style="border-color:var(--night-line);color:var(--night-ink-2)"><b style="color:var(--night-ink)">Legal &amp; agreements</b><span>Agreement builder, appointment letter, offer of employment, proposal builder</span></div>
+        <div style="border-color:var(--night-line);color:var(--night-ink-2)"><b style="color:var(--night-ink)">Creative &amp; media</b><span>Product launch creatives, event invitations, festival and birthday greetings, travel itineraries</span></div>
+      </div>
+    </div>
+    <div class="sheets">
+      <figure class="s1"><img src="assets/invoice.webp" alt="Reference invoice layout with GST breakup, bank details and amount in words" loading="lazy"><figcaption>Invoice reference layout</figcaption></figure>
+      <figure class="s2"><img src="assets/po.webp" alt="Reference purchase order layout with items table and bank details" loading="lazy"><figcaption>Purchase order reference layout</figcaption></figure>
+    </div>
+  </div>
+</div></section>
+
+<section id="everything"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Everything inside</span>
+    <h2>The full feature list.</h2>
+    <p>Version 3.38, grouped by what you are trying to do.</p>
+  </div>
+  <div class="groups">
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-cmd"/></svg></span>Expand anywhere</h3><ul>
+      <li><span><b>Backslash popup</b> in any app, with live search as you type</span></li>
+      <li><span>Type the full key plus <b>Space</b> to expand instantly</span></li>
+      <li><span><b>Mini J</b> picker panel for choosing shortcuts</span></li>
+      <li><span>Popup themes, and a popup you can move back to its default position</span></li>
+      <li><span>Copy a shortcut command, or paste its attached media directly</span></li>
+      <li><span>Built-in <b>calculator</b> with percentages, powers and square roots</span></li>
+      <li><span><b>Live values</b>: date, time, weekday, UUID, clipboard and world clocks for London, New York, Tokyo and more</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-layers"/></svg></span>Organise and import</h3><ul>
+      <li><span><b>Collections</b> with automatic categories you can change or extend</span></li>
+      <li><span>Hide, unhide, rename or delete collections; hidden ones leave search and expansion</span></li>
+      <li><span>Move, share or delete many shortcuts at once</span></li>
+      <li><span><b>Bulk rename</b> by codes, codes and names, spaces to hyphens or sequential numbering</span></li>
+      <li><span>Bulk import phrase lists, and export them as CSV</span></li>
+      <li><span>Create a shortcut from your clipboard with the floating <b>+</b> button, whether it is text, an image or files</span></li>
+      <li><span>Launch desktop apps and open saved websites by typing their key</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-film"/></svg></span>Media shortcuts</h3><ul>
+      <li><span>Attach images, audio, video and files to any shortcut</span></li>
+      <li><span>Import up to 10 media files at once and give each its own shortcut</span></li>
+      <li><span>Download media from direct URLs and attach it automatically (500 MB per file limit)</span></li>
+      <li><span>Starter packs such as <b>Everyday Emoticons</b> and eight animated GIF reactions</span></li>
+      <li><span><b>Crop screen</b> to capture a region and load it into the resizer</span></li>
+      <li><span>Copy media to the clipboard and paste it into your app</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-spark"/></svg></span>AI builders</h3><ul>
+      <li><span><b>Collection Builder</b>: describe a topic, research it with web search, review the draft, then add it to your shortcuts</span></li>
+      <li><span><b>AppBuilder</b>: reusable actions with prompts, variables, calculated fields and editable templates</span></li>
+      <li><span>Attach visual reference templates so AI follows your layout</span></li>
+      <li><span>Improve a prompt with AI before generating</span></li>
+      <li><span>Generate a polished page as HTML, or a PDF with table grids</span></li>
+      <li><span>App cover images and cover videos generated from the app's name and description</span></li>
+      <li><span>Saved model profiles for OpenAI, Google Gemini, Anthropic Claude and OpenAI-compatible providers</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-mic"/></svg></span>Writing help</h3><ul>
+      <li><span><b>Rewrite clipboard text</b> in a tone you choose, then paste it back</span></li>
+      <li><span><b>Rephrase prompts</b> for clarity and grammar in a chosen style</span></li>
+      <li><span><b>Voice input</b> and dictation for builder prompts and details</span></li>
+      <li><span>Voice search assistant for finding shortcuts</span></li>
+      <li><span>Rich template editor with bold, italic, underline, signature lines and tables</span></li>
+      <li><span>Fill missing details in a short popup before generating</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-img"/></svg></span>Ez Studio</h3><ul>
+      <li><span><b>Image Studio</b>: generate images with an OpenAI or Google Gemini image model</span></li>
+      <li><span><b>Media Resizer</b>: aspect ratio and exact dimensions; save as a file, replace the source or save as a shortcut</span></li>
+      <li><span><b>Video Cutter</b>: trim a clip and save it to the Desktop or as a shortcut</span></li>
+      <li><span><b>File Renamer</b> for tidying batches of media files</span></li>
+      <li><span>Video generation through a Google Gemini profile</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-globe"/></svg></span>EzMe Browser</h3><ul>
+      <li><span>Tabs, named <b>tab groups</b> and a favourites start page</span></li>
+      <li><span>Save any page to Favourites with a note on why you saved it</span></li>
+      <li><span>Import Google Chrome bookmarks, from an HTML export or a profile</span></li>
+      <li><span>Create browser collections from your saved pages</span></li>
+      <li><span>Magnifier lens and a mode that hides tabs and the address bar</span></li>
+      <li><span><b>Private Mode</b> protected by a six-digit passcode</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-store"/></svg></span>Marketplace and sharing</h3><ul>
+      <li><span>Starter collections you can add free and edit to sound like you</span></li>
+      <li><span>Package your own collection as a shareable .zip, with an optional asking price in rupees</span></li>
+      <li><span>Import shortcut or collection packages from others</span></li>
+      <li><span>Share through the macOS share sheet, or paste straight into WhatsApp</span></li>
+      <li><span>Your Genie scorecard shows how often you use backslash shortcuts</span></li>
+    </ul></div>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-lock"/></svg></span>Accounts and data</h3><ul>
+      <li><span>Local accounts with no email or phone; each user gets a separate library</span></li>
+      <li><span>Password and API keys stored in <b>macOS Keychain</b></span></li>
+      <li><span>Backup and restore of a profile and its media, to move it to another Mac</span></li>
+      <li><span>Usage counters stay on the Mac, per account</span></li>
+      <li><span>Guided walkthrough tour and an in-app help guide</span></li>
+    </ul></div>
+  </div>
+</div></section>
+
+<section id="privacy" class="band"><div class="wrap">
+  <div class="sec-head">
+    <span class="eyebrow">Privacy and permissions</span>
+    <h2 style="color:var(--night-ink)">Asks only for what a feature needs.</h2>
+    <p>macOS will prompt for each permission the first time a related feature is used. Text stays on your Mac unless you paste it into another app or send it to an AI provider you configured.</p>
+  </div>
+  <div class="perm">
+    <div><b>Accessibility</b><p>Lets the popup find the app you were typing in and enter text there.</p></div>
+    <div><b>Automation</b><p>Expands shortcuts inside other apps.</p></div>
+    <div><b>Screen recording</b><p>Captures only the area you select when you choose Crop screen.</p></div>
+    <div><b>Microphone</b><p>Used only when you pick voice input for prompts and details.</p></div>
+    <div><b>Speech recognition</b><p>Turns that voice input into text.</p></div>
+  </div>
+</div></section>
+
+<section id="download"><div class="wrap">
+  <div class="dl">
+    <div>
+      <span class="eyebrow">Get EzMe</span>
+      <h2>Ready when you are.</h2>
+      <p>Download the Mac app, create a local account in under a minute, and type your first backslash.</p>
+      <div class="cta-row">
+        <a class="btn btn-gold" href="downloads/EzMe-3.38-macOS.zip" download><svg class="i"><use href="#i-down"/></svg>Download EzMe 3.38</a>
+        <a class="btn btn-ghost" href="#everything">Review features</a>
+      </div>
+    </div>
+    <div class="specs" aria-label="System details">
+      <div><span>Version</span><b>3.38 (build 168)</b></div>
+      <div><span>Requires</span><b>macOS 14 or later</b></div>
+      <div><span>Processor</span><b>Apple silicon (arm64)</b></div>
+      <div><span>Package</span><b>.zip, about 4.4 MB</b></div>
+      <div><span>Account</span><b>Local, no email needed</b></div>
+    </div>
+    <p class="tip">First launch: unzip, drag EzMe to Applications, then right-click it and choose Open. If macOS says it cannot verify the app, this is the step that lets it start.</p>
+  </div>
+</div></section>
+</main>
+
+<div class="wrap"><footer>
+  <a class="brand" href="#top"><b>ez</b><span>me</span></a>
+  <span>EzMe 3.38 for macOS. AI provider charges apply when you use your own API keys.</span>
+</footer></div>
+
+<script>
+(function(){
+  var field=document.getElementById('demo-field'),pop=document.getElementById('pop'),toast=document.getElementById('toast');
+  var tt;
+  function say(m){toast.textContent=m;toast.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){toast.classList.remove('on')},2200)}
+  function pad(n){return (n<10?'0':'')+n}
+  function clock(tz){try{return new Date().toLocaleTimeString('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit'})+' in '+tz.split('/').pop().replace('_',' ')}catch(e){return ''}}
+  var S=[
+    {k:'thanks',t:'Text',v:function(){return 'Thanks so much for taking the time to help. I really appreciate it!'}},
+    {k:'inv',t:'Text',v:function(){return 'A quick reminder that your invoice is due. Please share the payment confirmation once it is done.'}},
+    {k:'sig',t:'Text',v:function(){return 'Warm regards,\nAsha, Customer Care'}},
+    {k:'date',t:'Live',v:function(){return new Date().toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}},
+    {k:'time',t:'Live',v:function(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())}},
+    {k:'london',t:'Live',v:function(){return clock('Europe/London')}},
+    {k:'uuid',t:'Live',v:function(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():'3f1c2d9e-7a40-4b8e-9d11-2c6a5e8b0f77'}},
+    {k:'laugh.e',t:'Emoji',v:function(){return '\u{1F602}'}},
+    {k:'chrome.app',t:'App',app:'Launches Google Chrome'}
+  ];
+  var sel=0,cur=[];
+  function calc(tok){
+    if(!/^[0-9(]|^sqrt/.test(tok))return null;
+    if(!/^[0-9+\-*\/%^().]*$/.test(tok.replace(/sqrt/g,'')))return null;
+    try{var r=Function('"use strict";return ('+tok.replace(/sqrt/g,'Math.sqrt').replace(/\^/g,'**')+')')();
+      if(typeof r==='number'&&isFinite(r))return String(Math.round(r*1e8)/1e8)}catch(e){}
+    return null
+  }
+  function tokenAt(){
+    var p=field.selectionStart,t=field.value.slice(0,p),m=t.match(/(^|\s)\\(\S*)$/);
+    return m?{tok:m[2],start:p-m[2].length-1,end:p}:null
+  }
+  function render(){
+    var a=tokenAt();cur=[];
+    if(!a){pop.hidden=true;return}
+    var c=calc(a.tok);
+    if(c!==null)cur.push({k:a.tok,t:'Calc',v:function(){return c},show:'= '+c});
+    if(!(c!==null))S.forEach(function(s){if(s.k.indexOf(a.tok.toLowerCase())===0)cur.push(s)});
+    cur=cur.slice(0,5);
+    if(!cur.length){pop.hidden=true;return}
+    if(sel>=cur.length)sel=0;
+    pop.hidden=false;
+    pop.innerHTML='<div class="pop-head"><span>Shortcuts</span><span>Enter to expand</span></div>';
+    cur.forEach(function(s,i){
+      var b=document.createElement('button');b.type='button';b.setAttribute('role','option');b.setAttribute('aria-selected',i===sel);
+      var prev=s.show||(s.app?s.app:String(s.v()).replace(/\n/g,' '));
+      b.innerHTML='<span class="k"></span><span class="v"></span><span class="tag"></span>';
+      b.children[0].textContent='\\'+s.k;b.children[1].textContent=prev;b.children[2].textContent=s.t;
+      b.addEventListener('mousedown',function(e){e.preventDefault()});
+      b.addEventListener('click',function(){pick(i)});
+      pop.appendChild(b)
+    })
+  }
+  function pick(i){
+    var a=tokenAt(),s=cur[i];if(!a||!s)return;
+    var v=s.app?'':s.v(),val=field.value;
+    field.value=val.slice(0,a.start)+v+val.slice(a.end);
+    var pos=a.start+v.length;field.focus();field.setSelectionRange(pos,pos);
+    say(s.app?s.app+' (in the app)':'Expanded \\'+s.k);
+    sel=0;render()
+  }
+  field.addEventListener('input',function(){sel=0;render()});
+  field.addEventListener('click',render);
+  field.addEventListener('keyup',function(e){if(['ArrowLeft','ArrowRight','Home','End'].indexOf(e.key)>-1)render()});
+  field.addEventListener('keydown',function(e){
+    if(pop.hidden||!cur.length)return;
+    if(e.key==='ArrowDown'){e.preventDefault();sel=(sel+1)%cur.length;render()}
+    else if(e.key==='ArrowUp'){e.preventDefault();sel=(sel-1+cur.length)%cur.length;render()}
+    else if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();pick(sel)}
+    else if(e.key==='Escape'){pop.hidden=true}
+    else if(e.key===' '){var a=tokenAt();if(a){var i=cur.findIndex(function(s){return s.k===a.tok});if(i>-1){e.preventDefault();pick(i)}}}
+  });
+  document.getElementById('try').addEventListener('click',function(e){
+    var b=e.target.closest('button[data-ins]');if(!b)return;
+    var v=field.value.replace(/\s+$/,'');field.value=v+(v?' ':'')+b.getAttribute('data-ins');
+    field.focus();field.setSelectionRange(field.value.length,field.value.length);sel=0;render()
+  });
+  field.setSelectionRange(field.value.length,field.value.length);render();
+})();
+</script>
+</body>
+</html>
