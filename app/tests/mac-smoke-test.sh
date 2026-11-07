@@ -57,8 +57,9 @@ sleep 2
 defaults write com.ezme.mac EzMeUpdateFeed "http://127.0.0.1:8765/latest.json"
 defaults write com.ezme.mac EzMeAutoInstallUpdate -bool YES
 open /Applications/EzMe.app
-sleep 3
-OLD_PID="$(pgrep -x EzMe | head -1)"
+# Catch the first process right away: launch, update check and install can finish within a few seconds.
+OLD_PID=""
+for i in $(seq 1 200); do OLD_PID="$(pgrep -x EzMe | head -1)"; [ -n "$OLD_PID" ] && break; sleep 0.05; done
 echo "Old EzMe process: $OLD_PID"
 UPDATED=0
 for i in $(seq 1 60); do
