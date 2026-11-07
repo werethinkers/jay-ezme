@@ -269,7 +269,7 @@ footer .brand{font-size:1.5rem}
 <header class="hero"><div class="wrap">
   <div class="hero-grid">
     <div>
-      <span class="pill"><i>NEW</i> Version 3.38 for Mac</span>
+      <span class="pill"><i>NEW</i> Version <span data-ezv>3.38</span> for Mac</span>
       <h1><span class="bs">\</span>Type it once.<br><em>Ho gaya!</em></h1>
       <p class="lede">EzMe turns a backslash and a short key into saved text, media, websites, live values and AI-written documents, inside any app on your Mac.</p>
       <div class="cta-row">
@@ -393,7 +393,7 @@ Your invoice is ready. \t</textarea>
   <div class="sec-head">
     <span class="eyebrow">Everything inside</span>
     <h2>The full feature list.</h2>
-    <p>Version 3.38, grouped by what you are trying to do.</p>
+    <p>Version <span data-ezv>3.38</span>, grouped by what you are trying to do.</p>
   </div>
   <div class="groups">
     <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-cmd"/></svg></span>Expand anywhere</h3><ul>
@@ -493,18 +493,18 @@ Your invoice is ready. \t</textarea>
       <h2>Ready when you are.</h2>
       <p>Download the Mac app, create a local account in under a minute, and type your first backslash.</p>
       <div class="cta-row">
-        <a class="btn btn-gold" href="downloads/EzMe-3.38-macOS.zip" download><svg class="i"><use href="#i-down"/></svg>Download EzMe 3.38</a>
+        <a class="btn btn-gold" href="downloads/EzMe-3.38-macOS.zip" data-ezdl download><svg class="i"><use href="#i-down"/></svg>Download EzMe <span data-ezv>3.38</span></a>
         <a class="btn btn-ghost" href="#everything">Review features</a>
       </div>
     </div>
     <div class="specs" aria-label="System details">
-      <div><span>Version</span><b>3.38 (build 168)</b></div>
+      <div><span>Version</span><b><span data-ezv>3.38</span> (build <span data-ezb>168</span>)</b></div>
       <div><span>Requires</span><b>macOS 14 or later</b></div>
       <div><span>Processor</span><b>Apple silicon (arm64)</b></div>
       <div><span>Package</span><b>.zip, about 4.4 MB</b></div>
       <div><span>Account</span><b>Local, no email needed</b></div>
     </div>
-    <p class="tip">First launch: unzip, drag EzMe to Applications, then right-click it and choose Open. If macOS says it cannot verify the app, this is the step that lets it start.</p>
+    <p class="tip">First launch: unzip, drag EzMe to Applications, then right-click it and choose Open. If macOS still blocks it, open System Settings, Privacy &amp; Security, and click Open Anyway. You only do this once: after that, EzMe updates itself from the sidebar.</p>
   </div>
 
   <div class="news" id="updates">
@@ -527,7 +527,7 @@ Your invoice is ready. \t</textarea>
 
 <div class="wrap"><footer>
   <a class="brand" href="#top"><b>ez</b><span>me</span></a>
-  <span>EzMe 3.38 for macOS. AI provider charges apply when you use your own API keys.</span>
+  <span>EzMe <span data-ezv>3.38</span> for macOS. AI provider charges apply when you use your own API keys.</span>
 </footer></div>
 
 <script>
@@ -617,8 +617,16 @@ Your invoice is ready. \t</textarea>
       headers:{"apikey":SB.key,"Authorization":"Bearer "+SB.key,"Content-Type":"application/json","Prefer":"return=minimal"},
       body:JSON.stringify(row)});
   }
+  var ezVersion="3.38";
+  fetch("update/latest.json",{cache:"no-store"}).then(function(r){return r.ok?r.json():null}).then(function(m){
+    if(!m||!m.version||!m.url)return;
+    ezVersion=String(m.version);
+    document.querySelectorAll("[data-ezv]").forEach(function(e){e.textContent=ezVersion});
+    document.querySelectorAll("[data-ezb]").forEach(function(e){e.textContent=String(m.build)});
+    document.querySelectorAll("a[data-ezdl]").forEach(function(a){a.href=m.url});
+  }).catch(function(){});
   document.querySelectorAll("a[download]").forEach(function(a){
-    a.addEventListener("click",function(){try{post("download_events",{version:"3.38"}).catch(function(){})}catch(e){}});
+    a.addEventListener("click",function(){try{post("download_events",{version:ezVersion}).catch(function(){})}catch(e){}});
   });
   var f=document.getElementById("nform");if(!f)return;
   var msg=document.getElementById("nmsg"),btn=document.getElementById("n-btn");

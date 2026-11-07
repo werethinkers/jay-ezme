@@ -1,0 +1,139 @@
+name: Build and release EzMe for Mac
+
+# Every push to main that changes app/ builds EzMe on a Mac, publishes a GitHub Release,
+# and updates update/latest.json on the website. Installed copies pick it up through
+# "Check for updates". Pull requests only build the app (no release) so changes are checked first.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/release-app.yml"
+  pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/release-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-app
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      HAS_CERT: ${{ secrets.MAC_CERT_P12 != '' }}
+      HAS_RELEASE_TOKEN: ${{ secrets.EZME_RELEASE_TOKEN != '' }}
+      SUPABASE_URL: https://vfmuqfbmklupzzqfhdjz.supabase.co
+      SUPABASE_KEY: sb_publishable_tiCUvyFpz0GgyZJF6Ux4cQ_9LTKN3pq
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out version and build number
+        id: v
+        run: |
+          VERSION="$(tr -d '[:space:]' < app/VERSION)"
+          BUILD=$((168 + GITHUB_RUN_NUMBER))
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION-build$BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Import signing certificate
+        if: env.HAS_CERT == 'true' && github.event_name != 'pull_request'
+        env:
+          MAC_CERT_P12: ${{ secrets.MAC_CERT_P12 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/ezme.keychain-db"
+          KCPASS="$(uuidgen)"
+          security create-keychain -p "$KCPASS" "$KC"
+          security set-keychain-settings -lut 3600 "$KC"
+          security unlock-keychain -p "$KCPASS" "$KC"
+          echo "$MAC_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$MAC_CERT_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPASS" "$KC"
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          ID="$(security find-identity -p codesigning "$KC" | awk '/\)/ {print $2; exit}')"
+          echo "SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          BUILD_NUMBER="${{ steps.v.outputs.build }}" OUT_DIR="$RUNNER_TEMP/out" ./app/build.sh
+          cp "$RUNNER_TEMP/out/EzMe-${{ steps.v.outputs.version }}-macOS.zip" "$RUNNER_TEMP/out/EzMe-macOS.zip"
+
+      - name: Keep the test build (pull requests)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: EzMe-test-build
+          path: ${{ runner.temp }}/out/EzMe-macOS.zip
+          retention-days: 7
+
+      - name: Publish GitHub Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.v.outputs.tag }}" \
+            "$RUNNER_TEMP/out/EzMe-${{ steps.v.outputs.version }}-macOS.zip" \
+            "$RUNNER_TEMP/out/EzMe-macOS.zip" \
+            --title "EzMe ${{ steps.v.outputs.version }} (build ${{ steps.v.outputs.build }})" \
+            --notes-file app/RELEASE_NOTES.md \
+            --target "$GITHUB_SHA" \
+            --latest
+
+      - name: Update the website's update feed
+        if: github.event_name != 'pull_request'
+        run: |
+          ZIP="$RUNNER_TEMP/out/EzMe-${{ steps.v.outputs.version }}-macOS.zip"
+          SHA="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
+          URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.v.outputs.tag }}/EzMe-${{ steps.v.outputs.version }}-macOS.zip"
+          python3 - "$URL" "$SHA" <<'PY'
+          import json, sys, datetime
+          notes = open("app/RELEASE_NOTES.md", encoding="utf-8").read().strip()
+          feed = {
+              "version": "${{ steps.v.outputs.version }}",
+              "build": int("${{ steps.v.outputs.build }}"),
+              "url": sys.argv[1],
+              "sha256": sys.argv[2],
+              "notes": notes,
+              "published": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "minimumSystemVersion": "14.0",
+          }
+          open("update/latest.json", "w", encoding="utf-8").write(json.dumps(feed, indent=2) + "\n")
+          PY
+          echo "ZIP_SHA=$SHA" >> "$GITHUB_ENV"
+          echo "ZIP_URL=$URL" >> "$GITHUB_ENV"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add update/latest.json
+          git commit -m "Publish EzMe ${{ steps.v.outputs.version }} build ${{ steps.v.outputs.build }}"
+          for i in 1 2 3; do git pull --rebase origin main && git push origin HEAD:main && break; sleep 5; done
+
+      - name: Record the release in the Lovable Cloud database
+        if: github.event_name != 'pull_request' && env.HAS_RELEASE_TOKEN == 'true'
+        env:
+          EZME_RELEASE_TOKEN: ${{ secrets.EZME_RELEASE_TOKEN }}
+        run: |
+          python3 - > "$RUNNER_TEMP/release.json" <<'PY'
+          import json, os
+          print(json.dumps({
+              "p_token": os.environ["EZME_RELEASE_TOKEN"],
+              "p_version": "${{ steps.v.outputs.version }}",
+              "p_build": int("${{ steps.v.outputs.build }}"),
+              "p_url": os.environ["ZIP_URL"],
+              "p_sha256": os.environ["ZIP_SHA"],
+              "p_notes": open("app/RELEASE_NOTES.md", encoding="utf-8").read().strip(),
+              "p_minimum_system_version": "14.0",
+          }))
+          PY
+          curl -fsS -X POST "$SUPABASE_URL/rest/v1/rpc/publish_release" \
+            -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY" \
+            -H "Content-Type: application/json" --data @"$RUNNER_TEMP/release.json"
+          rm -f "$RUNNER_TEMP/release.json"

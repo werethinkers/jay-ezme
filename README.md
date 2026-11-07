@@ -4,7 +4,9 @@ Static marketing site for the EzMe macOS app (v3.38). Live at https://ezme.ezyou
 
 - `index.html`: the whole site (HTML, CSS and a small demo script inline). Fonts load from Google Fonts.
 - `assets/`: logo, reference document layouts, favicon and social image.
-- `downloads/EzMe-3.38-macOS.zip`: the app build the Download buttons point to. Replace the file and update the version text in `index.html` for a new release.
+- `app/`: the Mac app source, build script and release notes. See `app/README.md`.
+- `update/latest.json`: the update feed. GitHub Actions rewrites it on every app release; the Download button and the app's updater both read it.
+- `downloads/EzMe-3.38-macOS.zip`: the last hand-built release, kept as the fallback download until the first automatic release exists.
 - `CNAME`: custom domain for GitHub Pages. DNS: `ezme` CNAME to `werethinkers.github.io`.
 
 ## Run locally
