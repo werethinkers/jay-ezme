@@ -1,6 +1,6 @@
 # EzMe website
 
-Static marketing site for the EzMe macOS app (v3.38). Live at https://ezme.ezyourlife.com
+Static marketing site for the EzMe macOS app (current version in `update/latest.json`). Live at https://ezme.ezyourlife.com
 
 - `index.html`: the whole site (HTML, CSS and a small demo script inline). Fonts load from Google Fonts.
 - `assets/`: logo, reference document layouts, favicon and social image.
