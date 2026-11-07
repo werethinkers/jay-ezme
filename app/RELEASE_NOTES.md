@@ -1,3 +1,4 @@
-- New look, "Butter Desk": butter and cocoa colours with coral accents, replacing the purple. The left sidebar is now a row of top tabs (Home, Library, Create, Apps & web, Setup), with a small row of pills for the screens inside each tab.
-- Home: the search is now the Merlin bar, one pill-shaped bar for finding shortcuts or describing what you want. "Where things live" and "The naming rule" are now collapsible sections.
-- Other screens keep their layout for now and pick up the new colours; more of them move to collapsible sections in the next builds.
+- New look, "Butter Desk": butter and cocoa colours with coral accents instead of purple, on every screen. The left sidebar is now a row of top tabs (Home, Library, Create, Apps & web, Setup), with pills for the screens inside each tab.
+- Merlin bar: every search box now uses the same pill-shaped bar, including Home, shortcuts, live values, media and saved links.
+- Collapsible sections: the boxed sections on Settings, Live values, Media and more, the How EzMe works guide steps, and the Home map are now accordions you can open and close.
+- Screen banners use one calm cocoa style.
