@@ -1,9 +1,9 @@
 {
-  "version": "3.40",
-  "build": 183,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.40-build183/EzMe-3.40-macOS.zip",
-  "sha256": "e31bfa2d8dba8e28640c93c15572cac954eccb1c79fdd500cede6468975533a3",
-  "notes": "- Changed: App Builder steps now run Action, Information, Collection, Function, Selection. Formula is now called Function and Template is now called Selection.",
-  "published": "2026-11-07T11:10:23Z",
+  "version": "3.41",
+  "build": 191,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.41-build191/EzMe-3.41-macOS.zip",
+  "sha256": "85927d3415df371cb4089ed0de4f9b09fc314f2af913919f5ae934b0d7cc1961",
+  "notes": "- New: sign in with your email and password. Your shortcuts, collections, records, media, settings and AI keys are stored in your private EzMe cloud account and sync across your Macs.\n- Changes upload within a few seconds and other Macs pick them up within a minute (or when you switch back to EzMe).\n- Signing out removes your workspace and keys from this Mac.\n- If you used a local EzMe account before, your shortcuts move to your cloud account the first time you sign in.\n- New: phrase search. Type \\ and describe what you want (\"80s picture\", \"bank details\") and EzMe finds the shortcut, even if you forgot its name.\n- New: guessable shortcut names. EzMe suggests a name from what the shortcut is, using one simple rule (\"80's picture\" becomes \\80spic) and warns you if it is already taken.\n- New: Home screen with a search box and a short map of where things live, and a sidebar grouped into Your library, Create, Apps & web and Setup.\n- Changed: App Builder steps now run Action, Information, Collection, Function, Selection. Formula is now called Function and Template is now called Selection.",
+  "published": "2026-11-07T18:51:57Z",
   "minimumSystemVersion": "14.0"
 }
