@@ -359,6 +359,12 @@ struct KeyboardPermissionSetupView:View {
  @ViewBuilder private func permissionRow(_ title:String,granted:Bool,enabled:Bool=true,description:String,action:@escaping()->Void)->some View{HStack(alignment:.top,spacing:12){Image(systemName:granted ? "checkmark.circle.fill":"circle").font(.title2).foregroundStyle(granted ? .green:.orange);VStack(alignment:.leading,spacing:3){Text(title).font(.headline);Text(description).font(.caption).foregroundStyle(.secondary)};Spacer();if !granted{Button("Request"){action()}.buttonStyle(.borderedProminent).tint(.purple).disabled(!enabled)}}.padding(12).background(Color.primary.opacity(0.035),in:RoundedRectangle(cornerRadius:12))}
 }
 
+struct EzMeAppServicesModifier:ViewModifier{
+ @ObservedObject var updater:EzMeUpdater
+ let onCloudChange:()->Void
+ func body(content:Content)->some View{content.sheet(isPresented:$updater.showSheet){EzMeUpdateSheet(updater:updater)}.onAppear{updater.checkOnLaunch()}.onReceive(NotificationCenter.default.publisher(for:.ezmeCloudDataChanged)){_ in onCloudChange()}}
+}
+
 struct MainView:View {
  @ObservedObject var updater=EzMeUpdater.shared
  @StateObject var db=DB(); @StateObject var account=EzMeAccountStore(); @StateObject var browser=EzMeBrowserTabs(); @StateObject var appLinks=EzMeAppLinks(); @StateObject var desktopApps=DesktopAppCatalog(); @StateObject var marketplace=MarketplaceStore()
@@ -370,12 +376,13 @@ struct MainView:View {
  @State var collectionFilter="All collections"; @State private var shortcutCollectionFilter="All collections"; @State private var shortcutsCategoryFilter="All categories"; @State private var showHiddenInShortcuts=false; @State private var currentPage=0; @State private var filteredClipCache=[Clip](); @State private var listFilterGeneration=0; @State private var filteringClips=false;@State private var metricsRevision=0; private let shortcutPageSize=50; @AppStorage("miniJTheme") var theme="Light"
  let green=Color(red:0.39,green:0.12,blue:0.78)
  let accent=Color(red:0.57,green:0.16,blue:0.95)
+ private var cloudSignInView:AnyView{AnyView(EzMeCloudSignInView(cloud:EzMeCloud.shared,onSignedIn:{email in account.acceptCloud(email)}))}
+ private func cloudDataChanged(){guard account.isAuthenticated else{return};db.activateProfile(identity:account.currentUsername);marketplace.load(directory:db.dir);refreshVisibleClips()}
+ private func startCloudSync(){EzMeCloud.shared.startSync(profile:db.dir)}
  var body:some View {
-  Group{if account.isAuthenticated{HStack(spacing:0){if !sidebarHidden{sidebar.transition(.move(edge:.leading))};if section=="Browser"{browserWorkspace}else{regularWorkspace;if browserSidePanelVisible{Divider();BrowserWorkspace(state:browser,showControls:.constant(true),compact:true,onHide:{withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible=false}}).frame(width:browserPanelWidth).transition(.move(edge:.trailing))}}}}else{EzMeCloudSignInView(cloud:EzMeCloud.shared,onSignedIn:{email in account.acceptCloud(email)})}}
+  Group{if account.isAuthenticated{HStack(spacing:0){if !sidebarHidden{sidebar.transition(.move(edge:.leading))};if section=="Browser"{browserWorkspace}else{regularWorkspace;if browserSidePanelVisible{Divider();BrowserWorkspace(state:browser,showControls:.constant(true),compact:true,onHide:{withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible=false}}).frame(width:browserPanelWidth).transition(.move(edge:.trailing))}}}}else{cloudSignInView}}
    .tint(accent)
-   .sheet(isPresented:$updater.showSheet){EzMeUpdateSheet(updater:updater)}
-   .onAppear{updater.checkOnLaunch()}
-   .onReceive(NotificationCenter.default.publisher(for:.ezmeCloudDataChanged)){_ in if account.isAuthenticated{db.activateProfile(identity:account.currentUsername);marketplace.load(directory:db.dir);refreshVisibleClips()}}
+   .modifier(EzMeAppServicesModifier(updater:updater,onCloudChange:cloudDataChanged))
    .sheet(isPresented:$editor){shortcutEditorSheet}
    .sheet(isPresented:$bulk){bulkShortcutSheet}
    .sheet(isPresented:$bulkMedia){bulkMediaShortcutSheet}
@@ -394,8 +401,8 @@ struct MainView:View {
    .onReceive(NotificationCenter.default.publisher(for:.miniJChooseFirst)){_ in floatingPanel?.chooseFirst()}
    .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerateShortcut)){note in let trigger=note.userInfo?["trigger"] as? String ?? "";Task{await generateBuilderShortcut(trigger)}}
    .onReceive(NotificationCenter.default.publisher(for:.miniJClosePicker)){note in MiniJAppDelegate.current?.pickerActive=false;floatingPanel?.hide();handlePopupQuickAdd(note.userInfo?["action"] as? String ?? "")}
-   .onAppear{floatingPanel=MiniJPickerPanel();refreshAccess();if account.isAuthenticated && !slashReady{showPermissionSetup=true};if account.isAuthenticated{db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);EzMeCloud.shared.startSync(profile:db.dir);refreshVisibleClips();desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
-   .onChange(of:account.isAuthenticated){signedIn in if signedIn{if !slashReady{showPermissionSetup=true};db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);EzMeCloud.shared.startSync(profile:db.dir);desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
+   .onAppear{floatingPanel=MiniJPickerPanel();refreshAccess();if account.isAuthenticated && !slashReady{showPermissionSetup=true};if account.isAuthenticated{db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);startCloudSync();refreshVisibleClips();desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
+   .onChange(of:account.isAuthenticated){signedIn in if signedIn{if !slashReady{showPermissionSetup=true};db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);startCloudSync();desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
    .onChange(of:section){_ in currentPage=0;if section=="Collections"{db.search=""};refreshVisibleClips()}
    .onChange(of:collectionFilter){_ in currentPage=0;refreshVisibleClips()}
    .onChange(of:db.search){_ in currentPage=0;refreshVisibleClips()}
