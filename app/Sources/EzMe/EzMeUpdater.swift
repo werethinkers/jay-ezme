@@ -221,7 +221,11 @@ final class EzMeUpdater: ObservableObject {
             process.standardOutput = FileHandle.nullDevice
             process.standardError = FileHandle.nullDevice
             try process.run()
-            NSApp.terminate(nil)
+            // Close the sheet, then quit. If AppKit doesn't quit within a few seconds (seen on macOS 15
+            // with a sheet open), exit anyway so the installer can swap the bundle and relaunch.
+            showSheet = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { NSApp.terminate(nil) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) { exit(0) }
         } catch {
             try? fm.removeItem(at: work)
             Self.logEvent("update_failed", targetBuild: manifest.build, detail: Self.describe(error))
@@ -302,7 +306,9 @@ final class EzMeUpdater: ObservableObject {
     #!/bin/sh
     PID="$1"; NEW="$2"; CURRENT="$3"; DEST="$4"; WORK="$5"
     i=0
-    while kill -0 "$PID" 2>/dev/null && [ $i -lt 150 ]; do sleep 0.2; i=$((i+1)); done
+    while kill -0 "$PID" 2>/dev/null && [ $i -lt 75 ]; do sleep 0.2; i=$((i+1)); done
+    if kill -0 "$PID" 2>/dev/null; then kill -TERM "$PID" 2>/dev/null; sleep 3; fi
+    if kill -0 "$PID" 2>/dev/null; then kill -KILL "$PID" 2>/dev/null; sleep 1; fi
     BACKUP="$WORK/EzMe-previous.app"
     if ! mv "$CURRENT" "$BACKUP"; then open "$CURRENT"; exit 1; fi
     if ditto "$NEW" "$DEST"; then
@@ -390,7 +396,7 @@ struct EzMeUpdateSheet: View {
                 Image(systemName: "arrow.down.app.fill").font(.system(size: 34)).foregroundStyle(.purple)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("EzMe updates").font(.title2.bold())
-                    Text("This Mac has version \(updater.currentVersion) (build \(updater.currentBuild)).")
+                    Text("This Mac has version \(updater.currentVersion) (build \(String(updater.currentBuild))).")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
@@ -429,7 +435,7 @@ struct EzMeUpdateSheet: View {
             Label("You have the latest version.", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
         case .available(let manifest):
             VStack(alignment: .leading, spacing: 8) {
-                Text("Version \(manifest.version) (build \(manifest.build)) is ready.").font(.headline)
+                Text("Version \(manifest.version) (build \(String(manifest.build))) is ready.").font(.headline)
                 if let notes = manifest.notes, !notes.isEmpty {
                     ScrollView { Text(notes).font(.callout).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
                         .frame(maxHeight: 180)

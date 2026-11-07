@@ -57,6 +57,9 @@ sleep 2
 defaults write com.ezme.mac EzMeUpdateFeed "http://127.0.0.1:8765/latest.json"
 defaults write com.ezme.mac EzMeAutoInstallUpdate -bool YES
 open /Applications/EzMe.app
+sleep 3
+OLD_PID="$(pgrep -x EzMe | head -1)"
+echo "Old EzMe process: $OLD_PID"
 UPDATED=0
 for i in $(seq 1 60); do
   sleep 2
@@ -64,7 +67,14 @@ for i in $(seq 1 60); do
 done
 if [ $UPDATED = 1 ]; then pass "updater replaced build $BUILD_A with build $NEW_BUILD"; else fail "updater did not install build $NEW_BUILD (still $(plist_build /Applications/EzMe.app))"; fi
 sleep 15
-if running; then pass "updated EzMe relaunched and is running"; else fail "EzMe did not relaunch after the update"; fi
+NEW_PIDS="$(pgrep -x EzMe | tr '\n' ' ')"
+echo "EzMe processes after update: $NEW_PIDS"
+if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then fail "the old EzMe process ($OLD_PID) is still running after the update"; else pass "the old EzMe process quit"; fi
+NEW_PID="$(pgrep -x EzMe | head -1)"
+if [ -n "$NEW_PID" ] && [ "$NEW_PID" != "$OLD_PID" ]; then pass "updated EzMe relaunched as a new process ($NEW_PID)"; else fail "EzMe did not relaunch after the update"; fi
+RUNNING_BIN="$(ps -o comm= -p "$NEW_PID" 2>/dev/null)"
+echo "Running binary: $RUNNING_BIN"
+[ "$RUNNING_BIN" = "/Applications/EzMe.app/Contents/MacOS/EzMe" ] && pass "the relaunched process runs from /Applications/EzMe.app" || fail "the relaunched process is not the installed app"
 screencapture -x "$OUT/2-after-update.png" 2>/dev/null
 codesign --verify --strict /Applications/EzMe.app && pass "updated app signature is valid" || fail "updated app signature"
 defaults write com.ezme.mac EzMeAutoInstallUpdate -bool NO
