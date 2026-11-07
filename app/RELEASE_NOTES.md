@@ -1,1 +1,3 @@
-- Fixed: the Ezyourlife screens (Apps, Credits, Ask bar and run panel) showed dark boxes with dark text and invisible buttons. They now always show the light Ezyourlife look, with readable text and buttons, in any Mac appearance.
+- New look, "Butter Desk": butter and cocoa colours with coral accents, replacing the purple. The left sidebar is now a row of top tabs (Home, Library, Create, Apps & web, Setup), with a small row of pills for the screens inside each tab.
+- Home: the search is now the Merlin bar, one pill-shaped bar for finding shortcuts or describing what you want. "Where things live" and "The naming rule" are now collapsible sections.
+- Other screens keep their layout for now and pick up the new colours; more of them move to collapsible sections in the next builds.
