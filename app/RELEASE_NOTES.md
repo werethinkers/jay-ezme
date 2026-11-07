@@ -5,3 +5,4 @@
 - New: phrase search. Type \ and describe what you want ("80s picture", "bank details") and EzMe finds the shortcut, even if you forgot its name.
 - New: guessable shortcut names. EzMe suggests a name from what the shortcut is, using one simple rule ("80's picture" becomes \80spic).
 - New Home screen and a tidier sidebar, grouped into Your library, Create, Apps & web and Setup.
+- Changed: App Builder steps now run Action, Information, Collection, Function, Selection. Formula is now called Function and Template is now called Selection.
