@@ -301,30 +301,30 @@ enum EzMeNavigation {
     struct Area: Identifiable { var id: String { title }; var title: String; var items: [Item] }
 
     static let areas: [Area] = [
-        Area(title: "", items: [Item(id: "Dashboard", title: "Home", hint: "Search everything and see how EzMe is organised")]),
+        Area(title: "", items: [Item(id: "Dashboard", title: "Home", hint: "Your start page. Type what you want and EzMe finds it for you.")]),
         Area(title: "YOUR LIBRARY", items: [
-            Item(id: "My shortcuts", title: "Shortcuts", hint: "Everything you type with \\"),
-            Item(id: "Collections", title: "Collections", hint: "Lists like customers, products or invoices"),
-            Item(id: "Sound & media", title: "Media", hint: "Images, GIFs, audio and video shortcuts"),
-            Item(id: "Live & dynamic", title: "Live values", hint: "Date, time, world clocks and prices"),
+            Item(id: "My shortcuts", title: "Shortcuts", hint: "Short words that turn into long text. Type \\ then the short word anywhere."),
+            Item(id: "Collections", title: "Collections", hint: "Folders of shortcuts, like a list of customers or products."),
+            Item(id: "Sound & media", title: "Media", hint: "Pictures, sounds and videos you can paste in one tap."),
+            Item(id: "Live & dynamic", title: "Live values", hint: "Words that fill in today's date, time or clock by themselves."),
         ]),
         Area(title: "CREATE", items: [
-            Item(id: "AppBuilder", title: "AppBuilder", hint: "Build documents and apps with AI"),
-            Item(id: "Ez Studio", title: "Ez Studio", hint: "Make and edit images"),
-            Item(id: "Shortcut ideas", title: "Ideas", hint: "Ready-made shortcuts to start from"),
-            Item(id: "Marketplace", title: "Marketplace", hint: "Install or share collections"),
-            Item(id: "Ezyourlife apps", title: "Ezyourlife apps", hint: "Run ezyourlife.com apps and PromptMaster"),
+            Item(id: "AppBuilder", title: "AppBuilder", hint: "Make your own mini app. Say what it does and get a PDF or a picture."),
+            Item(id: "Ez Studio", title: "Ez Studio", hint: "Draw and fix pictures with AI."),
+            Item(id: "Shortcut ideas", title: "Ideas", hint: "Ready-made shortcuts. Pick one to keep it."),
+            Item(id: "Marketplace", title: "Marketplace", hint: "Get or share shortcut packs with other people."),
+            Item(id: "Ezyourlife apps", title: "Ezyourlife apps", hint: "Little AI helpers from ezyourlife.com. Pick one, fill the boxes, press Run."),
         ]),
         Area(title: "APPS & WEB", items: [
-            Item(id: "Apps & links", title: "Apps & links", hint: "Open websites and apps by name"),
-            Item(id: "Desktop apps", title: "Desktop apps", hint: "Apps installed on this Mac"),
-            Item(id: "Browser", title: "Browser", hint: "Built-in browser"),
+            Item(id: "Apps & links", title: "Apps & links", hint: "Open your favourite websites and apps just by typing their name."),
+            Item(id: "Desktop apps", title: "Desktop apps", hint: "All the apps on this Mac, ready to open."),
+            Item(id: "Browser", title: "Browser", hint: "A web browser inside EzMe."),
         ]),
         Area(title: "SETUP", items: [
-            Item(id: "API configuration", title: "AI keys", hint: "Connect OpenAI, Gemini, Claude and others"),
-            Item(id: "Ezyourlife credits", title: "Credits", hint: "Your Ezyourlife wallet, top-ups and shortcut sync"),
-            Item(id: "Settings", title: "Account & settings", hint: "Your cloud account, theme and data"),
-            Item(id: "User guide", title: "Guide", hint: "How EzMe works"),
+            Item(id: "API configuration", title: "AI keys", hint: "Paste the secret keys that let the AI robots work. Do it once."),
+            Item(id: "Ezyourlife credits", title: "Credits", hint: "Your coins for Ezyourlife apps. Top up here."),
+            Item(id: "Settings", title: "Account & settings", hint: "Your account, colours and backups."),
+            Item(id: "User guide", title: "Guide", hint: "A picture guide to using EzMe."),
         ]),
     ]
 

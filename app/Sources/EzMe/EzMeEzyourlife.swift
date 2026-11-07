@@ -894,7 +894,7 @@ struct EzyRunPanelView: View {
         self.returnApp = returnApp
         self.removeCount = removeCount
         if panel == nil {
-            let p = EzMeKeyablePickerWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 520), styleMask: [.borderless], backing: .buffered, defer: false)
+            let p = EzMeKeyablePickerWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 520), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             p.isFloatingPanel = true
             p.level = .floating
             p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -916,7 +916,6 @@ struct EzyRunPanelView: View {
         let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
         p.setFrameOrigin(NSPoint(x: visible.midX - 320, y: visible.maxY - 580))
-        NSApp.activate(ignoringOtherApps: true)
         p.makeKeyAndOrderFront(nil)
     }
 
