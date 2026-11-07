@@ -2277,7 +2277,7 @@ Return only valid JSON: {"shortcuts":[{"shortcut":"short-code","name":"short dis
  static func outputText(from object:[String:Any])->String{if let text=object["output_text"] as? String{return text};let items=object["output"] as? [[String:Any]] ?? [];return items.flatMap{$0["content"] as? [[String:Any]] ?? []}.compactMap{$0["text"] as? String}.joined(separator:"\n")}
 }
 
-private enum KeyStore {
+enum KeyStore {
  static let service="com.minij.mac"
  private static let lock=NSLock()
  private static var cache:[String:String]=[:]
