@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// "Butter Desk" look: butter and cocoa, coral accents, top tabs instead of a sidebar.
 enum Butter {
@@ -32,6 +33,11 @@ enum ButterNav {
             ButterArea(id: "Setup", title: "Setup", icon: "gearshape", items: items(4)),
         ]
     }()
+
+    static func item(for section: String) -> EzMeNavigation.Item? {
+        for a in areas { if let i = a.items.first(where: { $0.id == section }) { return i } }
+        return nil
+    }
 
     static func area(containing section: String) -> ButterArea {
         areas.first(where: { $0.items.contains(where: { $0.id == section }) }) ?? areas[0]
@@ -102,6 +108,15 @@ struct ButterTopBar: View {
                     Spacer()
                 }
                 .padding(.horizontal, 18).padding(.bottom, 9)
+            }
+            if let item = ButterNav.item(for: section) {
+                HStack(spacing: 8) {
+                    Image(systemName: "lightbulb.fill").foregroundStyle(Butter.coral)
+                    Text(item.hint).font(.system(size: 13, weight: .medium)).foregroundStyle(Butter.cocoa)
+                    Spacer()
+                }
+                .padding(.horizontal, 18).padding(.vertical, 8)
+                .background(Butter.honey.opacity(0.35))
             }
             Rectangle().fill(Butter.honey).frame(height: 1)
         }
@@ -192,5 +207,20 @@ struct ButterAccordion<Content: View>: View {
         }
         .background(Butter.cream, in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Butter.honey, lineWidth: 1.5))
+    }
+}
+
+/// Reads a picture from disk once and remembers it, so screens stop re-reading files on every redraw.
+enum EzMeImageCache {
+    private static let cache = NSCache<NSString, NSImage>()
+    static func load(contentsOfFile path: String) -> NSImage? {
+        guard !path.isEmpty else { return nil }
+        var stamp: TimeInterval = 0
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: path), let d = attrs[.modificationDate] as? Date { stamp = d.timeIntervalSince1970 }
+        let key = "\(path)|\(stamp)" as NSString
+        if let hit = cache.object(forKey: key) { return hit }
+        guard let image = NSImage(contentsOfFile: path) else { return nil }
+        cache.setObject(image, forKey: key)
+        return image
     }
 }

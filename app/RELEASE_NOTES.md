@@ -1,4 +1,4 @@
-- New look, "Butter Desk": butter and cocoa colours with coral accents instead of purple, on every screen. The left sidebar is now a row of top tabs (Home, Library, Create, Apps & web, Setup), with pills for the screens inside each tab.
-- Merlin bar: every search box now uses the same pill-shaped bar, including Home, shortcuts, live values, media and saved links.
-- Collapsible sections: the boxed sections on Settings, Live values, Media and more, the How EzMe works guide steps, and the Home map are now accordions you can open and close.
-- Screen banners use one calm cocoa style.
+- Fixed: Ezyourlife apps now open and run inside the small popup. The big EzMe window no longer jumps to the front.
+- Faster: EzMe checks permissions less often and remembers pictures instead of reloading them from disk every time the screen redraws, which removes most of the lag.
+- Easier: every screen now has a one-line "what is this?" strip under the tabs, in plain words.
+- AppBuilder: a short "5 easy steps" guide, a plain sentence on every step with "Start here" and "Optional" tags, and clearer buttons ("Make it" instead of "Generate Output").
