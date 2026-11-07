@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>EzMe</string>
+	<key>CFBundleExecutable</key>
+	<string>EzMe</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.ezme.mac</string>
+	<key>CFBundleName</key>
+	<string>EzMe</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__BUILD__</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>EzMe uses macOS automation to expand shortcuts in other apps.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>EzMe uses the microphone when you choose voice input for builder prompts and details.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>EzMe captures a selected screen area when you choose Crop screen.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>EzMe converts chosen voice input into text for builder prompts and details.</string>
+</dict>
+</plist>

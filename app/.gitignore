@@ -1,0 +1,13 @@
+.DS_Store
+.build/
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.p12
+*.p8
+.env
+.env.*
+!.env.example
+Secrets.plist
