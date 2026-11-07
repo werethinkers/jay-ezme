@@ -1,9 +1,9 @@
 {
-  "version": "3.43",
-  "build": 195,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.43-build195/EzMe-3.43-macOS.zip",
-  "sha256": "6b604ac74b52bb637a12db52d1971e867d24bc6e50943cb361a479ad569832a8",
-  "notes": "- Fixed: the Ezyourlife screens (Apps, Credits, Ask bar and run panel) showed dark boxes with dark text and invisible buttons. They now always show the light Ezyourlife look, with readable text and buttons, in any Mac appearance.",
-  "published": "2026-11-07T19:31:20Z",
+  "version": "3.44",
+  "build": 198,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build198/EzMe-3.44-macOS.zip",
+  "sha256": "93f0f60216d2f295e427920b99fb3fcae6fd1431f599332d1dea0256c7fd622d",
+  "notes": "- New: Ezyourlife apps work like built-in shortcuts. Type \\ and a few words (\"invoice\", \"reply to a review\"), pick the app, fill its boxes and press Run and paste. The answer lands in the text box you were typing in.\n- New: boxes fill themselves. Business name, owner, city, GSTIN and the other details saved in your Ezyourlife profile are filled in for you, and the answers you gave last time for that app are remembered. EzMe tells you what it filled.\n- New: every answer you paste is saved as a shortcut in \"Ezyourlife results\", so it syncs with the rest of your library and you can search for it later with \\.\n- New: Preview first runs the app and shows the answer before you paste it.",
+  "published": "2026-11-07T19:52:07Z",
   "minimumSystemVersion": "14.0"
 }
