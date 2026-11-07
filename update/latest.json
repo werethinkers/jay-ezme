@@ -1,9 +1,9 @@
 {
-  "version": "3.42",
-  "build": 193,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.42-build193/EzMe-3.42-macOS.zip",
-  "sha256": "fc6d4b48710520282710d47dda7b1e848185b7e5f99a7f90d6eb80f8f22730ed",
-  "notes": "- New: Ezyourlife apps inside EzMe. Connect your ezyourlife.com account once and every Ezyourlife app shows up when you type \\ (for example \\invoice). Pick one, fill its boxes and the answer is pasted where you were typing.\n- New: Ask bar. Press Option-Space anywhere, say what you need, and EzMe finds the right Ezyourlife app or improves your prompt with PromptMaster (magic write and brainstorm).\n- New: Ezyourlife apps tab (under Create) to browse apps by goal, run them, and save any app with your usual answers as a shortcut of your own.\n- New: Credits page (under Setup) shows your Ezyourlife wallet, recent charges and top-up packs, and syncs your shortcuts with the Ezyourlife extension and Speedy Notebook. Apps use the same credits and prices as the website, and a failed run costs nothing.",
-  "published": "2026-11-07T19:05:23Z",
+  "version": "3.43",
+  "build": 195,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.43-build195/EzMe-3.43-macOS.zip",
+  "sha256": "6b604ac74b52bb637a12db52d1971e867d24bc6e50943cb361a479ad569832a8",
+  "notes": "- Fixed: the Ezyourlife screens (Apps, Credits, Ask bar and run panel) showed dark boxes with dark text and invisible buttons. They now always show the light Ezyourlife look, with readable text and buttons, in any Mac appearance.",
+  "published": "2026-11-07T19:31:20Z",
   "minimumSystemVersion": "14.0"
 }
