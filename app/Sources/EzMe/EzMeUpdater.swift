@@ -22,7 +22,11 @@ struct EzMeUpdateManifest: Codable, Equatable {
 @MainActor
 final class EzMeUpdater: ObservableObject {
     static let shared = EzMeUpdater()
-    static let feedURL = URL(string: "https://ezme.ezyourlife.com/update/latest.json")!
+    nonisolated static let feedURL = URL(string: "https://ezme.ezyourlife.com/update/latest.json")!
+    // Lovable Cloud (Supabase) project "EzMe Marketing Backend". The publishable key is public by design:
+    // it can only read app_releases and add rows to app_events (row level security).
+    nonisolated static let supabaseURL = "https://vfmuqfbmklupzzqfhdjz.supabase.co"
+    nonisolated static let supabaseKey = "sb_publishable_tiCUvyFpz0GgyZJF6Ux4cQ_9LTKN3pq"
 
     enum Phase: Equatable {
         case idle
@@ -64,13 +68,14 @@ final class EzMeUpdater: ObservableObject {
         if phase == .installing { return }
         phase = .checking
         do {
-            var request = URLRequest(url: Self.feedURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 20)
-            request.setValue("EzMe/\(currentVersion) (\(currentBuild))", forHTTPHeaderField: "User-Agent")
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
-                throw EzMeUpdateError.message("The update server did not answer. Try again later.")
+            // Ask the database and the website feed together and take the newest build either one knows.
+            async let fromDatabase = Self.fetchFromDatabase()
+            async let fromWebsite = Self.fetchFromWebsite()
+            let candidates = [await fromDatabase, await fromWebsite].compactMap { $0 }
+            guard let manifest = candidates.max(by: { $0.build < $1.build }) else {
+                throw EzMeUpdateError.message("The update server did not answer. Check your connection and try again.")
             }
-            let manifest = try JSONDecoder().decode(EzMeUpdateManifest.self, from: data)
+            Self.logEvent("update_check", targetBuild: manifest.build)
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastCheckKey)
             latest = manifest
             if manifest.build > currentBuild && Self.systemSupports(manifest.minimumSystemVersion) {
@@ -83,6 +88,60 @@ final class EzMeUpdater: ObservableObject {
         } catch {
             phase = userInitiated ? .failed(Self.describe(error)) : .idle
         }
+    }
+
+    nonisolated static var userAgent: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        return "EzMe/\(info["CFBundleShortVersionString"] as? String ?? "0") (\(info["CFBundleVersion"] as? String ?? "0"))"
+    }
+
+    /// Newest stable row in app_releases.
+    nonisolated static func fetchFromDatabase() async -> EzMeUpdateManifest? {
+        struct Row: Decodable {
+            var version: String; var build: Int; var url: String; var sha256: String
+            var notes: String?; var minimum_system_version: String?; var published_at: String?
+        }
+        guard let url = URL(string: supabaseURL + "/rest/v1/app_releases?select=version,build,url,sha256,notes,minimum_system_version,published_at&channel=eq.stable&order=build.desc&limit=1") else { return nil }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer " + supabaseKey, forHTTPHeaderField: "Authorization")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        guard let result = try? await URLSession.shared.data(for: request),
+              (result.1 as? HTTPURLResponse)?.statusCode == 200,
+              let row = (try? JSONDecoder().decode([Row].self, from: result.0))?.first else { return nil }
+        return EzMeUpdateManifest(version: row.version, build: row.build, url: row.url, sha256: row.sha256,
+                                  notes: row.notes, published: row.published_at, minimumSystemVersion: row.minimum_system_version)
+    }
+
+    /// update/latest.json on the website (fallback when the database can't be reached).
+    nonisolated static func fetchFromWebsite() async -> EzMeUpdateManifest? {
+        var request = URLRequest(url: feedURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        guard let result = try? await URLSession.shared.data(for: request),
+              (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return try? JSONDecoder().decode(EzMeUpdateManifest.self, from: result.0)
+    }
+
+    /// Anonymous update event (version, build, macOS version). Fire and forget; failures are ignored.
+    nonisolated static func logEvent(_ event: String, targetBuild: Int? = nil, detail: String? = nil) {
+        guard let url = URL(string: supabaseURL + "/rest/v1/app_events") else { return }
+        let info = Bundle.main.infoDictionary ?? [:]
+        var row: [String: Any] = [
+            "event": event,
+            "version": info["CFBundleShortVersionString"] as? String ?? "0",
+            "build": Int(info["CFBundleVersion"] as? String ?? "0") ?? 0,
+            "os_version": String(ProcessInfo.processInfo.operatingSystemVersionString.prefix(40)),
+        ]
+        if let targetBuild { row["target_build"] = targetBuild }
+        if let detail { row["detail"] = String(detail.prefix(300)) }
+        var request = URLRequest(url: url, timeoutInterval: 15)
+        request.httpMethod = "POST"
+        request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer " + supabaseKey, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: row)
+        URLSession.shared.dataTask(with: request).resume()
     }
 
     func skipThisVersion() {
@@ -105,6 +164,7 @@ final class EzMeUpdater: ObservableObject {
                 throw EzMeUpdateError.message("The update link is not secure.")
             }
             try fm.createDirectory(at: work, withIntermediateDirectories: true)
+            Self.logEvent("update_started", targetBuild: manifest.build)
             phase = .downloading(0)
             let zip = work.appendingPathComponent("EzMe.zip")
             try await download(url, to: zip)
@@ -146,6 +206,7 @@ final class EzMeUpdater: ObservableObject {
             NSApp.terminate(nil)
         } catch {
             try? fm.removeItem(at: work)
+            Self.logEvent("update_failed", targetBuild: manifest.build, detail: Self.describe(error))
             phase = .failed(Self.describe(error))
         }
     }

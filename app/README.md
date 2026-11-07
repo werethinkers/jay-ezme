@@ -19,10 +19,17 @@ GitHub Actions (`.github/workflows/release-app.yml`) then builds the app on a Ma
 
 ## How the updater works
 
-1. Fetches `https://ezme.ezyourlife.com/update/latest.json` at launch (at most every six hours) or when asked.
+1. At launch (at most every six hours) or when asked, reads the newest stable row of `app_releases` in the Lovable Cloud database and `https://ezme.ezyourlife.com/update/latest.json`, and takes whichever has the higher build.
 2. If `build` is higher than the installed build, it offers the update with the release notes.
 3. Downloads the zip, checks its SHA-256, unpacks it, checks the bundle id, the build number and the code signature. When the installed copy is signed with a real identity, the new copy must be signed by the same one.
 4. Quits, swaps the app bundle in place (restoring the old one if the copy fails) and reopens. Shortcuts and settings live outside the app bundle, so they are kept.
+
+## Database (Lovable Cloud)
+
+The backend is the Lovable project "EzMe Marketing Backend" (Supabase). `backend/0001_app_releases_and_events.sql` is the SQL that created:
+
+- `app_releases`: every published build. Anyone can read it; only `publish_release()` can write it. The workflow calls that function when the `EZME_RELEASE_TOKEN` secret is set.
+- `app_events`: anonymous update checks, starts and failures from the app (version, build, macOS version). Insert-only for the public; read it in Lovable Cloud.
 
 ## Signing (recommended)
 
