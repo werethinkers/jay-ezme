@@ -1,2 +1,3 @@
-- Browser: pick your own size. The "Browser" button in the top bar now has Small, Medium, Large and Huge panels, and you can also drag the thin bar on the panel edge to any width.
-- Browser: new Full screen mode. It fills the screen and keeps only a thin tab row and address bar, with no frames around them. Press Esc or the small "Exit full screen" button to come back.
+- Search is now like Spotlight. The popup (type \ in any app) starts as one plain search bar. Once you type, it opens into grouped, collapsible results: Shortcuts, AppBuilder cards, Websites, Ezyourlife apps and Mac apps. Click any group or result with the mouse, or keep typing.
+- AppBuilder cards and saved websites now show up in search with their picture and name, in the popup and on the Home page. Clicking a card opens that AppBuilder app, and clicking a website opens it in the EzMe browser.
+- The popup options (transparency and category) are tucked into an "Options" section.

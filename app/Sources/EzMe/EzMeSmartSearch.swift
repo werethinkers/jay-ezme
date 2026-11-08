@@ -205,6 +205,8 @@ struct EzMeFindAnythingCard: View {
     var onOpen: (Clip) -> Void
     var onCreate: (String) -> Void
     @State private var query = ""
+    private var cardHits: [EzMeBuilderHit] { EzMeSearchSources.builderApps(matching: query) }
+    private var siteHits: [EzMeSavedSite] { EzMeSearchSources.sites(matching: query) }
 
     private var results: [Clip] { query.trimmingCharacters(in: .whitespaces).isEmpty ? [] : EzMeWords.rank(clips, query: query, limit: 6) }
 
@@ -214,6 +216,7 @@ struct EzMeFindAnythingCard: View {
             Text("Describe it in your own words. You don't need to remember the shortcut.").foregroundStyle(.secondary)
             MerlinBar(text: $query, placeholder: "Try “80s picture”, “bank details” or “thank you email”")
             if !results.isEmpty {
+                ButterAccordion("Shortcuts", subtitle: "\(results.count) found", icon: "text.cursor", open: true) {
                 VStack(spacing: 6) {
                     ForEach(results) { clip in
                         Button { onOpen(clip) } label: {
@@ -236,8 +239,33 @@ struct EzMeFindAnythingCard: View {
                         .buttonStyle(.plain)
                     }
                 }
+                }
                 Text("Anywhere on your Mac, type \\ and these words to get the same results.").font(.caption).foregroundStyle(.secondary)
-            } else if !query.trimmingCharacters(in: .whitespaces).isEmpty {
+            }
+            if !cardHits.isEmpty {
+                ButterAccordion("AppBuilder cards", subtitle: "\(cardHits.count) found", icon: "wand.and.stars", open: results.isEmpty) {
+                    VStack(spacing: 7) {
+                        ForEach(cardHits) { card in
+                            ButterHitRow(title: card.name, subtitle: card.detail, badge: "APPBUILDER", symbol: "wand.and.stars", iconPath: card.iconPath) {
+                                UserDefaults.standard.set(card.name, forKey: "ezmeAIBuilderApp")
+                                NotificationCenter.default.post(name: .ezmeOpenBuilderApp, object: nil, userInfo: ["app": card.name])
+                            }
+                        }
+                    }
+                }
+            }
+            if !siteHits.isEmpty {
+                ButterAccordion("Websites", subtitle: "\(siteHits.count) found", icon: "globe", open: results.isEmpty && cardHits.isEmpty) {
+                    VStack(spacing: 7) {
+                        ForEach(siteHits) { site in
+                            ButterHitRow(title: site.title, subtitle: site.url, badge: "WEBSITE", symbol: "globe") {
+                                NotificationCenter.default.post(name: .ezmeOpenSite, object: nil, userInfo: ["url": site.url])
+                            }
+                        }
+                    }
+                }
+            }
+            if results.isEmpty && cardHits.isEmpty && siteHits.isEmpty && !query.trimmingCharacters(in: .whitespaces).isEmpty {
                 HStack {
                     Text("Nothing saved for “\(query)” yet.").foregroundStyle(.secondary)
                     Spacer()

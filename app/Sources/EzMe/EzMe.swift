@@ -382,7 +382,7 @@ struct MainView:View {
  private func cloudDataChanged(){guard account.isAuthenticated else{return};db.activateProfile(identity:account.currentUsername);marketplace.load(directory:db.dir);refreshVisibleClips()}
  private func startCloudSync(){EzMeCloud.shared.startSync(profile:db.dir)}
  var body:some View {
-  Group{if account.isAuthenticated{VStack(spacing:0){if !(browserFocus && section=="Browser"){ButterTopBar(section:$section,browserPanelVisible:browserSidePanelVisible,browserWidth:browserPanelWidth,onPanelSize:{w in browserPanelWidth=w;withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible=true}},onFullScreen:{section="Browser";enterBrowserFocus()},onToggleBrowser:{withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible.toggle()}},onOpen:{id in section=id;if id=="AppBuilder"{UserDefaults.standard.set("Home",forKey:"ezmeAIBuilderApp");UserDefaults.standard.set(true,forKey:"ezmeAppBuilderHasSeenHome")}})};HStack(spacing:0){if section=="Browser"{browserWorkspace}else{regularWorkspace;if browserSidePanelVisible{ButterResizeHandle(width:$browserPanelWidth);BrowserWorkspace(state:browser,showControls:.constant(true),compact:true,onHide:{withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible=false}}).frame(width:browserPanelWidth).transition(.move(edge:.trailing))}}}}}else{cloudSignInView}}
+  Group{if account.isAuthenticated{VStack(spacing:0){if !(browserFocus && section=="Browser"){ButterTopBar(section:$section,browserPanelVisible:browserSidePanelVisible,browserWidth:browserPanelWidth,onPanelSize:{w in browserPanelWidth=w;withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible=true}},onFullScreen:{section="Browser";enterBrowserFocus()},onToggleBrowser:{withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible.toggle()}},onOpen:{id in section=id;if id=="AppBuilder"{UserDefaults.standard.set("Home",forKey:"ezmeAIBuilderApp");UserDefaults.standard.set(true,forKey:"ezmeAppBuilderHasSeenHome")}})};HStack(spacing:0){if section=="Browser"{browserWorkspace}else{regularWorkspace;if browserSidePanelVisible{ButterResizeHandle(width:$browserPanelWidth);BrowserWorkspace(state:browser,showControls:.constant(true),compact:true,onHide:{withAnimation(.easeInOut(duration:0.18)){browserSidePanelVisible=false}}).frame(width:browserPanelWidth).transition(.move(edge:.trailing))}}}.modifier(EzMeOpenRequests(section:$section,openSite:{url in browser.newTab(url)}))}}else{cloudSignInView}}
    .tint(accent)
    .modifier(EzMeAppServicesModifier(updater:updater,onCloudChange:cloudDataChanged))
    .sheet(isPresented:$editor){shortcutEditorSheet}
@@ -403,7 +403,7 @@ struct MainView:View {
    .onReceive(NotificationCenter.default.publisher(for:.miniJChooseFirst)){_ in floatingPanel?.chooseFirst()}
    .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerateShortcut)){note in let trigger=note.userInfo?["trigger"] as? String ?? "";Task{await generateBuilderShortcut(trigger)}}
    .onReceive(NotificationCenter.default.publisher(for:.miniJClosePicker)){note in MiniJAppDelegate.current?.pickerActive=false;floatingPanel?.hide();handlePopupQuickAdd(note.userInfo?["action"] as? String ?? "")}
-   .onAppear{floatingPanel=MiniJPickerPanel();EzyHotKey.install();EzyRunPanel.shared.saveShortcut={clip in saveEzyourlifeShortcut(clip)};refreshAccess();if account.isAuthenticated && !slashReady && !ezmeUIPreview{showPermissionSetup=true};if account.isAuthenticated{db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);startCloudSync();refreshVisibleClips();desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
+   .onAppear{floatingPanel=MiniJPickerPanel();EzyHotKey.install();EzyRunPanel.shared.saveShortcut={clip in saveEzyourlifeShortcut(clip)};EzMeSearchSources.savedSites={browser.saved};refreshAccess();if account.isAuthenticated && !slashReady && !ezmeUIPreview{showPermissionSetup=true};if account.isAuthenticated{db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);startCloudSync();refreshVisibleClips();desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
    .onChange(of:account.isAuthenticated){signedIn in if signedIn{if !slashReady && !ezmeUIPreview{showPermissionSetup=true};db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);startCloudSync();desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
    .onChange(of:section){_ in currentPage=0;if section=="Collections"{db.search=""};refreshVisibleClips()}
    .onChange(of:collectionFilter){_ in currentPage=0;refreshVisibleClips()}
@@ -2760,7 +2760,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         else if search.promptMode { promptCommandView }
         else { standardPickerView }
         }
-        .padding(search.imageMode ? 12:14).frame(width: regularPopupSize.width, height: regularPopupSize.height)
+        .padding(search.imageMode ? 12:14).frame(width: regularPopupSize.width, height: compactMode ? 92:regularPopupSize.height, alignment:.top)
         .background(LinearGradient(colors:[Butter.cream,Butter.cream,Color(red:0.99,green:0.94,blue:0.99)],startPoint:.topLeading,endPoint:.bottomTrailing).opacity(1-popupTransparency), in: RoundedRectangle(cornerRadius: 17))
         .overlay(RoundedRectangle(cornerRadius: 17).stroke(Butter.coral.opacity(0.86),lineWidth:2.8)).shadow(color: .black.opacity(0.24), radius: 24, y: 12).preferredColorScheme(.light)
         .onAppear{if (!search.showHiddenCollections && db.isCollectionHidden(search.collection)) || !db.collections.contains(where:{$0.caseInsensitiveCompare(search.collection) == .orderedSame}) && search.collection != "All collections"{search.collection="All collections"};search.restart(db:db,collection:search.collection)}
@@ -2775,7 +2775,63 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerateShortcut)){_ in isGeneratingBuilder=true;builderElapsed=0;builderStatus="";generatedBuilderClip=nil}
         .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerationFinished)){note in isGeneratingBuilder=false;builderStatus=note.userInfo?["status"] as? String ?? "Generated.";let key=note.userInfo?["key"] as? String ?? "";generatedBuilderClip=db.clips.first(where:{$0.key.caseInsensitiveCompare(normalizedTrigger("/"+key)) == .orderedSame})}
     }
-    private var standardPickerView:some View {
+    private var pickerQuery:String{search.value.trimmingCharacters(in:.whitespacesAndNewlines)}
+    private var compactMode:Bool{pickerQuery.isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode}
+    @ViewBuilder private var standardPickerView:some View { if compactMode { compactPickerView } else { expandedPickerView } }
+    private var compactPickerView:some View {
+        HStack(spacing:10){
+            searchBar
+            Button(action:close){Image(systemName:"xmark.circle.fill").font(.system(size:18)).foregroundStyle(Butter.cocoa.opacity(0.45))}.buttonStyle(.plain).help("Close popup")
+        }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)
+    }
+    private func clipColumn(_ list:[Clip],paged:Bool=false)->some View {
+        LazyVStack(spacing:9){
+            ForEach(list){clip in shortcutRow(clip)}
+            if paged{
+                if search.isLoading{ProgressView().controlSize(.small).frame(maxWidth:.infinity).padding(10)}
+                if !search.isLoading && !search.isExhausted{Color.clear.frame(height:3).id(search.results.count).onAppear{search.loadMore(db:db)}}
+            }
+        }.frame(maxWidth:.infinity,alignment:.leading)
+    }
+    private func openBuilderCard(_ name:String){UserDefaults.standard.set(name,forKey:"ezmeAIBuilderApp");close();NotificationCenter.default.post(name:.ezmeOpenBuilderApp,object:nil,userInfo:["app":name])}
+    private func openSavedSite(_ site:EzMeSavedSite){var c=Clip(key:"/site",name:site.title,text:"",group:"Websites");c.webURL=site.url;select(c,false)}
+    @ViewBuilder private var groupedPickerResults:some View {
+        let clips=search.results
+        let plain=clips.filter{c in !EzyLink.isApp(c) && c.webURL == nil && c.appBundleIdentifier == nil && c.appPath == nil}
+        let ezy=clips.filter{EzyLink.isApp($0)}
+        let webClips=clips.filter{$0.webURL != nil && !EzyLink.isApp($0)}
+        let macApps=clips.filter{$0.webURL == nil && ($0.appBundleIdentifier != nil || $0.appPath != nil)}
+        let cards=EzMeSearchSources.builderApps(matching:pickerQuery)
+        let saved=EzMeSearchSources.sites(matching:pickerQuery)
+        VStack(alignment:.leading,spacing:9){
+            if !plain.isEmpty || search.isLoading || !search.isExhausted{
+                ButterAccordion("Shortcuts",subtitle:"\(plain.count) found",icon:"text.cursor",open:true){clipColumn(plain,paged:true)}
+            }
+            if !cards.isEmpty{
+                ButterAccordion("AppBuilder cards",subtitle:"\(cards.count) found",icon:"wand.and.stars",open:plain.isEmpty){
+                    VStack(spacing:7){ForEach(cards){card in ButterHitRow(title:card.name,subtitle:card.detail,badge:"APPBUILDER",symbol:"wand.and.stars",iconPath:card.iconPath){openBuilderCard(card.name)}}}
+                }
+            }
+            if !webClips.isEmpty || !saved.isEmpty{
+                ButterAccordion("Websites",subtitle:"\(webClips.count+saved.count) found",icon:"globe",open:plain.isEmpty && cards.isEmpty){
+                    VStack(spacing:7){
+                        clipColumn(webClips)
+                        ForEach(saved){site in ButterHitRow(title:site.title,subtitle:site.url,badge:"WEBSITE",symbol:"globe"){openSavedSite(site)}}
+                    }
+                }
+            }
+            if !ezy.isEmpty{
+                ButterAccordion("Ezyourlife apps",subtitle:"\(ezy.count) found",icon:"sparkles",open:plain.isEmpty && cards.isEmpty && webClips.isEmpty && saved.isEmpty){clipColumn(ezy)}
+            }
+            if !macApps.isEmpty{
+                ButterAccordion("Mac apps",subtitle:"\(macApps.count) found",icon:"app.dashed"){clipColumn(macApps)}
+            }
+            if plain.isEmpty && ezy.isEmpty && webClips.isEmpty && macApps.isEmpty && cards.isEmpty && saved.isEmpty && !search.isLoading && search.isExhausted{
+                Text("Nothing found yet. Try other words, or describe what you want.").font(.system(size:13,weight:.medium)).foregroundStyle(Butter.cocoa.opacity(0.7)).padding(10)
+            }
+        }
+    }
+    private var expandedPickerView:some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 logoButton
@@ -2794,12 +2850,14 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
             searchBar
             ScrollView(.vertical) {
                 VStack(alignment:.leading,spacing:11) {
+                    ButterAccordion("Options",subtitle:"Transparency and category",icon:"slider.horizontal.3"){VStack(alignment:.leading,spacing:11){
                     HStack(spacing:7){Image(systemName:"circle.lefthalf.filled").foregroundStyle(Butter.coral);Text("Transparency").font(.system(size:11,weight:.medium));Slider(value:$popupTransparency,in:0...0.65).frame(maxWidth:190).tint(Butter.coral);Text("\(Int((popupTransparency*100).rounded()))%").font(.system(size:10,weight:.semibold,design:.monospaced)).frame(width:31,alignment:.trailing)}
                     collectionPicker
+                    }}
                     builderShortcutCard
                     Text("Type to search shortcuts · Drag the background to move this popup").font(.system(size:10)).foregroundStyle(.secondary).padding(.horizontal,5)
                     Divider()
-                    shortcutResults
+                    groupedPickerResults
                     Divider()
                     HStack {
                         Text(search.isLoading ? "Showing \(search.results.count) results · searching in small batches…":"Showing \(search.results.count) results").font(.system(size: 12,weight:.medium)).foregroundStyle(.secondary)
@@ -2875,7 +2933,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         }
     }
 
-    private var searchBar:some View{HStack(spacing:7){Image(systemName:"sparkle.magnifyingglass").foregroundStyle(Butter.coral);Group{if search.value.isEmpty{Text("Search shortcuts…").foregroundStyle(Color.secondary)}else{Text(search.value).foregroundStyle(Color(red:0.15,green:0.10,blue:0.35))}}.font(.system(size:14,weight:.medium)).frame(maxWidth:.infinity,alignment:.leading);Button{requestCapture()}label:{Label("Select area",systemImage:"crop.rotate").font(.system(size:11,weight:.semibold))}.buttonStyle(.borderedProminent).tint(Butter.coral)}.padding(8).background(Color.white.opacity(0.94),in:Capsule()).overlay(Capsule().stroke(Butter.coral.opacity(0.35),lineWidth:1.3))}
+    private var searchBar:some View{HStack(spacing:7){Image(systemName:"sparkle.magnifyingglass").foregroundStyle(Butter.coral);Group{if search.value.isEmpty{Text("Type a shortcut, a website or a sentence…").foregroundStyle(Color.secondary)}else{Text(search.value).foregroundStyle(Butter.cocoa)}}.font(.system(size:14,weight:.medium)).frame(maxWidth:.infinity,alignment:.leading);Button{requestCapture()}label:{Label("Select area",systemImage:"crop.rotate").font(.system(size:11,weight:.semibold))}.buttonStyle(.borderedProminent).tint(Butter.coral)}.padding(8).background(Butter.cream,in:Capsule()).overlay(Capsule().stroke(Butter.coral.opacity(0.35),lineWidth:1.3))}
     private var collectionPicker:some View{VStack(alignment:.leading,spacing:5){HStack(spacing:7){Image(systemName:"square.grid.2x2").foregroundStyle(Butter.coral);Text("Category").font(.system(size:11,weight:.medium));Picker("Category",selection:$search.category){ForEach(popupCategories,id:\.self){Text($0).tag($0)}}.labelsHidden().pickerStyle(.menu).frame(maxWidth:145,alignment:.leading);Image(systemName:"folder").foregroundStyle(Butter.coral);Text("Collection").font(.system(size:11,weight:.medium));Picker("Collection",selection:$search.collection){Text("All collections").tag("All collections");ForEach(db.collections.filter{collectionName in (search.showHiddenCollections || search.showHiddenOnly || !db.isCollectionHidden(collectionName)) && (search.category == "All categories" || collectionCategory(collectionName,definition:db.collectionDefinitions.first(where:{$0.name.caseInsensitiveCompare(collectionName) == .orderedSame})) == search.category)},id:\.self){Text($0).tag($0)}}.labelsHidden().pickerStyle(.menu).frame(maxWidth:145,alignment:.leading);Spacer(minLength:2);Text("\(search.results.count) shown").font(.system(size:10)).foregroundStyle(.secondary)};HStack(spacing:14){Toggle("Show hidden",isOn:$search.showHiddenCollections).toggleStyle(.switch).controlSize(.small).font(.system(size:10,weight:.medium)).help("Include hidden collections alongside visible shortcuts");Toggle("Incognito · hidden only",isOn:$search.showHiddenOnly).toggleStyle(.switch).controlSize(.small).font(.system(size:10,weight:.medium)).help("Show only shortcuts assigned to hidden collections").onChange(of:search.showHiddenOnly){enabled in if enabled{search.collection="All collections"};search.restart(db:db,collection:search.collection)}}}}
     private var popupCategories:[String]{let assigned=db.collections.map{collectionName in collectionCategory(collectionName,definition:db.collectionDefinitions.first(where:{$0.name.caseInsensitiveCompare(collectionName) == .orderedSame}))};return ["All categories"]+Array(Set(assigned)).sorted{$0.localizedCaseInsensitiveCompare($1) == .orderedAscending}}
     private var shortcutResults:some View{LazyVStack(spacing:9){ForEach(search.results){clip in shortcutRow(clip)};if search.isLoading{ProgressView().controlSize(.small).frame(maxWidth:.infinity).padding(10)};if !search.isLoading && !search.isExhausted{Color.clear.frame(height:3).id(search.results.count).onAppear{search.loadMore(db:db)}}}.frame(maxWidth:.infinity,alignment:.leading).padding(.vertical,2)}
@@ -3001,12 +3059,15 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         if let savedX,let savedY{let x=min(max(visible.minX,CGFloat(savedX)),visible.maxX-p.frame.width);let y=min(max(visible.minY,CGFloat(savedY)),visible.maxY-p.frame.height);p.setFrameOrigin(NSPoint(x:x,y:y))}else{p.setFrameOrigin(NSPoint(x:visible.midX-normalSize.width/2,y:visible.maxY-normalSize.height-20))}
         panel = p
         p.orderFrontRegardless()
+        applyCompact()
     }
+    private func applyCompact(){guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return};let target:CGFloat=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? 92:normalSize.height;let old=panel.frame;guard abs(old.height-target)>1,abs(old.height-92)<2 || abs(old.height-normalSize.height)<2 else{return};panel.setFrame(NSRect(x:old.minX,y:old.maxY-target,width:old.width,height:target),display:true,animate:false)}
     func setQuery(_ value: String) {
         queryWork?.cancel()
         let work=DispatchWorkItem{[weak self] in
             guard let self else{return}
             self.search.value=value
+            self.applyCompact()
             if self.search.imageMode {
                 let trimmed=value.trimmingCharacters(in:.whitespacesAndNewlines)
                 let body=trimmed.lowercased().hasPrefix("img-") ? String(trimmed.dropFirst(4)):""

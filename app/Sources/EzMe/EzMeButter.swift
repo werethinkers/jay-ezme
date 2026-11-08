@@ -282,3 +282,110 @@ struct ButterResizeHandle: View {
             .help("Drag to resize the browser")
     }
 }
+
+extension Notification.Name {
+    static let ezmeOpenBuilderApp = Notification.Name("EzMeOpenBuilderApp")
+    static let ezmeOpenSite = Notification.Name("EzMeOpenSite")
+}
+
+struct EzMeBuilderHit: Identifiable {
+    var id: String { name }
+    let name: String
+    let detail: String
+    let iconPath: String?
+}
+
+/// Things the search can find besides shortcuts: AppBuilder cards and saved websites.
+enum EzMeSearchSources {
+    static var savedSites: () -> [EzMeSavedSite] = { [] }
+
+    static func builderApps(matching query: String) -> [EzMeBuilderHit] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return [] }
+        let json = UserDefaults.standard.string(forKey: "ezmeCustomBuilderAppsJSON") ?? "[]"
+        let custom = (try? JSONDecoder().decode([String].self, from: Data(json.utf8))) ?? []
+        var names = ["Collection Builder"]
+        for name in custom where !names.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) { names.append(name) }
+        var hits: [EzMeBuilderHit] = []
+        for name in names {
+            let detail = UserDefaults.standard.string(forKey: "ezmeBuilderDescription." + name)
+                ?? UserDefaults.standard.string(forKey: "ezmeBuilderPrompt." + name) ?? "AppBuilder app"
+            if name.localizedCaseInsensitiveContains(q) || detail.localizedCaseInsensitiveContains(q) {
+                hits.append(EzMeBuilderHit(name: name, detail: detail, iconPath: UserDefaults.standard.string(forKey: "ezmeBuilderAppIcon." + name)))
+            }
+            if hits.count >= 6 { break }
+        }
+        return hits
+    }
+
+    static func sites(matching query: String) -> [EzMeSavedSite] {
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return [] }
+        return Array(savedSites().filter { $0.title.localizedCaseInsensitiveContains(q) || $0.url.localizedCaseInsensitiveContains(q) || $0.tags.contains(where: { $0.localizedCaseInsensitiveContains(q) }) }.prefix(6))
+    }
+}
+
+/// A search result card for things that are not plain shortcuts (AppBuilder cards, websites).
+struct ButterHitRow: View {
+    let title: String
+    let subtitle: String
+    let badge: String
+    let symbol: String
+    var iconPath: String? = nil
+    let action: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 11) {
+                Group {
+                    if let path = iconPath, let image = EzMeImageCache.load(contentsOfFile: path) {
+                        Image(nsImage: image).resizable().scaledToFill()
+                    } else {
+                        Image(systemName: symbol).font(.system(size: 22, weight: .medium)).foregroundStyle(Butter.coral)
+                    }
+                }
+                .frame(width: 56, height: 50)
+                .background(Butter.butter)
+                .clipShape(RoundedRectangle(cornerRadius: 11))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.system(size: 15, weight: .bold)).foregroundStyle(Butter.cocoa).lineLimit(1)
+                    Text(subtitle).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.65)).lineLimit(2).multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 6)
+                Text(badge).font(.system(size: 10, weight: .heavy)).foregroundStyle(Butter.cocoa)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .background(Butter.honey.opacity(0.7), in: Capsule())
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(hover ? Butter.honey.opacity(0.45) : Butter.cream, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Butter.honey, lineWidth: 1.2))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hover = $0 }
+    }
+}
+
+/// Lets the search popup ask the main window to open an AppBuilder card or a website.
+struct EzMeOpenRequests: ViewModifier {
+    @Binding var section: String
+    var openSite: (String) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .ezmeOpenBuilderApp)) { _ in
+                section = "AppBuilder"
+                UserDefaults.standard.set(true, forKey: "ezmeAppBuilderHasSeenHome")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .ezmeOpenSite)) { note in
+                if let url = note.userInfo?["url"] as? String {
+                    openSite(url)
+                    section = "Browser"
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+    }
+}
