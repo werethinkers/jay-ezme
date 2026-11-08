@@ -367,3 +367,25 @@ struct ButterHitRow: View {
         .onHover { hover = $0 }
     }
 }
+
+/// Lets the search popup ask the main window to open an AppBuilder card or a website.
+struct EzMeOpenRequests: ViewModifier {
+    @Binding var section: String
+    var openSite: (String) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .onReceive(NotificationCenter.default.publisher(for: .ezmeOpenBuilderApp)) { _ in
+                section = "AppBuilder"
+                UserDefaults.standard.set(true, forKey: "ezmeAppBuilderHasSeenHome")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .ezmeOpenSite)) { note in
+                if let url = note.userInfo?["url"] as? String {
+                    openSite(url)
+                    section = "Browser"
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+    }
+}
