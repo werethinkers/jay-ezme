@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 206,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build206/EzMe-3.44-macOS.zip",
-  "sha256": "5d2b12422ac0a156b3f4205a9e25e3e5209e0abe88c6644d6541189131b78df2",
-  "notes": "- Browser: pick your own size. The \"Browser\" button in the top bar now has Small, Medium, Large and Huge panels, and you can also drag the thin bar on the panel edge to any width.\n- Browser: new Full screen mode. It fills the screen and keeps only a thin tab row and address bar, with no frames around them. Press Esc or the small \"Exit full screen\" button to come back.",
-  "published": "2026-11-07T21:11:22Z",
+  "build": 209,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build209/EzMe-3.44-macOS.zip",
+  "sha256": "e70a07fbe238f59c6e2e17b1dd3f03d25ccdf795b629ebbe4eb8b52844f58346",
+  "notes": "- Search is now like Spotlight. The popup (type \\ in any app) starts as one plain search bar. Once you type, it opens into grouped, collapsible results: Shortcuts, AppBuilder cards, Websites, Ezyourlife apps and Mac apps. Click any group or result with the mouse, or keep typing.\n- AppBuilder cards and saved websites now show up in search with their picture and name, in the popup and on the Home page. Clicking a card opens that AppBuilder app, and clicking a website opens it in the EzMe browser.\n- The popup options (transparency and category) are tucked into an \"Options\" section.",
+  "published": "2026-11-08T05:46:23Z",
   "minimumSystemVersion": "14.0"
 }
