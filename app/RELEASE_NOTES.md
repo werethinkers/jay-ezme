@@ -1,3 +1,6 @@
-- Search is now like Spotlight. The popup (type \ in any app) starts as one plain search bar. Once you type, it opens into grouped, collapsible results: Shortcuts, AppBuilder cards, Websites, Ezyourlife apps and Mac apps. Click any group or result with the mouse, or keep typing.
-- AppBuilder cards and saved websites now show up in search with their picture and name, in the popup and on the Home page. Clicking a card opens that AppBuilder app, and clicking a website opens it in the EzMe browser.
-- The popup options (transparency and category) are tucked into an "Options" section.
+- New menu: WishStudio (next to AppBuilder, not part of it). Make Birthday, Anniversary and Diwali cards and Infographics, in English or Hindi, with a live preview, 12 greeting designs and 8 infographic layouts. Download the card as a PNG, copy it, or share it.
+- One microphone for voice commands, in the bar at the bottom. Say one thing at a time, like "make it pink", "name Yogesh", "bigger title", "next design" or "undo". Hindi works too. Each sentence is applied once, and you can type the same commands.
+- WishBuilder tab: define your own kinds of wish apps in five steps: Application, Information, Collection, Function and Live Changes.
+- Functions work in any box on a card: =Date, =Date+1, =Time, =Month+1, =Year and about 120 popular Google Sheets functions such as TEXT, IF, SUM and CONCAT. You can also make your own, like Tomorrow = Date+1.
+- Collection step: choose which of your collections show as tap-to-fill chips and can be used by voice ("use Ravi").
+- Not included yet: share links, image upload, and a full copy of every Google Sheets function. Field suggestions in WishBuilder are keyword-based, not AI.

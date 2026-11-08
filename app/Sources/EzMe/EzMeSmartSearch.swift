@@ -338,6 +338,7 @@ enum EzMeNavigation {
         ]),
         Area(title: "CREATE", items: [
             Item(id: "AppBuilder", title: "AppBuilder", hint: "Make your own mini app. Say what it does and get a PDF or a picture."),
+            Item(id: "WishStudio", title: "WishStudio", hint: "Make birthday, Diwali and anniversary cards and infographics. Say a command to change them."),
             Item(id: "Ez Studio", title: "Ez Studio", hint: "Draw and fix pictures with AI."),
             Item(id: "Shortcut ideas", title: "Ideas", hint: "Ready-made shortcuts. Pick one to keep it."),
             Item(id: "Marketplace", title: "Marketplace", hint: "Get or share shortcut packs with other people."),
