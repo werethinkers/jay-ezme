@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 212,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build212/EzMe-3.44-macOS.zip",
-  "sha256": "1b5e3d0cc83c558fbf68f409d62a66ec25ac3ad6c6c2dee16a5fec9c4ed10be5",
-  "notes": "WishStudio fixes\n\n- Cover videos now play on the cover page and in the app tabs (muted, looping), and GIFs animate, instead of showing a still picture with a play icon.\n- App names on the tabs now sit on a dark label, so they stay readable on top of any cover picture.",
-  "published": "2026-11-09T06:03:52Z",
+  "build": 214,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build214/EzMe-3.44-macOS.zip",
+  "sha256": "738ef0e5255602c62b68a069c251e943ba30be2efd611b70971e50fe1a22c4fb",
+  "notes": "WishStudio video covers\n\n- A cover video now shows from the top, not the middle.\n- New \"Crop and position\" under Media: Top / Middle / Bottom, up-down and left-right sliders, and zoom to crop. It works for the cover, the middle of the card and the card background.\n- Videos play for 10 seconds at most, then loop. For a longer video, choose \"Start at\" to pick which 10 seconds play.\n- The same limit and position apply on the saved web page.",
+  "published": "2026-11-09T08:48:43Z",
   "minimumSystemVersion": "14.0"
 }
