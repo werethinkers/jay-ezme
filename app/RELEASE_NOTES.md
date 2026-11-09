@@ -1,3 +1,9 @@
-- New popup design (type \ or / in any app): a Spotlight-style layout. Results are grouped into collapsible sections on the left, and a preview of the highlighted result sits on the right with Paste, Edit and Copy name buttons.
-- Keyboard: Up and Down arrows move through the results, Return runs the highlighted one (before, Return always picked the first), and Esc closes. The mouse works too: hover to preview, click to run.
-- Fixed: pressing the arrow keys no longer types stray characters into the search.
+# Plain-words search in the / popup
+
+- Type `\` then press **Space** and the popup switches to plain words. Write a whole sentence, like "send a payment reminder to Meera".
+- The search understands short forms ("bill" finds invoice) and ignores small words like "to" and "the".
+- A **Best matches** group at the top shows the three closest results across shortcuts, AppBuilder cards and websites.
+- **Ask Merlin** group: find an Ezyourlife app for your sentence, or search the web in the EzMe browser.
+- AppBuilder cards and saved websites are now ranked by meaning, not only by exact letters.
+- The search bar shows a small Merlin tag, and the footer reminds you of the `\` + space trick.
+- Exact shortcuts still work as before: type the shortcut and press Space, Return or Tab.

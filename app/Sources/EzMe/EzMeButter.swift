@@ -293,9 +293,10 @@ struct EzMeBuilderHit: Identifiable {
     let name: String
     let detail: String
     let iconPath: String?
+    var score: Int = 0
 }
 
-/// Things the search can find besides shortcuts: AppBuilder cards and saved websites.
+/// Things the search can find besides shortcuts: AppBuilder cards and saved websites. Matching understands plain sentences.
 enum EzMeSearchSources {
     static var savedSites: () -> [EzMeSavedSite] = { [] }
 
@@ -310,18 +311,24 @@ enum EzMeSearchSources {
         for name in names {
             let detail = UserDefaults.standard.string(forKey: "ezmeBuilderDescription." + name)
                 ?? UserDefaults.standard.string(forKey: "ezmeBuilderPrompt." + name) ?? "AppBuilder app"
-            if name.localizedCaseInsensitiveContains(q) || detail.localizedCaseInsensitiveContains(q) {
-                hits.append(EzMeBuilderHit(name: name, detail: detail, iconPath: UserDefaults.standard.string(forKey: "ezmeBuilderAppIcon." + name)))
+            let score = EzMeWords.looseScore(query: q, title: name, detail: detail)
+            if score > 0 || name.localizedCaseInsensitiveContains(q) {
+                hits.append(EzMeBuilderHit(name: name, detail: detail, iconPath: UserDefaults.standard.string(forKey: "ezmeBuilderAppIcon." + name), score: max(score, 1)))
             }
-            if hits.count >= 6 { break }
         }
-        return hits
+        return Array(hits.sorted { $0.score > $1.score }.prefix(6))
+    }
+
+    static func score(site: EzMeSavedSite, query: String) -> Int {
+        EzMeWords.looseScore(query: query, title: site.title, detail: site.url, extra: site.tags + [site.note, site.collection])
     }
 
     static func sites(matching query: String) -> [EzMeSavedSite] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return [] }
-        return Array(savedSites().filter { $0.title.localizedCaseInsensitiveContains(q) || $0.url.localizedCaseInsensitiveContains(q) || $0.tags.contains(where: { $0.localizedCaseInsensitiveContains(q) }) }.prefix(6))
+        let scored = savedSites().map { ($0, score(site: $0, query: q)) }
+            .filter { $0.1 > 0 || $0.0.title.localizedCaseInsensitiveContains(q) || $0.0.url.localizedCaseInsensitiveContains(q) }
+        return Array(scored.sorted { $0.1 > $1.1 }.prefix(6).map { $0.0 })
     }
 }
 

@@ -4,6 +4,7 @@ import AppKit
 extension Notification.Name {
     static let miniJMoveSelection = Notification.Name("MiniJMoveSelection")
     static let miniJRunSelected = Notification.Name("MiniJRunSelected")
+    static let miniJPhraseMode = Notification.Name("MiniJPhraseMode")
 }
 
 /// One thing the popup search can show: a shortcut, an AppBuilder card, a website, an Ezyourlife app or a Mac app.
@@ -18,6 +19,7 @@ struct SpotlightEntry: Identifiable {
     var iconPath: String? = nil
     var keyLabel: String? = nil
     var clip: Clip? = nil
+    var score: Int = 0
     let run: () -> Void
 }
 
@@ -36,11 +38,13 @@ struct SpotlightResults: View {
     @State private var lastKeyMove = Date.distantPast
 
     private static let groups: [(title: String, icon: String)] = [
+        ("Best matches", "star.fill"),
         ("Shortcuts", "text.cursor"),
         ("AppBuilder cards", "wand.and.stars"),
         ("Websites", "globe"),
         ("Ezyourlife apps", "sparkles"),
         ("Mac apps", "app.dashed"),
+        ("Ask Merlin", "sparkles"),
     ]
 
     private var visibleGroups: [(title: String, icon: String)] {
@@ -210,6 +214,7 @@ struct SpotlightResults: View {
             Text("↑↓ to move")
             Text("↵ to run")
             Text("esc to close")
+            if !search.phraseMode { Text("\\ + space = plain words") }
             Spacer()
             Text(search.isLoading ? "\(entries.count) results · searching…" : "\(entries.count) results")
             Button("Manage all", action: onManage).buttonStyle(.plain).foregroundStyle(Butter.coral).fontWeight(.semibold)
