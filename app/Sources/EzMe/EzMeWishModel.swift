@@ -138,7 +138,7 @@ struct WishFunction: Codable, Identifiable, Hashable {
 /// A picture, GIF or video shown on a card. The file lives in the WishMedia folder.
 /// How a picture, GIF or video sits in its box: which part shows, how far it is zoomed, and where a video starts.
 /// Videos always play at most 10 seconds from `start`, then loop.
-struct WishFraming: Codable, Equatable {
+struct WishFraming: Codable, Hashable {
     var x: Double? = nil
     var y: Double? = nil
     var zoom: Double? = nil
