@@ -1,6 +1,3 @@
-WishStudio video covers
-
-- A cover video now shows from the top, not the middle.
-- New "Crop and position" under Media: Top / Middle / Bottom, up-down and left-right sliders, and zoom to crop. It works for the cover, the middle of the card and the card background.
-- Videos play for 10 seconds at most, then loop. For a longer video, choose "Start at" to pick which 10 seconds play.
-- The same limit and position apply on the saved web page.
+- New popup design (type \ or / in any app): a Spotlight-style layout. Results are grouped into collapsible sections on the left, and a preview of the highlighted result sits on the right with Paste, Edit and Copy name buttons.
+- Keyboard: Up and Down arrows move through the results, Return runs the highlighted one (before, Return always picked the first), and Esc closes. The mouse works too: hover to preview, click to run.
+- Fixed: pressing the arrow keys no longer types stray characters into the search.
