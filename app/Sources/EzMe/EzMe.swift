@@ -2794,6 +2794,29 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
             }
         }.frame(maxWidth:.infinity,alignment:.leading)
     }
+    private var spotlightEntries:[SpotlightEntry] {
+        var out=[SpotlightEntry]()
+        let imageTypes=["png","jpg","jpeg","heic","webp","gif"]
+        for clip in search.results {
+            let group:String;let badge:String;var symbol="text.alignleft"
+            if EzyLink.isApp(clip){group="Ezyourlife apps";badge="EZYOURLIFE APP";symbol="sparkles"}
+            else if clip.webURL != nil{group="Websites";badge="WEBSITE";symbol="globe"}
+            else if clip.appBundleIdentifier != nil || clip.appPath != nil{group="Mac apps";badge="MAC APP";symbol="app.dashed"}
+            else{group="Shortcuts";badge=clip.group.uppercased();symbol=clip.files.isEmpty ? "text.alignleft":"photo"}
+            let detail=clip.webURL.map{"Open \($0) in EzMe Browser"} ?? (clip.appBundleIdentifier != nil ? "Open this app" : (clip.text.isEmpty ? "\(clip.files.count) media attachment\(clip.files.count == 1 ? "":"s")":clip.text))
+            let oneLine=detail.replacingOccurrences(of:"\n",with:" ")
+            var iconPath:String?=nil
+            if let first=clip.files.first,imageTypes.contains(URL(fileURLWithPath:first).pathExtension.lowercased()){iconPath=first}
+            out.append(SpotlightEntry(id:"c-\(clip.id.uuidString)",group:group,title:clip.name.isEmpty ? displayTrigger(clip.key):clip.name,hint:oneLine,detail:detail,badge:badge,symbol:symbol,iconPath:iconPath,keyLabel:displayTrigger(clip.key),clip:clip,run:{select(clip,pasteMediaFor(clip))}))
+        }
+        for card in EzMeSearchSources.builderApps(matching:pickerQuery){
+            out.append(SpotlightEntry(id:"b-\(card.name)",group:"AppBuilder cards",title:card.name,hint:card.detail,detail:card.detail,badge:"APPBUILDER",symbol:"wand.and.stars",iconPath:card.iconPath,run:{openBuilderCard(card.name)}))
+        }
+        for site in EzMeSearchSources.sites(matching:pickerQuery){
+            out.append(SpotlightEntry(id:"w-\(site.id)",group:"Websites",title:site.title,hint:site.url,detail:"Open \(site.url) in EzMe Browser",badge:"WEBSITE",symbol:"globe",run:{openSavedSite(site)}))
+        }
+        return out
+    }
     private func openBuilderCard(_ name:String){UserDefaults.standard.set(name,forKey:"ezmeAIBuilderApp");close();NotificationCenter.default.post(name:.ezmeOpenBuilderApp,object:nil,userInfo:["app":name])}
     private func openSavedSite(_ site:EzMeSavedSite){var c=Clip(key:"/site",name:site.title,text:"",group:"Websites");c.webURL=site.url;select(c,false)}
     @ViewBuilder private var groupedPickerResults:some View {
@@ -2849,26 +2872,13 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
                 }
             }.padding(.horizontal,10).padding(.vertical,8).foregroundStyle(.white).background(LinearGradient(colors:[Butter.cocoa,Butter.cocoa,Butter.cocoa],startPoint:.leading,endPoint:.trailing),in:RoundedRectangle(cornerRadius:14))
             searchBar
-            ScrollView(.vertical) {
-                VStack(alignment:.leading,spacing:11) {
                     ButterAccordion("Options",subtitle:"Transparency and category",icon:"slider.horizontal.3"){VStack(alignment:.leading,spacing:11){
                     HStack(spacing:7){Image(systemName:"circle.lefthalf.filled").foregroundStyle(Butter.coral);Text("Transparency").font(.system(size:11,weight:.medium));Slider(value:$popupTransparency,in:0...0.65).frame(maxWidth:190).tint(Butter.coral);Text("\(Int((popupTransparency*100).rounded()))%").font(.system(size:10,weight:.semibold,design:.monospaced)).frame(width:31,alignment:.trailing)}
                     collectionPicker
                     }}
-                    builderShortcutCard
-                    Text("Type to search shortcuts · Drag the background to move this popup").font(.system(size:10)).foregroundStyle(.secondary).padding(.horizontal,5)
-                    Divider()
-                    groupedPickerResults
-                    Divider()
-                    HStack {
-                        Text(search.isLoading ? "Showing \(search.results.count) results · searching in small batches…":"Showing \(search.results.count) results").font(.system(size: 12,weight:.medium)).foregroundStyle(.secondary)
-                        Spacer(minLength:8)
-                        Button("Manage all shortcuts", action: manage).font(.system(size: 11, weight:.medium))
-                    }
-                }.frame(maxWidth:.infinity,alignment:.leading).padding(.vertical,4)
-            }
-            .scrollIndicators(.visible)
-            .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading)
+            builderShortcutCard
+            SpotlightResults(search:search,entries:spotlightEntries,onEdit:{clip in edit(clip)},onCopyKey:{clip in NSPasteboard.general.clearContents();NSPasteboard.general.setString(displayTrigger(clip.key),forType:.string)},onManage:manage,loadMore:{search.loadMore(db:db)})
+                .frame(maxWidth:.infinity,maxHeight:.infinity)
         }
         .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading)
     }
@@ -2939,8 +2949,9 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     private var popupCategories:[String]{let assigned=db.collections.map{collectionName in collectionCategory(collectionName,definition:db.collectionDefinitions.first(where:{$0.name.caseInsensitiveCompare(collectionName) == .orderedSame}))};return ["All categories"]+Array(Set(assigned)).sorted{$0.localizedCaseInsensitiveCompare($1) == .orderedAscending}}
     private var shortcutResults:some View{LazyVStack(spacing:9){ForEach(search.results){clip in shortcutRow(clip)};if search.isLoading{ProgressView().controlSize(.small).frame(maxWidth:.infinity).padding(10)};if !search.isLoading && !search.isExhausted{Color.clear.frame(height:3).id(search.results.count).onAppear{search.loadMore(db:db)}}}.frame(maxWidth:.infinity,alignment:.leading).padding(.vertical,2)}
     private func desktopIconURL(_ clip:Clip)->URL?{if let path=clip.appPath,!path.isEmpty,FileManager.default.fileExists(atPath:path){return URL(fileURLWithPath:path)};if let bundle=clip.appBundleIdentifier{return NSWorkspace.shared.urlForApplication(withBundleIdentifier:bundle)};return nil}
+    private func pasteMediaFor(_ clip:Clip)->Bool{ clip.text.isEmpty || (clip.directMediaPaste == true && !clip.files.isEmpty) || (!clip.files.isEmpty && clip.allGroups.contains(where:{["sound & media","media files"].contains($0.trimmingCharacters(in:.whitespacesAndNewlines).lowercased())})) }
     private func shortcutRow(_ clip:Clip)->some View {
-        let pasteMedia = clip.text.isEmpty || (clip.directMediaPaste == true && !clip.files.isEmpty) || (!clip.files.isEmpty && clip.allGroups.contains(where:{["sound & media","media files"].contains($0.trimmingCharacters(in:.whitespacesAndNewlines).lowercased())}))
+        let pasteMedia = pasteMediaFor(clip)
         return Button { select(clip,pasteMedia) } label: {
             HStack(alignment:.top,spacing:11) {
                 Group {
@@ -2988,6 +2999,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     }
 }
 @MainActor final class PickerSearch: ObservableObject {
+ var hasSpotlight=false
  @Published var value=""
  @Published var category="All categories"
  @Published var imageMode=false
@@ -3170,7 +3182,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     private func references(for expression:String,db:DB?)->[String]{let parts=resolveImageExpression(expression,db:db);return parts.paths}
     func resetPosition(){guard let panel else{return};let screen=NSScreen.screens.first(where:{$0.frame.contains(NSEvent.mouseLocation)}) ?? NSScreen.main;let visible=screen?.visibleFrame ?? NSRect(x:0,y:0,width:1000,height:800);panel.setFrameOrigin(NSPoint(x:visible.midX-panel.frame.width/2,y:visible.maxY-panel.frame.height-20))}
     func windowDidMove(_ notification:Notification){guard let moved=notification.object as? NSWindow,moved===panel else{return};UserDefaults.standard.set(Double(moved.frame.origin.x),forKey:"ezmePickerOriginX");UserDefaults.standard.set(Double(moved.frame.origin.y),forKey:"ezmePickerOriginY")}
-    func chooseFirst() { if let item=search.results.first { selectHandler?(item,false); hide() } }
+    func chooseFirst() { if search.hasSpotlight { NotificationCenter.default.post(name:.miniJRunSelected,object:nil) } else if let item=search.results.first { selectHandler?(item,false); hide() } }
     func hide() {MiniJAppDelegate.current?.pickerActive=false;MiniJAppDelegate.current?.imagePromptMode=false; panel?.orderOut(nil); panel = nil; selectHandler=nil;rewritePasteHandler=nil; database=nil; search.imageMode=false;search.rewriteMode=false;search.rewriteText="";search.rewriteRemoveCount=0;search.imageReferencePaths=[];search.imagePromptText="";search.value="";imageCommandWasActivated=false }
 }
 extension Notification.Name { static let miniJOpenPicker = Notification.Name("MiniJOpenPicker"); static let miniJPickerQuery=Notification.Name("MiniJPickerQuery"); static let miniJChooseFirst=Notification.Name("MiniJChooseFirst"); static let miniJClosePicker=Notification.Name("MiniJClosePicker");static let miniJAutoExpand=Notification.Name("MiniJAutoExpand");static let ezmeTapFailed=Notification.Name("EzMeTapFailed");static let ezmeBuilderGenerateShortcut=Notification.Name("EzMeBuilderGenerateShortcut");static let ezmeBuilderGenerationFinished=Notification.Name("EzMeBuilderGenerationFinished");static let ezmeBuilderIconChanged=Notification.Name("EzMeBuilderIconChanged");static let ezmeImageCommandActivated=Notification.Name("EzMeImageCommandActivated");static let ezmeImagePromptInput=Notification.Name("EzMeImagePromptInput");static let ezmeOpenAPIConfiguration=Notification.Name("EzMeOpenAPIConfiguration");static let ezmeCaptureRequested=Notification.Name("EzMeCaptureRequested"); }
@@ -3206,6 +3218,7 @@ private func miniJSlashTap(_ proxy:CGEventTapProxy,_ type:CGEventType,_ event:CG
    if key == Int64(kVK_Delete) || key == Int64(kVK_ForwardDelete){if !app.queryBuffer.isEmpty{app.queryBuffer.removeLast()};postPickerQuery(app);return nil}
    if key == Int64(kVK_Return) || key == Int64(kVK_ANSI_KeypadEnter){app.pickerActive=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJChooseFirst,object:app)};return nil}
    if key == Int64(kVK_Escape){app.pickerActive=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)};return nil}
+   if key == Int64(kVK_DownArrow) || key == Int64(kVK_UpArrow){let delta=key == Int64(kVK_DownArrow) ? 1:-1;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJMoveSelection,object:nil,userInfo:["delta":delta])};return nil}
    var len=0;var chars=[UniChar](repeating:0,count:8);event.keyboardGetUnicodeString(maxStringLength:8,actualStringLength:&len,unicodeString:&chars)
    if len>0{let str=String(utf16CodeUnits:chars,count:len);if str.rangeOfCharacter(from:.controlCharacters)==nil{app.queryBuffer += str;postPickerQuery(app)}}
    return nil
