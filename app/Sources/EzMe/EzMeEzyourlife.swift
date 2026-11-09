@@ -883,6 +883,14 @@ struct EzyRunPanelView: View {
         Task { await model.open(link.appID, values: link.values, template: isCatalogueHit ? "" : template) }
     }
 
+    /// A plain-words question from the search popup: shows the best Ezyourlife apps for it.
+    func ask(_ question: String, removeCount: Int, returnApp: NSRunningApplication?) {
+        present(returnApp: returnApp, removeCount: removeCount)
+        model.reset()
+        model.question = question
+        Task { await model.findApps() }
+    }
+
     /// The Ask bar (Option-Space).
     func openAsk() {
         let front = NSWorkspace.shared.frontmostApplication

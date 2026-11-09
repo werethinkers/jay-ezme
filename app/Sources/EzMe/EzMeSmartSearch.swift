@@ -133,6 +133,28 @@ enum EzMeWords {
         return pieces.isEmpty ? "Key words joined together, small words dropped." : pieces.joined(separator: " · ")
     }
 
+    // MARK: - Plain-words matching for apps, cards and websites
+
+    /// How well a sentence matches a name and a description. Understands short forms ("bill" finds invoice) and ignores small words. 0 means no match.
+    static func looseScore(query: String, title: String, detail: String, extra: [String] = []) -> Int {
+        let words = meaningful(query)
+        guard !words.isEmpty else { return 0 }
+        let titleTokens = Set(tokens(title).flatMap { [$0, canonical($0)] })
+        let detailTokens = Set((tokens(detail) + extra.flatMap { tokens($0) }).flatMap { [$0, canonical($0)] })
+        var score = 0
+        var matched = 0
+        for w in words {
+            let c = canonical(w)
+            if titleTokens.contains(w) || titleTokens.contains(c) { score += 6; matched += 1 }
+            else if w.count >= 3 && titleTokens.contains(where: { $0.hasPrefix(w) }) { score += 4; matched += 1 }
+            else if detailTokens.contains(w) || detailTokens.contains(c) { score += 2; matched += 1 }
+            else if w.count >= 3 && detailTokens.contains(where: { $0.hasPrefix(w) }) { score += 1; matched += 1 }
+        }
+        guard matched > 0 else { return 0 }
+        if matched == words.count { score += 5 }
+        return score
+    }
+
     // MARK: - Phrase search
 
     /// Scores one shortcut against what someone typed. 0 means no match. Higher is better.
