@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 216,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build216/EzMe-3.44-macOS.zip",
-  "sha256": "8933287b207fe6b5d6c54c9517e74f201c517a7e9738df52a5bbbad39fac2906",
-  "notes": "- New popup design (type \\ or / in any app): a Spotlight-style layout. Results are grouped into collapsible sections on the left, and a preview of the highlighted result sits on the right with Paste, Edit and Copy name buttons.\n- Keyboard: Up and Down arrows move through the results, Return runs the highlighted one (before, Return always picked the first), and Esc closes. The mouse works too: hover to preview, click to run.\n- Fixed: pressing the arrow keys no longer types stray characters into the search.",
-  "published": "2026-11-09T20:46:03Z",
+  "build": 218,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build218/EzMe-3.44-macOS.zip",
+  "sha256": "5d5989b98e8a91d23f5a56c682aaf800f84edb63e49ff950735c2266d1156d64",
+  "notes": "# Plain-words search in the / popup\n\n- Type `\\` then press **Space** and the popup switches to plain words. Write a whole sentence, like \"send a payment reminder to Meera\".\n- The search understands short forms (\"bill\" finds invoice) and ignores small words like \"to\" and \"the\".\n- A **Best matches** group at the top shows the three closest results across shortcuts, AppBuilder cards and websites.\n- **Ask Merlin** group: find an Ezyourlife app for your sentence, or search the web in the EzMe browser.\n- AppBuilder cards and saved websites are now ranked by meaning, not only by exact letters.\n- The search bar shows a small Merlin tag, and the footer reminds you of the `\\` + space trick.\n- Exact shortcuts still work as before: type the shortcut and press Space, Return or Tab.",
+  "published": "2026-11-09T21:28:45Z",
   "minimumSystemVersion": "14.0"
 }
