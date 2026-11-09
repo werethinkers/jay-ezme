@@ -6,6 +6,7 @@
 //   Bottom bar  - the only microphone, with hints for what to say or type.
 import SwiftUI
 import AppKit
+import AVFoundation
 import UniformTypeIdentifiers
 
 enum WishTheme {
@@ -991,23 +992,105 @@ struct WishCover: View {
         ZStack {
             LinearGradient(colors: [Color(wishHex: design.background), Color(wishHex: wishMix(design.background, with: design.accent, amount: 0.3))],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
-            if let url = url, !isVideo, let image = NSImage(contentsOf: url) {
-                Image(nsImage: image).resizable().scaledToFill()
+            if let url = url, FileManager.default.fileExists(atPath: url.path) {
+                WishCoverMedia(url: url, isVideo: isVideo)
             } else {
                 Text(WishArtwork.emoji(app.artwork)).font(.system(size: emojiSize))
-            }
-            if isVideo {
-                Image(systemName: "play.fill")
-                    .font(.system(size: 9, weight: .black))
-                    .foregroundStyle(Color.white)
-                    .padding(6)
-                    .background(Circle().fill(Color.black.opacity(0.5)))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .padding(4)
             }
         }
         .clipped()
     }
+}
+
+
+// Plays a cover video (muted, looping) or an animated GIF. A plain SwiftUI Image only shows the first frame.
+struct WishCoverMedia: NSViewRepresentable {
+    let url: URL
+    let isVideo: Bool
+
+    func makeNSView(context: Context) -> WishCoverMediaView {
+        let view = WishCoverMediaView()
+        view.load(url: url, isVideo: isVideo)
+        return view
+    }
+
+    func updateNSView(_ view: WishCoverMediaView, context: Context) {
+        if view.loadedURL != url { view.load(url: url, isVideo: isVideo) }
+    }
+
+    static func dismantleNSView(_ view: WishCoverMediaView, coordinator: ()) {
+        view.stop()
+    }
+}
+
+final class WishCoverMediaView: NSView {
+    private(set) var loadedURL: URL?
+    private var player: AVQueuePlayer?
+    private var looper: AVPlayerLooper?
+    private var playerLayer: AVPlayerLayer?
+    private let imageView = NSImageView()
+    private var imageSize = CGSize.zero
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        wantsLayer = true
+        layer?.masksToBounds = true
+        imageView.animates = true
+        imageView.imageScaling = .scaleAxesIndependently
+        imageView.isHidden = true
+        addSubview(imageView)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    func load(url: URL, isVideo: Bool) {
+        stop()
+        loadedURL = url
+        if isVideo {
+            imageView.isHidden = true
+            let item = AVPlayerItem(url: url)
+            let queue = AVQueuePlayer()
+            queue.isMuted = true
+            looper = AVPlayerLooper(player: queue, templateItem: item)
+            let pl = AVPlayerLayer(player: queue)
+            pl.videoGravity = .resizeAspectFill
+            pl.frame = bounds
+            layer?.addSublayer(pl)
+            playerLayer = pl
+            player = queue
+            queue.play()
+        } else if let image = NSImage(contentsOf: url) {
+            imageSize = image.size
+            imageView.image = image
+            imageView.animates = true
+            imageView.isHidden = false
+        }
+        needsLayout = true
+    }
+
+    func stop() {
+        player?.pause()
+        looper?.disableLooping()
+        looper = nil
+        player = nil
+        playerLayer?.removeFromSuperlayer()
+        playerLayer = nil
+        imageView.image = nil
+        imageView.isHidden = true
+    }
+
+    override func layout() {
+        super.layout()
+        playerLayer?.frame = bounds
+        guard imageSize.width > 0, imageSize.height > 0, bounds.width > 0, bounds.height > 0 else { return }
+        // Aspect fill: scale until the picture covers the box, centred, and let the view clip the rest.
+        let scale = max(bounds.width / imageSize.width, bounds.height / imageSize.height)
+        let w = imageSize.width * scale
+        let h = imageSize.height * scale
+        imageView.frame = NSRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
+    }
+
+    deinit { player?.pause() }
 }
 
 // MARK: - Header: cover title or app tabs
@@ -1085,10 +1168,15 @@ struct WishHeader: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.name)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color.white)
                         .lineLimit(1)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.72)))
                     Text(item.kind == .greeting ? "GREETING" : "INFOGRAPHIC")
                         .font(.system(size: 8, weight: .bold))
                         .foregroundStyle(active ? WishTheme.accent : WishTheme.muted)
+                        .padding(.leading, 2)
                 }
             }
             .padding(.horizontal, 8)

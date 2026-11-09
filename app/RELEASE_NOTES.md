@@ -1,7 +1,4 @@
-- WishStudio is now laid out like AppBuilder: a cover page with an app card for Happy Birthday, Happy Anniversary, Happy Diwali and Infographics, a tab for each app (with its cover picture, GIF or video), and a WishBuilder tab.
-- Every app opens as a live web page. You can add a picture, GIF or video to the middle of the card or as its background, and "Open as web page" saves the card as a real page and opens it in your browser.
-- The right panel has four tabs: Details (fill in the card), Theme (12 colour themes, your own colours, lettering, size, magic, layouts), Media, and Templates. Save any look as a template and use it again from the cover page.
-- Functions are chips you can drag onto any box: =Date, =Date+1, =Time, =Month+1, =Year and more, plus the ones you make yourself. Your Google Sheets functions still work when you type them.
-- WishBuilder can now make an app from a description, in English or Hindi. It reads your words, then asks for what is missing (name, message, date, which collection to take names from), shows a preview, and creates the app. The five steps (Application, Information, Collection, Function, Live Changes) are still there under "Edit an app".
-- One bottom bar for everything: one microphone (Auto, English or Hindi), one command box, and a "Try" row that shows what to say on every page, including WishBuilder.
-- Not included yet: share links, and every Google Sheets function (about 120 are built in). WishBuilder reads keywords, it does not use AI.
+WishStudio fixes
+
+- Cover videos now play on the cover page and in the app tabs (muted, looping), and GIFs animate, instead of showing a still picture with a play icon.
+- App names on the tabs now sit on a dark label, so they stay readable on top of any cover picture.
