@@ -112,6 +112,8 @@ struct WishApp: Codable, Identifiable, Hashable {
     var builtIn: Bool = false
     /// File name (inside WishMedia) of the picture, GIF or video shown on the cover page and tab.
     var coverFile: String? = nil
+    /// Which part of the cover shows, its zoom and where a cover video starts.
+    var coverFraming: WishFraming? = nil
     /// The design a new card of this app starts with.
     var designID: String? = nil
 
@@ -134,6 +136,23 @@ struct WishFunction: Codable, Identifiable, Hashable {
 }
 
 /// A picture, GIF or video shown on a card. The file lives in the WishMedia folder.
+/// How a picture, GIF or video sits in its box: which part shows, how far it is zoomed, and where a video starts.
+/// Videos always play at most 10 seconds from `start`, then loop.
+struct WishFraming: Codable, Equatable {
+    var x: Double? = nil
+    var y: Double? = nil
+    var zoom: Double? = nil
+    var start: Double? = nil
+
+    static let maxSeconds: Double = 10
+
+    func px() -> Double { return min(1, max(0, x ?? 0.5)) }
+    /// A video starts from the top unless moved; pictures and GIFs stay centred.
+    func py(video: Bool) -> Double { return min(1, max(0, y ?? (video ? 0 : 0.5))) }
+    func pz() -> Double { return min(3, max(1, zoom ?? 1)) }
+    func ps() -> Double { return max(0, start ?? 0) }
+}
+
 struct WishMedia: Codable, Equatable, Identifiable {
     var id: String = UUID().uuidString
     var file: String
@@ -141,6 +160,7 @@ struct WishMedia: Codable, Equatable, Identifiable {
     var kind: String
     /// "hero" (where the artwork sits) or "background"
     var placement: String
+    var framing: WishFraming? = nil
 }
 
 /// A saved look (and optionally the text) that can be applied to a card of the same app.

@@ -58,7 +58,11 @@ enum WishHTML {
         ]
 
         for item in card.media ?? [] {
-            let entry: [String: Any] = ["url": mediaURL(item.file), "kind": item.kind == "video" ? "video" : "image"]
+            let framing = item.framing ?? WishFraming()
+            let entry: [String: Any] = [
+                "url": mediaURL(item.file), "kind": item.kind == "video" ? "video" : "image",
+                "x": framing.px(), "y": framing.py(video: item.kind == "video"), "zoom": framing.pz(), "start": framing.ps(),
+            ]
             if item.placement == "background" { state["bgMedia"] = entry } else { state["hero"] = entry }
         }
 
@@ -329,19 +333,32 @@ function sparkles(){
 function syncMedia(id,m){
   var el=document.getElementById(id);
   var key=m?(m.url+'|'+m.kind):'';
-  if(el.dataset.k===key){return;}
-  el.dataset.k=key;
-  el.innerHTML='';
-  if(!m){return;}
-  var n;
-  if(m.kind==='video'){
-    n=document.createElement('video');
-    n.src=m.url;n.autoplay=true;n.loop=true;n.muted=true;n.setAttribute('playsinline','');
-    var p=n.play();if(p&&p.catch){p.catch(function(){});}
-  }else{
-    n=document.createElement('img');n.src=m.url;
+  if(el.dataset.k!==key){
+    el.dataset.k=key;
+    if(el._t){clearInterval(el._t);el._t=null;}
+    el.innerHTML='';
+    if(m){
+      var n;
+      if(m.kind==='video'){
+        n=document.createElement('video');
+        n.src=m.url;n.autoplay=true;n.loop=true;n.muted=true;n.setAttribute('playsinline','');
+        n.addEventListener('loadedmetadata',function(){var st=+n.dataset.st||0;if(st>0&&st<n.duration){n.currentTime=st;}});
+        el._t=setInterval(function(){var st=+n.dataset.st||0;if(n.currentTime>=st+10||n.currentTime<st-0.5){n.currentTime=st;}},100);
+        var p=n.play();if(p&&p.catch){p.catch(function(){});}
+      }else{
+        n=document.createElement('img');n.src=m.url;
+      }
+      el.appendChild(n);
+    }
   }
-  el.appendChild(n);
+  var node=el.firstChild;
+  if(node&&m){
+    var pos=(m.x*100)+'% '+(m.y*100)+'%';
+    node.style.objectPosition=pos;
+    node.style.transformOrigin=pos;
+    node.style.transform=m.zoom>1?'scale('+m.zoom+')':'';
+    node.dataset.st=m.start||0;
+  }
 }
 
 function render(s){

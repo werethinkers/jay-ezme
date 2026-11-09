@@ -394,13 +394,28 @@ final class WishStudioModel: ObservableObject {
         }
         var updated = app
         updated.coverFile = imported.file
+        updated.coverFraming = nil
         store.updateApp(updated)
-        status = "Cover updated."
+        status = "Cover updated. Use Crop and position to choose what shows."
+    }
+
+    func setCoverFraming(_ framing: WishFraming) {
+        var updated = app
+        updated.coverFraming = framing
+        store.updateApp(updated)
+    }
+
+    func setMediaFraming(placement: String, _ framing: WishFraming) {
+        var list = card.media ?? []
+        guard let index = list.firstIndex(where: { $0.placement == placement }) else { return }
+        list[index].framing = framing
+        card.media = list
     }
 
     func removeCover() {
         var updated = app
         updated.coverFile = nil
+        updated.coverFraming = nil
         store.updateApp(updated)
     }
 
@@ -993,7 +1008,7 @@ struct WishCover: View {
             LinearGradient(colors: [Color(wishHex: design.background), Color(wishHex: wishMix(design.background, with: design.accent, amount: 0.3))],
                            startPoint: .topLeading, endPoint: .bottomTrailing)
             if let url = url, FileManager.default.fileExists(atPath: url.path) {
-                WishCoverMedia(url: url, isVideo: isVideo)
+                WishCoverMedia(url: url, isVideo: isVideo, framing: app.coverFraming ?? WishFraming())
             } else {
                 Text(WishArtwork.emoji(app.artwork)).font(.system(size: emojiSize))
             }
@@ -1003,19 +1018,24 @@ struct WishCover: View {
 }
 
 
-// Plays a cover video (muted, looping) or an animated GIF. A plain SwiftUI Image only shows the first frame.
+// Plays a cover video (muted, looping, at most 10 seconds) or an animated GIF. A plain SwiftUI Image only shows the first frame.
 struct WishCoverMedia: NSViewRepresentable {
     let url: URL
     let isVideo: Bool
+    let framing: WishFraming
 
     func makeNSView(context: Context) -> WishCoverMediaView {
         let view = WishCoverMediaView()
-        view.load(url: url, isVideo: isVideo)
+        view.load(url: url, isVideo: isVideo, framing: framing)
         return view
     }
 
     func updateNSView(_ view: WishCoverMediaView, context: Context) {
-        if view.loadedURL != url { view.load(url: url, isVideo: isVideo) }
+        if view.loadedURL != url {
+            view.load(url: url, isVideo: isVideo, framing: framing)
+        } else {
+            view.update(framing: framing)
+        }
     }
 
     static func dismantleNSView(_ view: WishCoverMediaView, coordinator: ()) {
@@ -1029,7 +1049,11 @@ final class WishCoverMediaView: NSView {
     private var looper: AVPlayerLooper?
     private var playerLayer: AVPlayerLayer?
     private let imageView = NSImageView()
-    private var imageSize = CGSize.zero
+    private var contentSize = CGSize.zero
+    private var duration: Double = 0
+    private var framing = WishFraming()
+    private var isVideo = false
+    private var generation = 0
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -1043,24 +1067,31 @@ final class WishCoverMediaView: NSView {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    func load(url: URL, isVideo: Bool) {
+    func load(url: URL, isVideo: Bool, framing: WishFraming) {
         stop()
+        generation += 1
+        let mine = generation
         loadedURL = url
+        self.isVideo = isVideo
+        self.framing = framing
         if isVideo {
             imageView.isHidden = true
-            let item = AVPlayerItem(url: url)
-            let queue = AVQueuePlayer()
-            queue.isMuted = true
-            looper = AVPlayerLooper(player: queue, templateItem: item)
-            let pl = AVPlayerLayer(player: queue)
+            let asset = AVURLAsset(url: url)
+            let pl = AVPlayerLayer()
             pl.videoGravity = .resizeAspectFill
             pl.frame = bounds
             layer?.addSublayer(pl)
             playerLayer = pl
-            player = queue
-            queue.play()
+            Task { @MainActor [weak self] in
+                guard let size = await Self.naturalSize(of: asset), let total = try? await asset.load(.duration).seconds else { return }
+                guard let self = self, self.generation == mine else { return }
+                self.contentSize = size
+                self.duration = total.isFinite ? total : 0
+                self.startPlayback(asset: asset)
+                self.needsLayout = true
+            }
         } else if let image = NSImage(contentsOf: url) {
-            imageSize = image.size
+            contentSize = image.size
             imageView.image = image
             imageView.animates = true
             imageView.isHidden = false
@@ -1068,7 +1099,41 @@ final class WishCoverMediaView: NSView {
         needsLayout = true
     }
 
+    func update(framing newValue: WishFraming) {
+        let startChanged = abs(newValue.ps() - framing.ps()) > 0.01
+        framing = newValue
+        if isVideo && startChanged, let asset = player?.currentItem?.asset {
+            startPlayback(asset: asset)
+        }
+        needsLayout = true
+    }
+
+    /// Plays from `start` for at most 10 seconds, then loops.
+    private func startPlayback(asset: AVAsset) {
+        player?.pause()
+        looper?.disableLooping()
+        let start = duration > 0 ? min(framing.ps(), max(0, duration - 0.5)) : 0
+        let length = duration > 0 ? min(WishFraming.maxSeconds, duration - start) : WishFraming.maxSeconds
+        let range = CMTimeRange(start: CMTime(seconds: start, preferredTimescale: 600),
+                                duration: CMTime(seconds: length, preferredTimescale: 600))
+        let queue = AVQueuePlayer()
+        queue.isMuted = true
+        looper = AVPlayerLooper(player: queue, templateItem: AVPlayerItem(asset: asset), timeRange: range)
+        playerLayer?.player = queue
+        player = queue
+        queue.play()
+    }
+
+    private static func naturalSize(of asset: AVAsset) async -> CGSize? {
+        guard let track = try? await asset.loadTracks(withMediaType: .video).first,
+              let size = try? await track.load(.naturalSize),
+              let transform = try? await track.load(.preferredTransform) else { return nil }
+        let rect = CGRect(origin: .zero, size: size).applying(transform)
+        return CGSize(width: abs(rect.width), height: abs(rect.height))
+    }
+
     func stop() {
+        generation += 1
         player?.pause()
         looper?.disableLooping()
         looper = nil
@@ -1077,20 +1142,93 @@ final class WishCoverMediaView: NSView {
         playerLayer = nil
         imageView.image = nil
         imageView.isHidden = true
+        contentSize = .zero
     }
 
     override func layout() {
         super.layout()
-        playerLayer?.frame = bounds
-        guard imageSize.width > 0, imageSize.height > 0, bounds.width > 0, bounds.height > 0 else { return }
-        // Aspect fill: scale until the picture covers the box, centred, and let the view clip the rest.
-        let scale = max(bounds.width / imageSize.width, bounds.height / imageSize.height)
-        let w = imageSize.width * scale
-        let h = imageSize.height * scale
-        imageView.frame = NSRect(x: (bounds.width - w) / 2, y: (bounds.height - h) / 2, width: w, height: h)
+        guard contentSize.width > 0, contentSize.height > 0, bounds.width > 0, bounds.height > 0 else {
+            playerLayer?.frame = bounds
+            return
+        }
+        // Aspect fill, then zoom, then slide so the chosen part shows. y = 0 is the top edge.
+        let scale = max(bounds.width / contentSize.width, bounds.height / contentSize.height) * CGFloat(framing.pz())
+        let w = contentSize.width * scale
+        let h = contentSize.height * scale
+        let originX = (bounds.width - w) * CGFloat(framing.px())
+        let originY = (bounds.height - h) * CGFloat(1 - framing.py(video: isVideo))
+        let frame = NSRect(x: originX, y: originY, width: w, height: h)
+        if isVideo {
+            playerLayer?.videoGravity = .resize
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            playerLayer?.frame = frame
+            CATransaction.commit()
+        } else {
+            imageView.frame = frame
+        }
     }
 
     deinit { player?.pause() }
+}
+
+// Crop and position controls for a cover, a middle picture or a background.
+struct WishFramingControls: View {
+    @Binding var framing: WishFraming
+    let isVideo: Bool
+    let url: URL?
+    @State private var open = false
+    @State private var videoSeconds: Double = 0
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $open) {
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("", selection: Binding(
+                    get: { nearest(framing.py(video: isVideo)) },
+                    set: { framing.y = $0 }
+                )) {
+                    Text("Top").tag(0.0)
+                    Text("Middle").tag(0.5)
+                    Text("Bottom").tag(1.0)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                slider("Up / down", value: Binding(get: { framing.py(video: isVideo) }, set: { framing.y = $0 }), range: 0...1)
+                slider("Left / right", value: Binding(get: { framing.px() }, set: { framing.x = $0 }), range: 0...1)
+                slider("Zoom (crop)", value: Binding(get: { framing.pz() }, set: { framing.zoom = $0 }), range: 1...3)
+                if isVideo {
+                    let total = videoSeconds
+                    if total > WishFraming.maxSeconds + 0.5 {
+                        slider("Start at \(Int(framing.ps()))s", value: Binding(get: { framing.ps() }, set: { framing.start = $0.rounded() }), range: 0...max(1, total - WishFraming.maxSeconds))
+                    }
+                    Text(total > 0 ? "Plays 10 seconds at most, then loops. This video is \(Int(total.rounded()))s long." : "Plays 10 seconds at most, then loops.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(WishTheme.muted)
+                }
+                Button("Reset position") { framing = WishFraming() }
+                    .controlSize(.small)
+            }
+            .padding(.top, 6)
+        } label: {
+            Text("Crop and position").font(.system(size: 12, weight: .semibold))
+        }
+        .task(id: url) {
+            guard isVideo, let url = url else { videoSeconds = 0; return }
+            let seconds = (try? await AVURLAsset(url: url).load(.duration).seconds) ?? 0
+            videoSeconds = seconds.isFinite ? seconds : 0
+        }
+    }
+
+    private func nearest(_ value: Double) -> Double {
+        return [0.0, 0.5, 1.0].min { abs($0 - value) < abs($1 - value) } ?? 0
+    }
+
+    private func slider(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
+        HStack(spacing: 8) {
+            Text(title).font(.system(size: 11)).foregroundStyle(WishTheme.muted).frame(width: 84, alignment: .leading)
+            Slider(value: value, in: range)
+        }
+    }
 }
 
 // MARK: - Header: cover title or app tabs
@@ -1837,8 +1975,15 @@ struct WishMediaTab: View {
                         .controlSize(.small)
                     }
                 }
+                if model.app.coverFile != nil {
+                    WishFramingControls(
+                        framing: Binding(get: { model.app.coverFraming ?? WishFraming() }, set: { model.setCoverFraming($0) }),
+                        isVideo: coverIsVideo,
+                        url: model.app.coverFile.flatMap { model.store.mediaURL($0) }
+                    )
+                }
             }
-            Text("Videos play without sound. On the saved web page they loop too.")
+            Text("Videos play without sound, 10 seconds at most, then loop. On the saved web page they loop too.")
                 .font(.system(size: 11))
                 .foregroundStyle(WishTheme.muted)
         }
@@ -1868,10 +2013,22 @@ struct WishMediaTab: View {
                     .controlSize(.small)
                 }
             }
+            if let current = current {
+                WishFramingControls(
+                    framing: Binding(get: { current.framing ?? WishFraming() }, set: { model.setMediaFraming(placement: placement, $0) }),
+                    isVideo: current.kind == "video",
+                    url: model.store.mediaURL(current.file)
+                )
+            }
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.page))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(WishTheme.line, lineWidth: 1))
+    }
+
+    private var coverIsVideo: Bool {
+        guard let file = model.app.coverFile else { return false }
+        return ["mp4", "mov", "m4v", "webm"].contains((file as NSString).pathExtension.lowercased())
     }
 
     private func icon(_ media: WishMedia?) -> String {
