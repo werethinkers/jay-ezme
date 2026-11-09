@@ -1,8 +1,9 @@
 // WishStudio: its own menu in EzMe, separate from AppBuilder.
-//   Studio      - pick an app (Birthday, Anniversary, Diwali, Infographics, or your own), pick a design,
-//                 fill in the details and change the card live with one voice command at a time.
-//   WishBuilder - define what kind of apps WishStudio can make (Application, Information, Collection,
-//                 Function, Live Changes). See EzMeWishBuilder.swift.
+//   Cover page  - the apps (Happy Birthday, Happy Anniversary, Happy Diwali, Infographics and your own).
+//   App tabs    - like AppBuilder: a tab per app with its cover picture, GIF or video.
+//   Studio      - an app opens as a web page you can change live: details, theme, media, templates.
+//   WishBuilder - create an app from a prompt, or edit the five steps of an app (EzMeWishBuilder.swift).
+//   Bottom bar  - the only microphone, with hints for what to say or type.
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
@@ -17,11 +18,54 @@ enum WishTheme {
     static let swatches = ["#EC6AA8", "#D63B3B", "#F28A2E", "#F2C230", "#3FA66A", "#3B6FD6", "#7B52B8", "#1A1A1A", "#FFFFFF", "#8B5A2B"]
 }
 
+struct WishPalette: Identifiable {
+    let id: String
+    let name: String
+    let bg: String
+    let accent: String
+    let ink: String
+}
+
+enum WishPalettes {
+    static let all: [WishPalette] = [
+        WishPalette(id: "lavender", name: "Lavender", bg: "#EFE6FA", accent: "#7B52B8", ink: "#2B1E45"),
+        WishPalette(id: "blush", name: "Blush", bg: "#FBE3E6", accent: "#D9577A", ink: "#4A1F2C"),
+        WishPalette(id: "mint", name: "Mint", bg: "#E0F3E8", accent: "#2E9467", ink: "#173D2B"),
+        WishPalette(id: "sky", name: "Sky", bg: "#E3EEFB", accent: "#3B6FD6", ink: "#1B2C52"),
+        WishPalette(id: "gold", name: "Golden", bg: "#FBF0D5", accent: "#B98A12", ink: "#463408"),
+        WishPalette(id: "peach", name: "Peach", bg: "#FFE7DA", accent: "#E2703A", ink: "#4F2410"),
+        WishPalette(id: "rose", name: "Rose", bg: "#F8DDE8", accent: "#B83A72", ink: "#47182F"),
+        WishPalette(id: "sage", name: "Sage", bg: "#E6EDDD", accent: "#6B8F4E", ink: "#26361A"),
+        WishPalette(id: "midnight", name: "Midnight", bg: "#1F1B3A", accent: "#F2C45A", ink: "#F6F1FF"),
+        WishPalette(id: "saffron", name: "Saffron", bg: "#FFEDCC", accent: "#E67E00", ink: "#4A2A00"),
+        WishPalette(id: "ivory", name: "Ivory", bg: "#F7F2E8", accent: "#2D2A26", ink: "#1F1D1A"),
+        WishPalette(id: "ocean", name: "Ocean", bg: "#0F2A43", accent: "#4FC3F7", ink: "#EAF6FF"),
+    ]
+}
+
+func wishHex(from color: Color) -> String {
+    let converted = NSColor(color).usingColorSpace(.sRGB) ?? NSColor.black
+    return wishHexString(Double(converted.redComponent), Double(converted.greenComponent), Double(converted.blueComponent))
+}
+
 struct WishChipGroup: Identifiable {
     var id: String
     var title: String
     var fieldKey: String
     var chips: [WishChip]
+}
+
+enum WishPage: Equatable {
+    case home
+    case app(String)
+    case builder
+}
+
+enum WishInspectorTab: String, CaseIterable {
+    case details = "Details"
+    case theme = "Theme"
+    case media = "Media"
+    case templates = "Templates"
 }
 
 // MARK: - Model
@@ -30,19 +74,25 @@ struct WishChipGroup: Identifiable {
 final class WishStudioModel: ObservableObject {
     let store = WishStore()
     let voice = WishVoiceController()
+    let web = WishWebController()
+    let builder = WishBuilderState()
 
+    @Published var page: WishPage = .home
     @Published var appID: String = ""
     @Published var card = WishCard(appID: "", designID: "g-lavender") {
         didSet { persistCard() }
     }
     @Published var selected: String? = nil
-    @Published var status: String = "Tap the mic and say one thing to change, like \u{201C}make it pink\u{201D}."
+    @Published var status: String = ""
     @Published var commandText: String = ""
     @Published private(set) var undoStack: [WishCard] = []
     @Published private(set) var redoStack: [WishCard] = []
     @Published var chipGroups: [WishChipGroup] = []
-    @Published var replayToken = 0
+    @Published var inspector: WishInspectorTab = .details
+    @Published var voiceChoice: String = "auto"
+    @Published var collections: [String] = []
 
+    var focusKey = ""
     var hovering = false
     var records: [CollectionRecord] = []
     var clips: [Clip] = []
@@ -51,6 +101,7 @@ final class WishStudioModel: ObservableObject {
     private var started = false
     private var typingKey = ""
     private var typingTime = Date.distantPast
+    private var colorStamp = Date.distantPast
 
     // MARK: Current app
 
@@ -62,26 +113,74 @@ final class WishStudioModel: ObservableObject {
     var design: WishDesign { return WishDesigns.design(id: card.designID, kind: app.kind) }
     var context: WishContext { return store.context(for: card, app: app) }
 
+    var stateJSON: String {
+        let files = store
+        return WishHTML.stateJSON(app: app, card: card, design: design, context: context, selected: selected) { file in
+            return files.mediaURL(file)?.absoluteString ?? ""
+        }
+    }
+
     var environment: WishCommandEnvironment {
         return WishCommandEnvironment(app: app, apps: store.apps, designs: designs, chips: chipGroups.flatMap { $0.chips })
+    }
+
+    var isOnApp: Bool {
+        if case .app = page { return true }
+        return false
     }
 
     func start(directory: URL) {
         guard !started else { return }
         started = true
         store.load(directory: directory)
+        builder.model = self
         let remembered = store.app(id: store.lastAppID) != nil ? store.lastAppID : (store.apps.first?.id ?? "")
-        openApp(remembered, saveCurrent: false)
+        loadApp(remembered, saveCurrent: false)
+        status = defaultStatus
     }
 
-    func openApp(_ id: String, saveCurrent: Bool = true) {
+    var defaultStatus: String {
+        switch page {
+        case .home: return "Pick an app, or say its name."
+        case .builder: return "Describe the app you want, or say it with the mic."
+        case .app: return "Tap the mic and say one thing to change, like \u{201C}make it pink\u{201D}."
+        }
+    }
+
+    func goHome() {
+        voiceGuard()
+        page = .home
+        selected = nil
+        status = defaultStatus
+    }
+
+    func openBuilder() {
+        voiceGuard()
+        page = .builder
+        selected = nil
+        status = defaultStatus
+    }
+
+    func openApp(_ id: String) {
+        guard store.app(id: id) != nil else { return }
+        loadApp(id, saveCurrent: true)
+        page = .app(id)
+        status = defaultStatus
+    }
+
+    private func voiceGuard() {
+        if voice.isListening { syncVoice() }
+    }
+
+    func loadApp(_ id: String, saveCurrent: Bool) {
         if saveCurrent && !appID.isEmpty { store.cards[appID] = card }
         guard let target = store.app(id: id) else { return }
         appID = id
         store.lastAppID = id
         let options = WishDesigns.designs(for: target.kind)
-        var next = store.cards[id] ?? WishCard.make(for: target, designID: options[0].id)
-        if !options.contains(where: { $0.id == next.designID }) { next.designID = options[0].id }
+        let startDesign = options.contains(where: { $0.id == target.designID }) ? (target.designID ?? options[0].id) : options[0].id
+        var next = store.cards[id] ?? WishCard.make(for: target, designID: startDesign)
+        if !options.contains(where: { $0.id == next.designID }) { next.designID = startDesign }
         for field in target.fields where next.values[field.key] == nil {
             next.values[field.key] = field.value
             next.valuesHi[field.key] = field.valueHi.isEmpty ? field.value : field.valueHi
@@ -141,7 +240,7 @@ final class WishStudioModel: ObservableObject {
         status = "Redone."
     }
 
-    // MARK: Typing in the Make it personal panel
+    // MARK: Editing from the panels
 
     func edit(_ key: String, to value: String) {
         guard let field = app.field(key) else { return }
@@ -152,12 +251,70 @@ final class WishStudioModel: ObservableObject {
         card.set(key, to: value, universal: field.universal)
     }
 
+    /// Used when a function chip is dropped on a box (or tapped): the whole box becomes the function, or it is
+    /// added inside the text, like "Happy birthday {=Date}".
+    func insertFormula(_ formula: String, into key: String) {
+        let clean = formula.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, app.field(key) != nil else { return }
+        let current = card.value(for: key)
+        let trimmed = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        let inner = clean.hasPrefix("=") ? clean : "=" + clean
+        let next: String
+        if trimmed.isEmpty || WishFormula.isFormula(trimmed) {
+            next = inner
+        } else {
+            next = current + " {" + inner + "}"
+        }
+        typingTime = .distantPast
+        edit(key, to: next)
+        status = "\(inner) added to \(app.field(key)?.label ?? key)."
+    }
+
     func chooseDesign(_ id: String) {
         guard id != card.designID else { return }
         pushUndo()
         card.designID = id
         card.backgroundHex = nil
         card.accentHex = nil
+        card.inkHex = nil
+    }
+
+    func applyPalette(_ palette: WishPalette) {
+        pushUndo()
+        card.backgroundHex = palette.bg
+        card.accentHex = palette.accent
+        card.inkHex = palette.ink
+        status = "Theme \u{2192} \(palette.name)"
+    }
+
+    func resetColors() {
+        pushUndo()
+        card.backgroundHex = nil
+        card.accentHex = nil
+        card.inkHex = nil
+        status = "Colours reset to the design."
+    }
+
+    private func coalescedColorUndo() {
+        let now = Date()
+        if now.timeIntervalSince(colorStamp) > 1.2 { pushUndo() }
+        colorStamp = now
+    }
+
+    func setBackground(_ hex: String) {
+        coalescedColorUndo()
+        card.backgroundHex = hex
+        if card.inkHex == nil { card.inkHex = wishIsDark(hex) ? "#F6F1FF" : design.ink }
+    }
+
+    func setAccent(_ hex: String) {
+        coalescedColorUndo()
+        card.accentHex = hex
+    }
+
+    func setInk(_ hex: String) {
+        coalescedColorUndo()
+        card.inkHex = hex
     }
 
     func setLanguage(_ language: WishLanguage) {
@@ -177,14 +334,6 @@ final class WishStudioModel: ObservableObject {
         card.fontStyle = style
     }
 
-    func setTextScale(_ value: Double) {
-        card.textScale = value
-    }
-
-    func setMagic(_ value: Int) {
-        card.magic = value
-    }
-
     func beginSlider() {
         pushUndo()
     }
@@ -198,9 +347,104 @@ final class WishStudioModel: ObservableObject {
 
     func resetCard() {
         pushUndo()
-        card = WishCard.make(for: app, designID: designs[0].id)
+        card = WishCard.make(for: app, designID: app.designID.flatMap { id in designs.contains(where: { $0.id == id }) ? id : nil } ?? designs[0].id)
         selected = nil
         status = "Card reset."
+    }
+
+    // MARK: Media
+
+    func chooseMedia(placement: String) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType.image, UTType.movie]
+        panel.allowsMultipleSelection = false
+        panel.message = placement == "hero" ? "Choose a picture, GIF or video for the middle of the card" : "Choose a picture, GIF or video for the background"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let imported = store.importMedia(from: url) else {
+            status = "That file type is not supported. Use PNG, JPG, GIF, MP4 or MOV."
+            return
+        }
+        pushUndo()
+        var list = (card.media ?? []).filter { $0.placement != placement }
+        list.append(WishMedia(file: imported.file, kind: imported.kind, placement: placement))
+        card.media = list
+        status = "\(imported.kind.capitalized) added."
+    }
+
+    func removeMedia(placement: String) {
+        pushUndo()
+        let list = (card.media ?? []).filter { $0.placement != placement }
+        card.media = list.isEmpty ? nil : list
+    }
+
+    func media(_ placement: String) -> WishMedia? {
+        return card.media?.first { $0.placement == placement }
+    }
+
+    func chooseCover() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType.image, UTType.movie]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose the cover picture, GIF or video for this app"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let imported = store.importMedia(from: url) else {
+            status = "That file type is not supported."
+            return
+        }
+        var updated = app
+        updated.coverFile = imported.file
+        store.updateApp(updated)
+        status = "Cover updated."
+    }
+
+    func removeCover() {
+        var updated = app
+        updated.coverFile = nil
+        store.updateApp(updated)
+    }
+
+    // MARK: Templates
+
+    var templatesForApp: [WishTemplate] {
+        return store.templates.filter { $0.appID == appID }
+    }
+
+    func saveTemplate(name: String, includeText: Bool) {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        var template = WishTemplate(name: clean, appID: appID, designID: card.designID)
+        template.backgroundHex = card.backgroundHex
+        template.accentHex = card.accentHex
+        template.inkHex = card.inkHex
+        template.fontStyle = card.fontStyle
+        template.textScale = card.textScale
+        template.magic = card.magic
+        template.artwork = card.artwork
+        if includeText {
+            template.values = card.values
+            template.valuesHi = card.valuesHi
+        }
+        store.templates.append(template)
+        status = "Saved the template \u{201C}\(clean)\u{201D}."
+    }
+
+    func applyTemplate(_ template: WishTemplate) {
+        pushUndo()
+        if designs.contains(where: { $0.id == template.designID }) { card.designID = template.designID }
+        card.backgroundHex = template.backgroundHex
+        card.accentHex = template.accentHex
+        card.inkHex = template.inkHex
+        card.fontStyle = template.fontStyle
+        card.textScale = template.textScale
+        card.magic = template.magic
+        card.artwork = template.artwork
+        if let values = template.values { card.values = values }
+        if let valuesHi = template.valuesHi { card.valuesHi = valuesHi }
+        status = "Template \u{201C}\(template.name)\u{201D} applied."
+    }
+
+    func deleteTemplate(_ template: WishTemplate) {
+        store.templates.removeAll { $0.id == template.id }
     }
 
     // MARK: Selection
@@ -225,14 +469,25 @@ final class WishStudioModel: ObservableObject {
         }
     }
 
-    // MARK: Voice and typed commands
+    // MARK: Voice and typed commands (one path for everything)
 
     var recognitionLocale: String {
-        switch app.live.recognition {
+        switch voiceChoice {
         case "english": return "en-IN"
         case "hindi": return "hi-IN"
-        default: return card.language.speechIdentifier
+        default:
+            guard isOnApp else { return "en-IN" }
+            switch app.live.recognition {
+            case "english": return "en-IN"
+            case "hindi": return "hi-IN"
+            default: return card.language.speechIdentifier
+            }
         }
+    }
+
+    func setVoiceChoice(_ choice: String) {
+        voiceChoice = choice
+        if voice.isListening { syncVoice() }
     }
 
     func toggleVoice() {
@@ -242,21 +497,56 @@ final class WishStudioModel: ObservableObject {
             return
         }
         status = "Listening. Say one command at a time."
-        voice.start(localeIdentifier: recognitionLocale, commitDelay: app.live.commitDelay) { [weak self] text in
+        voice.start(localeIdentifier: recognitionLocale, commitDelay: isOnApp ? app.live.commitDelay : 0.9) { [weak self] text in
             self?.handleTranscript(text)
         }
     }
 
     func syncVoice() {
         voice.changeLanguage(recognitionLocale)
-        voice.updatePause(app.live.commitDelay)
+        voice.updatePause(isOnApp ? app.live.commitDelay : 0.9)
     }
 
-    /// The one entry point for a command, spoken or typed.
+    /// The one entry point for a command, spoken or typed, on every page.
     func handleTranscript(_ raw: String) {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         commandText = ""
+        switch page {
+        case .builder:
+            builder.handle(text)
+        case .home:
+            handleHome(text)
+        case .app:
+            handleStudio(text)
+        }
+    }
+
+    private func handleHome(_ text: String) {
+        let lower = text.lowercased()
+        if lower.contains("builder") || lower.contains("create") || lower.contains("new app") || lower.contains("\u{092C}\u{093F}\u{0932}\u{094D}\u{0921}\u{0930}") || lower.contains("\u{0928}\u{092F}\u{093E}") {
+            openBuilder()
+            return
+        }
+        let env = WishCommandEnvironment(app: app, apps: store.apps.filter { $0.id != "__none__" }, designs: designs, chips: [])
+        for command in WishCommandParser.parse(text, env: env) {
+            if case .switchApp(let id) = command.action {
+                openApp(id)
+                return
+            }
+        }
+        for item in store.apps {
+            let name = item.name.lowercased()
+            let short = name.hasPrefix("happy ") ? String(name.dropFirst(6)) : name
+            if lower.contains(short) || (!item.nameHi.isEmpty && text.contains(item.nameHi)) {
+                openApp(item.id)
+                return
+            }
+        }
+        status = "Say the name of an app, like \u{201C}Happy Birthday\u{201D}, or \u{201C}WishBuilder\u{201D}."
+    }
+
+    private func handleStudio(_ text: String) {
         let env = environment
         let commands = WishCommandParser.parse(text, env: env)
         if commands.isEmpty {
@@ -291,7 +581,10 @@ final class WishStudioModel: ObservableObject {
                 baseline = nil
                 done.append(WishCommandParser.summary(of: command, env: env))
             case .newCard, .reset:
-                if let before = baseline, card != before { undoStack.append(before); redoStack = [] }
+                if let before = baseline, card != before {
+                    undoStack.append(before)
+                    redoStack = []
+                }
                 resetCard()
                 baseline = card
                 done.append(WishCommandParser.summary(of: command, env: env))
@@ -389,6 +682,7 @@ final class WishStudioModel: ObservableObject {
             card.designID = id
             card.backgroundHex = nil
             card.accentHex = nil
+            card.inkHex = nil
             return true
         case .stepDesign(let step):
             let list = designs
@@ -397,6 +691,7 @@ final class WishStudioModel: ObservableObject {
             card.designID = list[next].id
             card.backgroundHex = nil
             card.accentHex = nil
+            card.inkHex = nil
             return true
         case .language(let language):
             card.language = language
@@ -416,6 +711,7 @@ final class WishStudioModel: ObservableObject {
         switch target {
         case .background:
             card.backgroundHex = hex
+            card.inkHex = wishIsDark(hex) ? "#F6F1FF" : (wishIsDark(design.ink) ? design.ink : "#2B2B2B")
         case .accent:
             card.accentHex = hex
         case .text:
@@ -426,11 +722,14 @@ final class WishStudioModel: ObservableObject {
             } else if wishIsDark(hex) {
                 card.backgroundHex = hex
                 card.accentHex = wishMix(hex, with: "#FFFFFF", amount: 0.65)
+                card.inkHex = "#F6F1FF"
             } else if wishLuminance(hex) > 0.85 {
                 card.backgroundHex = hex
+                card.inkHex = wishIsDark(design.ink) ? design.ink : "#2B2B2B"
             } else {
                 card.accentHex = hex
                 card.backgroundHex = wishMix(hex, with: "#FFFFFF", amount: 0.84)
+                card.inkHex = wishIsDark(design.ink) ? design.ink : "#2B2B2B"
             }
         }
         return true
@@ -483,60 +782,136 @@ final class WishStudioModel: ObservableObject {
         chipGroups = groups
     }
 
+    // MARK: Hints for the bottom bar
+
+    var hints: [String] {
+        switch page {
+        case .home:
+            return ["open Happy Birthday", "open Happy Diwali", "open Infographics", "WishBuilder", "\u{0916}\u{094B}\u{0932}\u{094B} \u{0926}\u{093F}\u{0935}\u{093E}\u{0932}\u{0940}"]
+        case .builder:
+            return builder.hints
+        case .app:
+            if selected != nil {
+                return ["bigger", "smaller", "make it gold", "move left", "bold", "hide it", "done"]
+            }
+            if app.kind == .infographic {
+                return ["next design", "make it blue", "title Our plan", "bigger title", "Hindi", "undo"]
+            }
+            return ["make it pink", "name Yogesh", "bigger title", "next design", "more magic", "\u{0907}\u{0938}\u{0947} \u{0917}\u{0941}\u{0932}\u{093E}\u{092C}\u{0940} \u{0915}\u{0930}\u{094B}", "undo"]
+        }
+    }
+
+    var commandPlaceholder: String {
+        switch page {
+        case .home: return "Say or type an app name, like \u{201C}Happy Birthday\u{201D}"
+        case .builder: return builder.placeholder
+        case .app: return "Say or type one command, like \u{201C}make it pink\u{201D}"
+        }
+    }
+
+    var contextLine: String {
+        switch page {
+        case .home: return "WishStudio \u{00B7} Home"
+        case .builder: return "WishBuilder \u{00B7} " + builder.contextLine
+        case .app: return app.name + " \u{00B7} " + (selected.map { "\($0) selected" } ?? "whole card")
+        }
+    }
+
     // MARK: Output
 
-    private func renderedImage() -> NSImage? {
+    private func fallbackImage() -> NSImage? {
         let canvas = WishCardCanvas(app: app, card: card, design: design, context: context, selected: nil, animated: false)
         return WishExport.image(of: canvas, scale: 2)
     }
 
+    private func snapshotImage(_ done: @escaping (NSImage?) -> Void) {
+        if isOnApp {
+            web.snapshot { [weak self] image in
+                done(image ?? self?.fallbackImage())
+            }
+        } else {
+            done(fallbackImage())
+        }
+    }
+
     func exportPNG() {
-        guard let image = renderedImage(), let data = WishExport.pngData(from: image) else {
-            status = "Could not make the image."
-            return
-        }
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [UTType.png]
-        panel.nameFieldStringValue = "\(app.name) card.png"
-        guard panel.runModal() == .OK, let url = panel.url else {
-            status = "Download cancelled."
-            return
-        }
-        do {
-            try data.write(to: url)
-            status = "Saved \(url.lastPathComponent)."
-        } catch {
-            status = "Could not save: \(error.localizedDescription)"
+        snapshotImage { [weak self] image in
+            guard let self = self else { return }
+            guard let image = image, let data = WishExport.pngData(from: image) else {
+                self.status = "Could not make the image."
+                return
+            }
+            let panel = NSSavePanel()
+            panel.allowedContentTypes = [UTType.png]
+            panel.nameFieldStringValue = "\(self.app.name) card.png"
+            guard panel.runModal() == .OK, let url = panel.url else {
+                self.status = "Download cancelled."
+                return
+            }
+            do {
+                try data.write(to: url)
+                self.status = "Saved \(url.lastPathComponent)."
+            } catch {
+                self.status = "Could not save: \(error.localizedDescription)"
+            }
         }
     }
 
     func copyImage() {
-        guard let image = renderedImage() else {
-            status = "Could not make the image."
-            return
+        snapshotImage { [weak self] image in
+            guard let self = self else { return }
+            guard let image = image else {
+                self.status = "Could not make the image."
+                return
+            }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.writeObjects([image])
+            self.status = "Image copied. Paste it into a message."
         }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.writeObjects([image])
-        status = "Image copied. Paste it into a message."
     }
 
     func shareImage() {
-        guard let image = renderedImage(), let view = NSApp.keyWindow?.contentView else {
-            status = "Could not make the image."
-            return
+        snapshotImage { [weak self] image in
+            guard let self = self else { return }
+            guard let image = image, let view = NSApp.keyWindow?.contentView else {
+                self.status = "Could not make the image."
+                return
+            }
+            let picker = NSSharingServicePicker(items: [image])
+            let anchor = NSRect(x: view.bounds.midX, y: 40, width: 1, height: 1)
+            picker.show(relativeTo: anchor, of: view, preferredEdge: .minY)
         }
-        let picker = NSSharingServicePicker(items: [image])
-        let anchor = NSRect(x: view.bounds.midX, y: 40, width: 1, height: 1)
-        picker.show(relativeTo: anchor, of: view, preferredEdge: .minY)
+    }
+
+    /// Saves the card as a real web page (with its pictures, GIFs and videos) and opens it in the browser.
+    func openAsWebPage() {
+        guard let base = store.directory else { return }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HHmm"
+        let folder = base.appendingPathComponent("WishPages", isDirectory: true)
+            .appendingPathComponent("\(app.name) \(formatter.string(from: Date()))", isDirectory: true)
+        let mediaFolder = folder.appendingPathComponent("media", isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: mediaFolder, withIntermediateDirectories: true)
+            for item in card.media ?? [] {
+                if let source = store.mediaURL(item.file) {
+                    try? FileManager.default.copyItem(at: source, to: mediaFolder.appendingPathComponent(item.file))
+                }
+            }
+            let json = WishHTML.stateJSON(app: app, card: card, design: design, context: context, selected: nil) { file in
+                return "media/" + file
+            }
+            let index = folder.appendingPathComponent("index.html")
+            try WishHTML.page(stateJSON: json, interactive: false).write(to: index, atomically: true, encoding: .utf8)
+            NSWorkspace.shared.open(index)
+            status = "Opened as a web page. It is saved in \(folder.path)."
+        } catch {
+            status = "Could not save the web page: \(error.localizedDescription)"
+        }
     }
 }
 
 // MARK: - Workspace
-
-enum WishTab: String, CaseIterable {
-    case studio = "Studio"
-    case builder = "WishBuilder"
-}
 
 struct WishStudioWorkspace: View {
     let directory: URL
@@ -545,13 +920,14 @@ struct WishStudioWorkspace: View {
     let clips: [Clip]
 
     @StateObject private var model = WishStudioModel()
-    @State private var tab: WishTab = .studio
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            WishHeader(model: model, store: model.store)
             Divider().overlay(WishTheme.line)
             content
+            Divider().overlay(WishTheme.line)
+            WishCommandBar(model: model, voice: model.voice)
         }
         .background(WishTheme.page)
         .environment(\.colorScheme, .light)
@@ -560,6 +936,7 @@ struct WishStudioWorkspace: View {
         .onAppear {
             model.records = records
             model.clips = clips
+            model.collections = collections
             model.start(directory: directory)
         }
         .onChange(of: records.count) { _ in
@@ -570,305 +947,440 @@ struct WishStudioWorkspace: View {
             model.clips = clips
             model.refreshChips()
         }
-        .onDisappear { model.voice.stop() }
-    }
-
-    private var header: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(WishTheme.accent)
-            Text("wishstudio")
-                .font(.system(size: 24, weight: .semibold, design: .serif))
-            Text("Little moments. Beautifully celebrated.")
-                .font(.system(size: 12))
-                .foregroundStyle(WishTheme.muted)
-            Spacer()
-            Picker("", selection: $tab) {
-                ForEach(WishTab.allCases, id: \.self) { item in
-                    Text(item.rawValue).tag(item)
-                }
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 250)
+        .onChange(of: collections) { _ in
+            model.collections = collections
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 12)
+        .onDisappear { model.voice.stop() }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch tab {
-        case .studio:
-            WishStudioView(model: model, store: model.store)
+        switch model.page {
+        case .home:
+            WishHomeView(model: model, store: model.store)
         case .builder:
-            WishBuilderView(model: model, store: model.store, collections: collections, records: records, clips: clips, openStudio: { tab = .studio })
+            WishBuilderView(model: model, store: model.store, builder: model.builder)
+        case .app:
+            WishStudioView(model: model, store: model.store)
         }
     }
 }
 
-// MARK: - Studio tab
+// MARK: - Cover thumbnail
+
+struct WishCover: View {
+    let app: WishApp
+    let store: WishStore
+    var emojiSize: CGFloat = 34
+
+    private var design: WishDesign {
+        return WishDesigns.design(id: app.designID ?? "", kind: app.kind)
+    }
+
+    private var url: URL? {
+        guard let file = app.coverFile else { return nil }
+        return store.mediaURL(file)
+    }
+
+    private var isVideo: Bool {
+        guard let url = url else { return false }
+        return ["mp4", "mov", "m4v", "webm"].contains(url.pathExtension.lowercased())
+    }
+
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color(wishHex: design.background), Color(wishHex: wishMix(design.background, with: design.accent, amount: 0.3))],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            if let url = url, !isVideo, let image = NSImage(contentsOf: url) {
+                Image(nsImage: image).resizable().scaledToFill()
+            } else {
+                Text(WishArtwork.emoji(app.artwork)).font(.system(size: emojiSize))
+            }
+            if isVideo {
+                Image(systemName: "play.fill")
+                    .font(.system(size: 9, weight: .black))
+                    .foregroundStyle(Color.white)
+                    .padding(6)
+                    .background(Circle().fill(Color.black.opacity(0.5)))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(4)
+            }
+        }
+        .clipped()
+    }
+}
+
+// MARK: - Header: cover title or app tabs
+
+struct WishHeader: View {
+    @ObservedObject var model: WishStudioModel
+    @ObservedObject var store: WishStore
+
+    var body: some View {
+        if model.page == .home {
+            home
+        } else {
+            tabs
+        }
+    }
+
+    private var home: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "party.popper.fill")
+                .font(.system(size: 24))
+                .foregroundStyle(Color.white)
+                .frame(width: 48, height: 48)
+                .background(RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [Color(wishHex: "#6D4AB0"), Color(wishHex: "#D9577A"), Color(wishHex: "#F2A93B")], startPoint: .topLeading, endPoint: .bottomTrailing)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("WishStudio").font(.system(size: 23, weight: .bold, design: .rounded))
+                Text("Greetings and infographics that open like a web page, with photos, GIFs and video.")
+                    .font(.subheadline)
+                    .foregroundStyle(WishTheme.muted)
+            }
+            Spacer()
+            Button {
+                model.openBuilder()
+            } label: {
+                Label("Create with WishBuilder", systemImage: "wand.and.stars")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding(18)
+    }
+
+    private var tabs: some View {
+        HStack(spacing: 12) {
+            Button {
+                model.goHome()
+            } label: {
+                Label("WishStudio", systemImage: "chevron.left")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(width: 112, height: 52)
+            }
+            .buttonStyle(.bordered)
+            Divider().frame(height: 36)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(store.apps) { item in
+                        appTab(item)
+                    }
+                    builderTab
+                }
+                .padding(.vertical, 2)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+    }
+
+    private func appTab(_ item: WishApp) -> some View {
+        let active = model.page == .app(item.id)
+        return Button {
+            model.openApp(item.id)
+        } label: {
+            HStack(spacing: 10) {
+                WishCover(app: item, store: store, emojiSize: 20)
+                    .frame(width: 54, height: 42)
+                    .clipShape(RoundedRectangle(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.name)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .lineLimit(1)
+                    Text(item.kind == .greeting ? "GREETING" : "INFOGRAPHIC")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(active ? WishTheme.accent : WishTheme.muted)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 12).fill(active ? WishTheme.accentSoft : Color.white))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: active ? 1.5 : 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var builderTab: some View {
+        let active = model.page == .builder
+        return Button {
+            model.openBuilder()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "wand.and.stars")
+                    .frame(width: 42, height: 42)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(WishTheme.accentSoft))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("WishBuilder").font(.system(size: 12, weight: .bold, design: .rounded))
+                    Text("CREATE APPS").font(.system(size: 8, weight: .bold)).foregroundStyle(active ? WishTheme.accent : WishTheme.muted)
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 12).fill(active ? WishTheme.accentSoft : Color.white))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(active ? WishTheme.accent : WishTheme.line, style: StrokeStyle(lineWidth: active ? 1.5 : 1, dash: active ? [] : [4, 3])))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Cover page
+
+struct WishHomeView: View {
+    @ObservedObject var model: WishStudioModel
+    @ObservedObject var store: WishStore
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 26) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Choose an app to get started").font(.system(size: 25, weight: .bold, design: .rounded))
+                    Text("Each app is a small web page you fill in, restyle and save as a template. Or describe a new one and WishBuilder makes it.")
+                        .foregroundStyle(WishTheme.muted)
+                        .frame(maxWidth: 720, alignment: .leading)
+                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 230, maximum: 300), spacing: 18)], alignment: .leading, spacing: 18) {
+                    ForEach(store.apps) { item in
+                        appCard(item)
+                    }
+                    builderCard
+                }
+                if !store.templates.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Your templates").font(.system(size: 17, weight: .semibold))
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 12)], alignment: .leading, spacing: 12) {
+                            ForEach(store.templates) { template in
+                                templateCard(template)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(28)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func appCard(_ item: WishApp) -> some View {
+        Button {
+            model.openApp(item.id)
+        } label: {
+            VStack(alignment: .leading, spacing: 0) {
+                WishCover(app: item, store: store, emojiSize: 52)
+                    .frame(height: 150)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(item.name).font(.system(size: 16, weight: .bold, design: .rounded))
+                    Text(item.tagline.isEmpty ? item.prompt : item.tagline)
+                        .font(.system(size: 12))
+                        .foregroundStyle(WishTheme.muted)
+                        .lineLimit(2)
+                    HStack(spacing: 6) {
+                        Text(item.kind.title.uppercased())
+                            .font(.system(size: 9, weight: .bold))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(WishTheme.accentSoft))
+                        Text("\(item.fields.count) fields").font(.system(size: 10)).foregroundStyle(WishTheme.muted)
+                        Spacer()
+                        Image(systemName: "arrow.right.circle.fill").foregroundStyle(WishTheme.accent)
+                    }
+                    .padding(.top, 2)
+                }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .background(RoundedRectangle(cornerRadius: 16).fill(Color.white))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.05), radius: 8, y: 3)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var builderCard: some View {
+        Button {
+            model.openBuilder()
+        } label: {
+            VStack(spacing: 10) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 34))
+                    .foregroundStyle(WishTheme.accent)
+                Text("Create with WishBuilder").font(.system(size: 16, weight: .bold, design: .rounded))
+                Text("Describe the app. WishBuilder asks for anything missing, maps your collections and builds it.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(WishTheme.muted)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, minHeight: 262)
+            .background(RoundedRectangle(cornerRadius: 16).fill(WishTheme.accentSoft.opacity(0.5)))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.accent.opacity(0.6), style: StrokeStyle(lineWidth: 1.4, dash: [6, 4])))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func templateCard(_ template: WishTemplate) -> some View {
+        let appName = store.app(id: template.appID)?.name ?? "App"
+        let design = store.app(id: template.appID).map { WishDesigns.design(id: template.designID, kind: $0.kind) }
+        let bg = template.backgroundHex ?? design?.background ?? "#EFE6FA"
+        let accent = template.accentHex ?? design?.accent ?? "#7B52B8"
+        return Button {
+            model.openApp(template.appID)
+            model.applyTemplate(template)
+        } label: {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(LinearGradient(colors: [Color(wishHex: bg), Color(wishHex: accent)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 44, height: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(template.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                    Text(appName).font(.system(size: 11)).foregroundStyle(WishTheme.muted)
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(WishTheme.line, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - An open app
 
 struct WishStudioView: View {
     @ObservedObject var model: WishStudioModel
     @ObservedObject var store: WishStore
 
     var body: some View {
-        VStack(spacing: 0) {
-            appTabs
-            HStack(alignment: .top, spacing: 16) {
-                WishDesignGallery(model: model)
-                    .frame(width: 262)
-                WishPreviewPane(model: model)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                WishPersonalPanel(model: model)
-                    .frame(width: 330)
-            }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 12)
-            Divider().overlay(WishTheme.line)
-            WishCommandBar(model: model, voice: model.voice)
+        HStack(alignment: .top, spacing: 16) {
+            preview
+            WishInspector(model: model, store: store)
+                .frame(width: 350)
         }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 14)
     }
 
-    private var appTabs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(store.apps) { item in
-                    let active = item.id == model.appID
-                    Button {
-                        model.openApp(item.id)
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: item.symbol)
-                                .font(.system(size: 18))
-                                .frame(width: 26)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(item.title(model.card.language)).font(.system(size: 14, weight: .semibold))
-                                Text(item.tagline).font(.system(size: 11)).foregroundStyle(WishTheme.muted)
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        .background(RoundedRectangle(cornerRadius: 12).fill(active ? WishTheme.accentSoft : Color.white))
-                        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: active ? 1.4 : 1))
-                    }
-                    .buttonStyle(.plain)
+    private var preview: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                Circle().fill(Color.green.opacity(0.7)).frame(width: 7, height: 7)
+                Text("LIVE PAGE").font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(WishTheme.muted)
+                Text("Tap any text on the card to select it.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
+                Spacer()
+                Button {
+                    model.web.replay()
+                } label: {
+                    Label("Replay", systemImage: "play.circle")
                 }
+                Button {
+                    model.openAsWebPage()
+                } label: {
+                    Label("Open as web page", systemImage: "safari")
+                }
+                Menu {
+                    Button("Download PNG\u{2026}") { model.exportPNG() }
+                    Button("Copy image") { model.copyImage() }
+                    Button("Share\u{2026}") { model.shareImage() }
+                } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
             }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 10)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+
+            WishWebView(stateJSON: model.stateJSON, controller: model.web) { key in
+                model.select(key.isEmpty ? nil : key)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
+            .onHover { inside in model.hovering = inside }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 
-struct WishDesignGallery: View {
+// MARK: - Inspector
+
+struct WishInspector: View {
     @ObservedObject var model: WishStudioModel
+    @ObservedObject var store: WishStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Find your kind of lovely").font(.system(size: 15, weight: .semibold))
-                Spacer()
-                Text("\(model.designs.count) designs")
-                    .font(.system(size: 11))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(WishTheme.accentSoft))
+        VStack(spacing: 0) {
+            Picker("", selection: $model.inspector) {
+                ForEach(WishInspectorTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
             }
-            Text("A starting point for something special.").font(.system(size: 12)).foregroundStyle(WishTheme.muted)
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .padding(12)
+            Divider().overlay(WishTheme.line)
             ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 12) {
-                    ForEach(model.designs) { item in
-                        tile(item)
+                VStack(alignment: .leading, spacing: 16) {
+                    switch model.inspector {
+                    case .details: WishDetailsTab(model: model)
+                    case .theme: WishThemeTab(model: model)
+                    case .media: WishMediaTab(model: model)
+                    case .templates: WishTemplatesTab(model: model)
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(14)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color.white))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
     }
-
-    private func tile(_ item: WishDesign) -> some View {
-        let active = item.id == model.card.designID
-        let symbol = model.app.kind == .greeting ? model.card.artwork : "chart.pie.fill"
-        return Button {
-            model.chooseDesign(item.id)
-        } label: {
-            VStack(spacing: 5) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12).fill(Color(wishHex: item.background))
-                    Image(systemName: symbol)
-                        .font(.system(size: 26))
-                        .foregroundStyle(Color(wishHex: item.accent))
-                }
-                .frame(height: 92)
-                .overlay(alignment: .topTrailing) {
-                    if active {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundStyle(WishTheme.accent)
-                            .background(Circle().fill(Color.white))
-                            .padding(5)
-                    }
-                }
-                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(active ? WishTheme.accent : Color.clear, lineWidth: 2))
-                Text(item.name)
-                    .font(.system(size: 11))
-                    .foregroundStyle(active ? WishTheme.accent : WishTheme.muted)
-                    .lineLimit(1)
-            }
-        }
-        .buttonStyle(.plain)
-    }
 }
 
-struct WishPreviewPane: View {
+func wishCaption(_ text: String) -> some View {
+    Text(text.uppercased()).font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(WishTheme.muted)
+}
+
+// MARK: Details
+
+struct WishDetailsTab: View {
     @ObservedObject var model: WishStudioModel
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack {
-                Circle().fill(Color.green.opacity(0.7)).frame(width: 7, height: 7)
-                Text("LIVE PREVIEW").font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(WishTheme.muted)
-                Spacer()
-                Button("Replay magic") { model.replayToken += 1 }
-                    .buttonStyle(.plain)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Make it personal").font(.system(size: 17, weight: .semibold))
+                Text("Fill these in. Drag a function onto any box, or type = for one.")
                     .font(.system(size: 12))
                     .foregroundStyle(WishTheme.muted)
             }
-            GeometryReader { geo in
-                let scale = max(0.2, min(geo.size.width / WishCardCanvas.size.width, geo.size.height / WishCardCanvas.size.height))
-                WishCardCanvas(app: model.app, card: model.card, design: model.design, context: model.context, selected: model.selected, animated: true, onSelect: { key in model.select(key) })
-                    .id(model.replayToken)
-                    .shadow(color: Color.black.opacity(0.14), radius: 18, y: 8)
-                    .scaleEffect(scale)
-                    .frame(width: WishCardCanvas.size.width * scale, height: WishCardCanvas.size.height * scale)
-                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            Picker("", selection: Binding(get: { model.card.language }, set: { model.setLanguage($0) })) {
+                ForEach(WishLanguage.allCases, id: \.self) { language in
+                    Text(language.title).tag(language)
+                }
             }
-            .onHover { inside in model.hovering = inside }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            ForEach(model.app.fields) { field in
+                WishFieldEditor(model: model, field: field)
+            }
+
+            if model.selected != nil {
+                WishSelectionTools(model: model)
+            }
+
+            WishFunctionShelf(store: model.store, tap: { formula in
+                let key = model.app.field(model.focusKey) != nil ? model.focusKey : (model.app.fields.first(where: { $0.type == .date })?.key ?? model.app.fields.first?.key ?? "")
+                model.insertFormula(formula, into: key)
+            })
         }
-        .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16).fill(WishTheme.accentSoft.opacity(0.55)))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
-    }
-}
-
-// MARK: - Make it personal
-
-struct WishPersonalPanel: View {
-    @ObservedObject var model: WishStudioModel
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack {
-                    Text("Make it personal").font(.system(size: 17, weight: .semibold))
-                    Spacer()
-                    Button {
-                        model.resetCard()
-                    } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                    }
-                    .buttonStyle(.plain)
-                    .help("Reset this card")
-                }
-                Text("The details that make it theirs.").font(.system(size: 12)).foregroundStyle(WishTheme.muted)
-
-                Picker("", selection: Binding(get: { model.card.language }, set: { model.setLanguage($0) })) {
-                    ForEach(WishLanguage.allCases, id: \.self) { language in
-                        Text(language.title).tag(language)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-
-                ForEach(model.app.fields) { field in
-                    WishFieldEditor(model: model, field: field)
-                }
-
-                if model.selected != nil {
-                    WishSelectionTools(model: model)
-                }
-
-                look
-                if model.app.kind == .greeting { artwork }
-                functionHint
-            }
-            .padding(16)
-        }
-        .background(RoundedRectangle(cornerRadius: 16).fill(Color.white))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
-    }
-
-    private var look: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("LOOK & FEEL").font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(WishTheme.muted)
-            Picker("Lettering", selection: Binding(get: { model.card.fontStyle }, set: { model.setFontStyle($0) })) {
-                ForEach(WishFontStyle.allCases, id: \.self) { style in
-                    Text(style.title).tag(style)
-                }
-            }
-            HStack {
-                Text("Text size").font(.system(size: 12))
-                Slider(value: Binding(get: { model.card.textScale }, set: { model.setTextScale($0) }), in: 0.6...1.8) { editing in
-                    if editing { model.beginSlider() }
-                }
-                Text("\(Int((model.card.textScale * 100).rounded()))%").font(.system(size: 11)).foregroundStyle(WishTheme.muted).frame(width: 40)
-            }
-            HStack {
-                Text("Magic").font(.system(size: 12))
-                Slider(value: Binding(get: { Double(model.card.magic) }, set: { model.setMagic(Int($0.rounded())) }), in: 0...3, step: 1) { editing in
-                    if editing { model.beginSlider() }
-                }
-                Text(["None", "A little", "Just enough", "Lots"][min(3, max(0, model.card.magic))])
-                    .font(.system(size: 11))
-                    .foregroundStyle(WishTheme.muted)
-                    .frame(width: 64, alignment: .trailing)
-            }
-        }
-    }
-
-    private var artwork: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ARTWORK").font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(WishTheme.muted)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
-                ForEach(WishArtwork.choices, id: \.symbol) { choice in
-                    let active = model.card.artwork == choice.symbol
-                    Button {
-                        model.setArtwork(choice.symbol)
-                    } label: {
-                        Image(systemName: choice.symbol)
-                            .font(.system(size: 14))
-                            .frame(width: 28, height: 28)
-                            .background(RoundedRectangle(cornerRadius: 8).fill(active ? WishTheme.accentSoft : Color.clear))
-                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                    .help(choice.name)
-                }
-            }
-        }
-    }
-
-    private var functionHint: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Functions work in any box").font(.system(size: 12, weight: .semibold))
-            Text("Type =Date, =Date+1, =Time, =Month+1 or =TEXT(Date,\"dddd\"). Add your own in WishBuilder \u{2192} Function.")
-                .font(.system(size: 11))
-                .foregroundStyle(WishTheme.muted)
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(WishTheme.accentSoft))
     }
 }
 
 struct WishFieldEditor: View {
     @ObservedObject var model: WishStudioModel
     let field: WishField
+    @FocusState private var focused: Bool
 
     private var label: String {
         if model.card.language == .hindi && !field.labelHi.isEmpty { return field.labelHi }
@@ -889,7 +1401,7 @@ struct WishFieldEditor: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text(label).font(.system(size: 12, weight: .semibold))
-                if model.selected == field.key {
+                if model.selected?.lowercased() == field.key.lowercased() {
                     Text("selected").font(.system(size: 10)).foregroundStyle(WishTheme.accent)
                 }
                 Spacer()
@@ -898,6 +1410,7 @@ struct WishFieldEditor: View {
                 TextEditor(text: binding)
                     .font(.system(size: 13))
                     .scrollContentBackground(.hidden)
+                    .focused($focused)
                     .frame(minHeight: field.type == .list ? 96 : 72)
                     .padding(4)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
@@ -905,6 +1418,7 @@ struct WishFieldEditor: View {
             } else {
                 TextField(field.placeholder.isEmpty ? label : field.placeholder, text: binding)
                     .textFieldStyle(.roundedBorder)
+                    .focused($focused)
             }
             if field.type == .list {
                 Text("One item per line. Add a number after a comma for charts, like Sales, 40.")
@@ -916,7 +1430,7 @@ struct WishFieldEditor: View {
             }
             ForEach(model.chipGroups.filter { $0.fieldKey == field.key }) { group in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(group.title.uppercased()).font(.system(size: 9, weight: .semibold)).tracking(1.2).foregroundStyle(WishTheme.muted)
+                    wishCaption(group.title)
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 5)], alignment: .leading, spacing: 5) {
                         ForEach(group.chips, id: \.self) { chip in
                             Button {
@@ -936,6 +1450,75 @@ struct WishFieldEditor: View {
                 }
             }
         }
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.clear))
+        .dropDestination(for: String.self) { items, _ in
+            guard let first = items.first else { return false }
+            model.insertFormula(first, into: field.key)
+            return true
+        }
+        .onChange(of: focused) { isFocused in
+            if isFocused { model.focusKey = field.key }
+        }
+    }
+}
+
+/// Function chips you can drag onto a box (or tap). They write =Date, =Date+1 and so on for you.
+struct WishFunctionShelf: View {
+    @ObservedObject var store: WishStore
+    var tap: (String) -> Void
+    var expanded: Bool = false
+    @State private var isOpen = false
+
+    private let popular: [String] = [
+        "=Date", "=Date+1", "=Date-1", "=Date+7", "=Time", "=Time+1", "=Month", "=Month+1", "=Year", "=Weekday", "=Day",
+        "=TEXT(Date,\"dddd, d mmmm yyyy\")", "=GREETING()", "=COUNTDOWN(DATE(2027,1,1))", "=UPPER(\"hello\")", "=INR(125000)",
+    ]
+
+    var body: some View {
+        if expanded {
+            chips
+        } else {
+            DisclosureGroup(isExpanded: $isOpen) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Drag a chip onto a box above, or click it to add it to the box you last used.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(WishTheme.muted)
+                    chips
+                }
+                .padding(.top, 6)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "function")
+                    Text("Functions").font(.system(size: 13, weight: .semibold))
+                }
+            }
+        }
+    }
+
+    private var chips: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 6)], alignment: .leading, spacing: 6) {
+            ForEach(popular, id: \.self) { formula in
+                chip(formula, mine: false)
+            }
+            ForEach(store.functions) { function in
+                chip("=" + function.name, mine: true)
+            }
+        }
+    }
+
+    private func chip(_ formula: String, mine: Bool) -> some View {
+        let short = formula.count > 22 ? String(formula.prefix(20)) + "\u{2026}" : formula
+        return Text(short)
+            .font(.system(size: 11, weight: .medium, design: .monospaced))
+            .lineLimit(1)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(mine ? Color(wishHex: "#FBE3E6") : WishTheme.accentSoft))
+            .overlay(Capsule().strokeBorder(WishTheme.line, lineWidth: 1))
+            .draggable(formula)
+            .onTapGesture { tap(formula) }
+            .help(formula)
     }
 }
 
@@ -945,7 +1528,7 @@ struct WishSelectionTools: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("SELECTED").font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(WishTheme.muted)
+                wishCaption("Selected")
                 Text(model.selected ?? "").font(.system(size: 12, weight: .semibold))
                 Spacer()
                 Button("Done") { model.select(nil) }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(WishTheme.accent)
@@ -990,7 +1573,290 @@ struct WishSelectionTools: View {
     }
 }
 
-// MARK: - Command bar (the only microphone)
+// MARK: Theme
+
+struct WishThemeTab: View {
+    @ObservedObject var model: WishStudioModel
+
+    private var backgroundHex: String { return model.card.backgroundHex ?? model.design.background }
+    private var accentHex: String { return model.card.accentHex ?? model.design.accent }
+    private var inkHex: String { return model.card.inkHex ?? model.design.ink }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("Theme").font(.system(size: 17, weight: .semibold))
+
+            VStack(alignment: .leading, spacing: 8) {
+                wishCaption("Colour themes")
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                    ForEach(WishPalettes.all) { palette in
+                        paletteTile(palette)
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    wishCaption("Fine-tune")
+                    Spacer()
+                    Button("Reset colours") { model.resetColors() }
+                        .buttonStyle(.plain)
+                        .font(.system(size: 11))
+                        .foregroundStyle(WishTheme.accent)
+                }
+                colorRow("Background", hex: backgroundHex) { model.setBackground($0) }
+                colorRow("Accent", hex: accentHex) { model.setAccent($0) }
+                colorRow("Text", hex: inkHex) { model.setInk($0) }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                wishCaption("Lettering and motion")
+                Picker("Lettering", selection: Binding(get: { model.card.fontStyle }, set: { model.setFontStyle($0) })) {
+                    ForEach(WishFontStyle.allCases, id: \.self) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                HStack {
+                    Text("Text size").font(.system(size: 12))
+                    Slider(value: Binding(get: { model.card.textScale }, set: { model.card.textScale = $0 }), in: 0.6...1.8) { editing in
+                        if editing { model.beginSlider() }
+                    }
+                    Text("\(Int((model.card.textScale * 100).rounded()))%").font(.system(size: 11)).foregroundStyle(WishTheme.muted).frame(width: 40)
+                }
+                HStack {
+                    Text("Magic").font(.system(size: 12))
+                    Slider(value: Binding(get: { Double(model.card.magic) }, set: { model.card.magic = Int($0.rounded()) }), in: 0...3, step: 1) { editing in
+                        if editing { model.beginSlider() }
+                    }
+                    Text(["None", "A little", "Just enough", "Lots"][min(3, max(0, model.card.magic))])
+                        .font(.system(size: 11))
+                        .foregroundStyle(WishTheme.muted)
+                        .frame(width: 64, alignment: .trailing)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                wishCaption("Layout (\(model.designs.count))")
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 10) {
+                    ForEach(model.designs) { item in
+                        layoutTile(item)
+                    }
+                }
+            }
+
+            if model.app.kind == .greeting {
+                VStack(alignment: .leading, spacing: 8) {
+                    wishCaption("Artwork")
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 8), spacing: 6) {
+                        ForEach(WishArtwork.choices, id: \.symbol) { choice in
+                            let active = model.card.artwork == choice.symbol
+                            Button {
+                                model.setArtwork(choice.symbol)
+                            } label: {
+                                Text(WishArtwork.emoji(choice.symbol))
+                                    .font(.system(size: 16))
+                                    .frame(width: 28, height: 28)
+                                    .background(RoundedRectangle(cornerRadius: 8).fill(active ? WishTheme.accentSoft : Color.clear))
+                                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                            .help(choice.name)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func paletteTile(_ palette: WishPalette) -> some View {
+        let active = model.card.backgroundHex == palette.bg && model.card.accentHex == palette.accent
+        return Button {
+            model.applyPalette(palette)
+        } label: {
+            VStack(spacing: 4) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 9).fill(Color(wishHex: palette.bg))
+                    Circle().fill(Color(wishHex: palette.accent)).frame(width: 18, height: 18)
+                }
+                .frame(height: 38)
+                .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: active ? 2 : 1))
+                Text(palette.name).font(.system(size: 9)).foregroundStyle(WishTheme.muted).lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func colorRow(_ title: String, hex: String, _ set: @escaping (String) -> Void) -> some View {
+        HStack {
+            Text(title).font(.system(size: 12))
+            Spacer()
+            Text(hex.uppercased()).font(.system(size: 11, design: .monospaced)).foregroundStyle(WishTheme.muted)
+            ColorPicker("", selection: Binding(get: { Color(wishHex: hex) }, set: { set(wishHex(from: $0)) }), supportsOpacity: false)
+                .labelsHidden()
+        }
+    }
+
+    private func layoutTile(_ item: WishDesign) -> some View {
+        let active = item.id == model.card.designID
+        return Button {
+            model.chooseDesign(item.id)
+        } label: {
+            VStack(spacing: 4) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10).fill(Color(wishHex: item.background))
+                    Text(model.app.kind == .greeting ? WishArtwork.emoji(model.card.artwork) : "\u{1F4CA}").font(.system(size: 22))
+                }
+                .frame(height: 64)
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: active ? 2 : 1))
+                Text(item.name).font(.system(size: 9)).foregroundStyle(active ? WishTheme.accent : WishTheme.muted).lineLimit(1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: Media
+
+struct WishMediaTab: View {
+    @ObservedObject var model: WishStudioModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Pictures, GIFs and video").font(.system(size: 17, weight: .semibold))
+                Text("The card is a web page, so a GIF or video plays right on it. PNG, JPG, GIF, MP4 and MOV work.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(WishTheme.muted)
+            }
+            if model.app.kind == .greeting {
+                slot(title: "Middle of the card", detail: "Replaces the artwork circle.", placement: "hero")
+            }
+            slot(title: "Background", detail: "Fills the whole card behind the text.", placement: "background")
+            VStack(alignment: .leading, spacing: 8) {
+                wishCaption("Cover for this app")
+                HStack(spacing: 12) {
+                    WishCover(app: model.app, store: model.store, emojiSize: 26)
+                        .frame(width: 96, height: 72)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Shown on the cover page and in the tab.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
+                        HStack {
+                            Button("Choose\u{2026}") { model.chooseCover() }
+                            if model.app.coverFile != nil {
+                                Button("Remove") { model.removeCover() }
+                            }
+                        }
+                        .controlSize(.small)
+                    }
+                }
+            }
+            Text("Videos play without sound. On the saved web page they loop too.")
+                .font(.system(size: 11))
+                .foregroundStyle(WishTheme.muted)
+        }
+    }
+
+    private func slot(title: String, detail: String, placement: String) -> some View {
+        let current = model.media(placement)
+        return VStack(alignment: .leading, spacing: 8) {
+            wishCaption(title)
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10).fill(WishTheme.accentSoft)
+                    Image(systemName: icon(current))
+                        .font(.system(size: 22))
+                        .foregroundStyle(WishTheme.accent)
+                }
+                .frame(width: 72, height: 72)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(current.map { $0.kind.capitalized + " added" } ?? "Nothing added").font(.system(size: 12, weight: .semibold))
+                    Text(detail).font(.system(size: 11)).foregroundStyle(WishTheme.muted)
+                    HStack {
+                        Button(current == nil ? "Add\u{2026}" : "Replace\u{2026}") { model.chooseMedia(placement: placement) }
+                        if current != nil {
+                            Button("Remove") { model.removeMedia(placement: placement) }
+                        }
+                    }
+                    .controlSize(.small)
+                }
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.page))
+        .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(WishTheme.line, lineWidth: 1))
+    }
+
+    private func icon(_ media: WishMedia?) -> String {
+        guard let media = media else { return "photo.on.rectangle.angled" }
+        switch media.kind {
+        case "video": return "play.rectangle.fill"
+        case "gif": return "sparkles.rectangle.stack.fill"
+        default: return "photo.fill"
+        }
+    }
+}
+
+// MARK: Templates
+
+struct WishTemplatesTab: View {
+    @ObservedObject var model: WishStudioModel
+    @State private var name = ""
+    @State private var includeText = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Templates").font(.system(size: 17, weight: .semibold))
+                Text("Save the colours, lettering and layout you like, then use them again in a click.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(WishTheme.muted)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                wishCaption("Save this look")
+                TextField("Template name, like Soft pink family", text: $name).textFieldStyle(.roundedBorder)
+                Toggle("Also keep my text", isOn: $includeText).toggleStyle(.checkbox).font(.system(size: 12))
+                Button {
+                    model.saveTemplate(name: name, includeText: includeText)
+                    name = ""
+                } label: {
+                    Label("Save as template", systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.accentSoft))
+
+            VStack(alignment: .leading, spacing: 8) {
+                wishCaption("Your templates for \(model.app.name)")
+                if model.templatesForApp.isEmpty {
+                    Text("None yet.").font(.system(size: 12)).foregroundStyle(WishTheme.muted)
+                }
+                ForEach(model.templatesForApp) { template in
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(template.name).font(.system(size: 13, weight: .semibold))
+                            Text(template.values == nil ? "Look only" : "Look and text").font(.system(size: 10)).foregroundStyle(WishTheme.muted)
+                        }
+                        Spacer()
+                        Button("Use") { model.applyTemplate(template) }.controlSize(.small)
+                        Button(role: .destructive) {
+                            model.deleteTemplate(template)
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color.white))
+                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(WishTheme.line, lineWidth: 1))
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Bottom bar (the only microphone)
 
 struct WishCommandBar: View {
     @ObservedObject var model: WishStudioModel
@@ -1009,33 +1875,56 @@ struct WishCommandBar: View {
             mic
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 10) {
-                    Text("EDIT WHERE YOU POINT").font(.system(size: 10, weight: .semibold)).tracking(1.6).foregroundStyle(WishTheme.muted)
-                    Text(model.selected.map { "\($0) selected" } ?? "Whole card \u{00B7} No selection")
-                        .font(.system(size: 12, weight: .medium))
+                    Text(model.contextLine).font(.system(size: 12, weight: .semibold))
                     Spacer()
-                    Button { model.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
-                        .disabled(model.undoStack.isEmpty)
-                    Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
-                        .disabled(model.redoStack.isEmpty)
-                    Menu {
-                        Button("Download PNG\u{2026}") { model.exportPNG() }
-                        Button("Copy image") { model.copyImage() }
-                        Button("Share\u{2026}") { model.shareImage() }
-                    } label: {
-                        Label("Share", systemImage: "square.and.arrow.up")
+                    Picker("", selection: Binding(get: { model.voiceChoice }, set: { model.setVoiceChoice($0) })) {
+                        Text("Auto").tag("auto")
+                        Text("English").tag("english")
+                        Text("\u{0939}\u{093F}\u{0928}\u{094D}\u{0926}\u{0940}").tag("hindi")
                     }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 190)
+                    .help("Language the microphone listens for")
+                    if model.isOnApp {
+                        Button { model.undo() } label: { Label("Undo", systemImage: "arrow.uturn.backward") }
+                            .disabled(model.undoStack.isEmpty)
+                        Button { model.redo() } label: { Label("Redo", systemImage: "arrow.uturn.forward") }
+                            .disabled(model.redoStack.isEmpty)
+                    }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 HStack(spacing: 8) {
-                    TextField("Say or type one command, like \u{201C}make it pink\u{201D}  \u{00B7}  \u{201C}\u{0907}\u{0938}\u{0947} \u{0917}\u{0941}\u{0932}\u{093E}\u{092C}\u{0940} \u{0915}\u{0930}\u{094B}\u{201D}", text: fieldText)
+                    TextField(model.commandPlaceholder, text: fieldText)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { model.handleTranscript(model.commandText) }
                     Button("Apply") { model.handleTranscript(model.commandText) }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.commandText.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                HStack(spacing: 8) {
+                    Text("TRY")
+                        .font(.system(size: 9, weight: .bold))
+                        .tracking(1.4)
+                        .foregroundStyle(WishTheme.muted)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(model.hints, id: \.self) { hint in
+                                Button {
+                                    model.commandText = hint
+                                } label: {
+                                    Text(hint)
+                                        .font(.system(size: 11))
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 4)
+                                        .background(Capsule().fill(Color.white))
+                                        .overlay(Capsule().strokeBorder(WishTheme.line, lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
                 }
                 Text(model.status)
                     .font(.system(size: 11))

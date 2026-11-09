@@ -341,6 +341,7 @@ enum WishCommandParser {
         for app in env.apps {
             var names = [app.name.lowercased(), app.nameHi.lowercased()]
             if app.name.lowercased().hasSuffix("s") { names.append(String(app.name.lowercased().dropLast())) }
+            if app.name.lowercased().hasPrefix("happy ") { names.append(String(app.name.lowercased().dropFirst(6))) }
             for name in names where !name.isEmpty {
                 let exact = lower == name
                 let withVerb = hasWord(name, in: lower) && hasAny(switchVerbs, in: lower)

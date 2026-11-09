@@ -39,16 +39,10 @@ enum WishStep: Int, CaseIterable {
 struct WishBuilderView: View {
     @ObservedObject var model: WishStudioModel
     @ObservedObject var store: WishStore
-    let collections: [String]
-    let records: [CollectionRecord]
-    let clips: [Clip]
-    let openStudio: () -> Void
-
-    @State private var editingID = ""
-    @State private var step: WishStep = .application
+    @ObservedObject var builder: WishBuilderState
 
     private var current: WishApp? {
-        return store.app(id: editingID) ?? store.apps.first
+        return store.app(id: builder.editingID) ?? store.apps.first
     }
 
     private var appBinding: Binding<WishApp> {
@@ -62,6 +56,39 @@ struct WishBuilderView: View {
     }
 
     var body: some View {
+        VStack(spacing: 12) {
+            modeBar
+            if builder.mode == .create {
+                WishCreateView(model: model, builder: builder)
+            } else {
+                editor
+            }
+        }
+        .padding(22)
+        .onAppear {
+            if builder.editingID.isEmpty { builder.editingID = model.appID.isEmpty ? (store.apps.first?.id ?? "") : model.appID }
+        }
+    }
+
+    private var modeBar: some View {
+        HStack(spacing: 12) {
+            Picker("", selection: $builder.mode) {
+                ForEach(WishBuilderMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 360)
+            Text(builder.mode == .create ? "Describe an app in your own words. WishBuilder asks for what is missing." : "Change what an app asks for, which collections it uses, its functions and its voice commands.")
+                .font(.system(size: 12))
+                .foregroundStyle(WishTheme.muted)
+                .lineLimit(1)
+            Spacer()
+        }
+    }
+
+    private var editor: some View {
         HStack(alignment: .top, spacing: 16) {
             appList.frame(width: 240)
             VStack(spacing: 12) {
@@ -77,10 +104,6 @@ struct WishBuilderView: View {
                 .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
             }
         }
-        .padding(22)
-        .onAppear {
-            if editingID.isEmpty { editingID = model.appID.isEmpty ? (store.apps.first?.id ?? "") : model.appID }
-        }
     }
 
     // MARK: App list
@@ -88,18 +111,19 @@ struct WishBuilderView: View {
     private var appList: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Your wish apps").font(.system(size: 15, weight: .semibold))
-            Text("Each one is a kind of app WishStudio can make.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
             ScrollView {
                 VStack(spacing: 6) {
                     ForEach(store.apps) { item in
                         let active = item.id == current?.id
                         Button {
-                            editingID = item.id
+                            builder.editingID = item.id
                         } label: {
                             HStack(spacing: 8) {
-                                Image(systemName: item.symbol).frame(width: 22)
+                                WishCover(app: item, store: store, emojiSize: 16)
+                                    .frame(width: 34, height: 34)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(item.name).font(.system(size: 13, weight: .semibold))
+                                    Text(item.name).font(.system(size: 13, weight: .semibold)).lineLimit(1)
                                     Text("\(item.kind.title) \u{00B7} \(item.fields.count) fields").font(.system(size: 10)).foregroundStyle(WishTheme.muted)
                                 }
                                 Spacer()
@@ -114,11 +138,8 @@ struct WishBuilderView: View {
             }
             HStack {
                 Button {
-                    var made = WishApp(name: "My wish app", tagline: "Describe it in step 1", symbol: "sparkles", artwork: "sparkles")
-                    made.fields = WishBuilderTools.suggestFields(from: "", kind: .greeting)
-                    store.apps.append(made)
-                    editingID = made.id
-                    step = .application
+                    builder.restart()
+                    builder.mode = .create
                 } label: {
                     Label("New app", systemImage: "plus")
                 }
@@ -127,8 +148,8 @@ struct WishBuilderView: View {
                     Button(role: .destructive) {
                         store.apps.removeAll { $0.id == item.id }
                         store.cards[item.id] = nil
-                        editingID = store.apps.first?.id ?? ""
-                        if model.appID == item.id, let first = store.apps.first { model.openApp(first.id, saveCurrent: false) }
+                        builder.editingID = store.apps.first?.id ?? ""
+                        if model.appID == item.id, let first = store.apps.first { model.loadApp(first.id, saveCurrent: false) }
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -143,7 +164,6 @@ struct WishBuilderView: View {
             if let item = current {
                 Button {
                     model.openApp(item.id)
-                    openStudio()
                 } label: {
                     Label("Open in Studio", systemImage: "wand.and.stars").frame(maxWidth: .infinity)
                 }
@@ -160,9 +180,9 @@ struct WishBuilderView: View {
     private var stepRail: some View {
         HStack(spacing: 8) {
             ForEach(WishStep.allCases, id: \.self) { item in
-                let active = item == step
+                let active = item == builder.step
                 Button {
-                    step = item
+                    builder.step = item
                 } label: {
                     HStack(spacing: 8) {
                         Text("\(item.rawValue + 1)")
@@ -189,13 +209,13 @@ struct WishBuilderView: View {
 
     @ViewBuilder
     private var stepBody: some View {
-        switch step {
+        switch builder.step {
         case .application:
             WishApplicationStep(app: appBinding)
         case .information:
             WishInformationStep(app: appBinding)
         case .collection:
-            WishCollectionStep(app: appBinding, collections: collections, records: records, clips: clips)
+            WishCollectionStep(app: appBinding, collections: model.collections, records: model.records, clips: model.clips)
         case .function:
             WishFunctionStep(store: store, app: current)
         case .live:
@@ -371,6 +391,8 @@ struct WishInformationStep: View {
                 .buttonStyle(.borderedProminent)
                 Spacer()
             }
+            Text("Tip: drag a function chip from the Function step onto a starting text box to make it a formula like =Date+1.")
+                .font(.system(size: 11)).foregroundStyle(WishTheme.muted)
             Text("Suggestions come from keywords in your prompt (name, date, venue, chart...). There is no AI behind them, so check the list.")
                 .font(.system(size: 11)).foregroundStyle(WishTheme.muted)
             if app.fields.isEmpty {
@@ -408,7 +430,14 @@ struct WishInformationStep: View {
                         let cleaned = String(value.lowercased().filter { $0.isLetter || $0.isNumber })
                         if cleaned != value { field.wrappedValue.key = cleaned }
                     }
-                TextField("Starting text (English)", text: field.value).textFieldStyle(.roundedBorder)
+                TextField("Starting text (English)", text: field.value)
+                    .textFieldStyle(.roundedBorder)
+                    .dropDestination(for: String.self) { items, _ in
+                        guard let first = items.first else { return false }
+                        field.wrappedValue.value = first
+                        field.wrappedValue.valueHi = first
+                        return true
+                    }
                 TextField("\u{0936}\u{0941}\u{0930}\u{0942}\u{0906}\u{0924}\u{0940} \u{092A}\u{093E}\u{0920}", text: field.valueHi).textFieldStyle(.roundedBorder)
                 Toggle("Same in both", isOn: field.universal).toggleStyle(.checkbox).font(.system(size: 11))
             }
@@ -552,6 +581,12 @@ struct WishFunctionStep: View {
         VStack(alignment: .leading, spacing: 16) {
             WishBuilderTools.section("4 \u{00B7} Function", "Type = in any box on a card. =Date is today, =Date+1 is tomorrow. Time, Month, Year and Weekday work the same way.")
             tryIt
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Drag a function").font(.system(size: 12, weight: .semibold))
+                Text("Drag a chip onto a box in the Information step, or into any box in the Studio. Click one to try it above.")
+                    .font(.system(size: 11)).foregroundStyle(WishTheme.muted)
+                WishFunctionShelf(store: store, tap: { tester = $0 }, expanded: true)
+            }
             examplesView
             myFunctions
             catalogue

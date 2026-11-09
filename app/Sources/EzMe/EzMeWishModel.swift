@@ -110,6 +110,10 @@ struct WishApp: Codable, Identifiable, Hashable {
     var links: [WishCollectionLink] = []
     var live: WishLiveSettings = WishLiveSettings()
     var builtIn: Bool = false
+    /// File name (inside WishMedia) of the picture, GIF or video shown on the cover page and tab.
+    var coverFile: String? = nil
+    /// The design a new card of this app starts with.
+    var designID: String? = nil
 
     func title(_ language: WishLanguage) -> String {
         if language == .hindi && !nameHi.isEmpty { return nameHi }
@@ -127,6 +131,33 @@ struct WishFunction: Codable, Identifiable, Hashable {
     var name: String
     var expression: String
     var note: String = ""
+}
+
+/// A picture, GIF or video shown on a card. The file lives in the WishMedia folder.
+struct WishMedia: Codable, Equatable, Identifiable {
+    var id: String = UUID().uuidString
+    var file: String
+    /// "image", "gif" or "video"
+    var kind: String
+    /// "hero" (where the artwork sits) or "background"
+    var placement: String
+}
+
+/// A saved look (and optionally the text) that can be applied to a card of the same app.
+struct WishTemplate: Codable, Identifiable, Hashable {
+    var id: String = UUID().uuidString
+    var name: String
+    var appID: String
+    var designID: String
+    var backgroundHex: String? = nil
+    var accentHex: String? = nil
+    var inkHex: String? = nil
+    var fontStyle: WishFontStyle = .classic
+    var textScale: Double = 1
+    var magic: Int = 2
+    var artwork: String = "sparkles"
+    var values: [String: String]? = nil
+    var valuesHi: [String: String]? = nil
 }
 
 // MARK: - Cards (what is being edited)
@@ -154,6 +185,8 @@ struct WishCard: Codable, Equatable {
     var magic: Int = 2
     var artwork: String = "sparkles"
     var styles: [String: WishElementStyle] = [:]
+    var inkHex: String? = nil
+    var media: [WishMedia]? = nil
 
     func value(for key: String) -> String {
         if language == .hindi {
@@ -242,6 +275,32 @@ enum WishArtwork {
     ]
 }
 
+extension WishArtwork {
+    /// The web page cannot draw SF Symbols, so each artwork has an emoji twin.
+    static func emoji(_ symbol: String) -> String {
+        switch symbol {
+        case "birthday.cake.fill": return "\u{1F382}"
+        case "balloon.fill": return "\u{1F388}"
+        case "gift.fill": return "\u{1F381}"
+        case "heart.fill": return "\u{2764}\u{FE0F}"
+        case "flame.fill": return "\u{1FA94}"
+        case "sparkles": return "\u{2728}"
+        case "crown.fill": return "\u{1F451}"
+        case "camera.macro": return "\u{1F338}"
+        case "moon.stars.fill": return "\u{1F319}"
+        case "hands.clap.fill": return "\u{1F44F}"
+        case "star.fill": return "\u{2B50}"
+        case "leaf.fill": return "\u{1F343}"
+        case "bell.fill": return "\u{1F514}"
+        case "music.note": return "\u{1F3B5}"
+        case "sun.max.fill": return "\u{2600}\u{FE0F}"
+        case "trophy.fill": return "\u{1F3C6}"
+        case "chart.pie.fill": return "\u{1F4CA}"
+        default: return "\u{2728}"
+        }
+    }
+}
+
 // MARK: - Starter apps
 
 enum WishSeeds {
@@ -249,9 +308,10 @@ enum WishSeeds {
         return WishField(key: key, label: label, labelHi: labelHi, type: type, value: value, valueHi: valueHi, universal: universal)
     }
 
-    private static func greeting(name: String, nameHi: String, tagline: String, symbol: String, prompt: String, eyebrow: (String, String), title: (String, String), who: (String, String), message: (String, String), from: (String, String)) -> WishApp {
+    private static func greeting(name: String, nameHi: String, tagline: String, symbol: String, prompt: String, designID: String, eyebrow: (String, String), title: (String, String), who: (String, String), message: (String, String), from: (String, String)) -> WishApp {
         var app = WishApp(name: name, nameHi: nameHi, tagline: tagline, symbol: symbol, artwork: symbol, kind: .greeting, prompt: prompt)
         app.builtIn = true
+        app.designID = designID
         app.fields = [
             field("eyebrow", "Top line", "\u{090A}\u{092A}\u{0930} \u{0915}\u{0940} \u{092A}\u{0902}\u{0915}\u{094D}\u{0924}\u{093F}", .text, eyebrow.0, eyebrow.1),
             field("title", "Title", "\u{0936}\u{0940}\u{0930}\u{094D}\u{0937}\u{0915}", .text, title.0, title.1),
@@ -265,24 +325,24 @@ enum WishSeeds {
 
     static func apps() -> [WishApp] {
         let birthday = greeting(
-            name: "Birthday", nameHi: "\u{091C}\u{0928}\u{094D}\u{092E}\u{0926}\u{093F}\u{0928}", tagline: "Make a wish", symbol: "birthday.cake.fill",
-            prompt: "A birthday card with a name, a warm message and who it is from.",
+            name: "Happy Birthday", nameHi: "\u{091C}\u{0928}\u{094D}\u{092E}\u{0926}\u{093F}\u{0928}", tagline: "Make a wish", symbol: "birthday.cake.fill",
+            prompt: "A birthday card with a name, a warm message and who it is from.", designID: "g-blush",
             eyebrow: ("TODAY IS ALL ABOUT YOU", "\u{0906}\u{091C} \u{0915}\u{093E} \u{0926}\u{093F}\u{0928} \u{0938}\u{093F}\u{0930}\u{094D}\u{092B} \u{0906}\u{092A}\u{0915}\u{093E}"),
             title: ("Happy Birthday", "\u{091C}\u{0928}\u{094D}\u{092E}\u{0926}\u{093F}\u{0928} \u{092E}\u{0941}\u{092C}\u{093E}\u{0930}\u{0915}"),
             who: ("Dear friend", "\u{092A}\u{094D}\u{0930}\u{093F}\u{092F} \u{092E}\u{093F}\u{0924}\u{094D}\u{0930}"),
             message: ("May your day be filled with laughter, love and every little thing that makes you smile.", "\u{0906}\u{092A}\u{0915}\u{093E} \u{0926}\u{093F}\u{0928} \u{0939}\u{0901}\u{0938}\u{0940}, \u{092A}\u{094D}\u{092F}\u{093E}\u{0930} \u{0914}\u{0930} \u{091B}\u{094B}\u{091F}\u{0940}-\u{091B}\u{094B}\u{091F}\u{0940} \u{0916}\u{0941}\u{0936}\u{093F}\u{092F}\u{094B}\u{0902} \u{0938}\u{0947} \u{092D}\u{0930}\u{093E} \u{0930}\u{0939}\u{0947}\u{0964}"),
             from: ("With love", "\u{092A}\u{094D}\u{092F}\u{093E}\u{0930} \u{0915}\u{0947} \u{0938}\u{093E}\u{0925}"))
         let anniversary = greeting(
-            name: "Anniversary", nameHi: "\u{0938}\u{093E}\u{0932}\u{0917}\u{093F}\u{0930}\u{0939}", tagline: "Celebrate your story", symbol: "heart.fill",
-            prompt: "An anniversary card for a couple, with their names and a loving message.",
+            name: "Happy Anniversary", nameHi: "\u{0938}\u{093E}\u{0932}\u{0917}\u{093F}\u{0930}\u{0939}", tagline: "Celebrate your story", symbol: "heart.fill",
+            prompt: "An anniversary card for a couple, with their names and a loving message.", designID: "g-rose",
             eyebrow: ("TWO HEARTS, ONE STORY", "\u{0926}\u{094B} \u{0926}\u{093F}\u{0932}, \u{090F}\u{0915} \u{0915}\u{0939}\u{093E}\u{0928}\u{0940}"),
             title: ("Happy Anniversary", "\u{0938}\u{093E}\u{0932}\u{0917}\u{093F}\u{0930}\u{0939} \u{092E}\u{0941}\u{092C}\u{093E}\u{0930}\u{0915}"),
             who: ("Priya & Rahul", "\u{092A}\u{094D}\u{0930}\u{093F}\u{092F}\u{093E} \u{0914}\u{0930} \u{0930}\u{093E}\u{0939}\u{0941}\u{0932}"),
             message: ("Here is to the love you share and every beautiful year still ahead.", "\u{0906}\u{092A}\u{0915}\u{0947} \u{092A}\u{094D}\u{092F}\u{093E}\u{0930} \u{0914}\u{0930} \u{0906}\u{0928}\u{0947} \u{0935}\u{093E}\u{0932}\u{0947} \u{0939}\u{0930} \u{0916}\u{0942}\u{092C}\u{0938}\u{0942}\u{0930}\u{0924} \u{0938}\u{093E}\u{0932} \u{0915}\u{0947} \u{0928}\u{093E}\u{092E}\u{0964}"),
             from: ("Warmly", "\u{0936}\u{0941}\u{092D}\u{0915}\u{093E}\u{092E}\u{0928}\u{093E}\u{0913}\u{0902} \u{0938}\u{0939}\u{093F}\u{0924}"))
         let diwali = greeting(
-            name: "Diwali", nameHi: "\u{0926}\u{093F}\u{0935}\u{093E}\u{0932}\u{0940}", tagline: "Send a little light", symbol: "flame.fill",
-            prompt: "A Diwali greeting for a family, with blessings for the year ahead.",
+            name: "Happy Diwali", nameHi: "\u{0926}\u{093F}\u{0935}\u{093E}\u{0932}\u{0940}", tagline: "Send a little light", symbol: "flame.fill",
+            prompt: "A Diwali greeting for a family, with blessings for the year ahead.", designID: "g-saffron",
             eyebrow: ("A FESTIVAL OF LIGHT", "\u{0930}\u{094B}\u{0936}\u{0928}\u{0940} \u{0915}\u{093E} \u{0924}\u{094D}\u{092F}\u{094B}\u{0939}\u{093E}\u{0930}"),
             title: ("Happy Diwali", "\u{0926}\u{0940}\u{092A}\u{093E}\u{0935}\u{0932}\u{0940} \u{0915}\u{0940} \u{0936}\u{0941}\u{092D}\u{0915}\u{093E}\u{092E}\u{0928}\u{093E}\u{090F}\u{0901}"),
             who: ("To you and your family", "\u{0906}\u{092A}\u{0915}\u{094B} \u{0914}\u{0930} \u{0906}\u{092A}\u{0915}\u{0947} \u{092A}\u{0930}\u{093F}\u{0935}\u{093E}\u{0930} \u{0915}\u{094B}"),
@@ -316,6 +376,7 @@ private struct WishSnapshot: Codable {
     var functions: [WishFunction]
     var cards: [String: WishCard]
     var lastAppID: String
+    var templates: [WishTemplate]?
 }
 
 @MainActor
@@ -324,6 +385,8 @@ final class WishStore: ObservableObject {
     @Published var functions: [WishFunction] = [] { didSet { scheduleSave() } }
     @Published var cards: [String: WishCard] = [:] { didSet { scheduleSave() } }
     @Published var lastAppID: String = "" { didSet { scheduleSave() } }
+    @Published var templates: [WishTemplate] = [] { didSet { scheduleSave() } }
+    private(set) var directory: URL?
 
     private var fileURL: URL?
     private var loaded = false
@@ -332,6 +395,7 @@ final class WishStore: ObservableObject {
     func load(directory: URL) {
         guard !loaded else { return }
         loaded = true
+        self.directory = directory
         let url = directory.appendingPathComponent("wishstudio.json")
         fileURL = url
         if let data = try? Data(contentsOf: url), let snapshot = try? JSONDecoder().decode(WishSnapshot.self, from: data), !snapshot.apps.isEmpty {
@@ -339,11 +403,59 @@ final class WishStore: ObservableObject {
             functions = snapshot.functions
             cards = snapshot.cards
             lastAppID = snapshot.lastAppID
+            templates = snapshot.templates ?? []
+            migrateNames()
         } else {
             apps = WishSeeds.apps()
             functions = WishSeeds.functions()
             lastAppID = apps.first?.id ?? ""
         }
+    }
+
+    /// The first release called the starter apps Birthday, Anniversary and Diwali.
+    private func migrateNames() {
+        let renames = ["Birthday": "Happy Birthday", "Anniversary": "Happy Anniversary", "Diwali": "Happy Diwali"]
+        let designs = ["Happy Birthday": "g-blush", "Happy Anniversary": "g-rose", "Happy Diwali": "g-saffron"]
+        var changed = apps
+        for index in changed.indices where changed[index].builtIn {
+            if let better = renames[changed[index].name] { changed[index].name = better }
+            if changed[index].designID == nil, let design = designs[changed[index].name] { changed[index].designID = design }
+        }
+        if changed != apps { apps = changed }
+    }
+
+    // MARK: Media files
+
+    var mediaDirectory: URL? {
+        return directory?.appendingPathComponent("WishMedia", isDirectory: true)
+    }
+
+    func mediaURL(_ file: String) -> URL? {
+        return mediaDirectory?.appendingPathComponent(file)
+    }
+
+    /// Copies a picture, GIF or video next to the WishStudio data and returns its file name and kind.
+    func importMedia(from source: URL) -> (file: String, kind: String)? {
+        guard let folder = mediaDirectory else { return nil }
+        let ext = source.pathExtension.lowercased()
+        let kind: String
+        if ["mp4", "mov", "m4v", "webm"].contains(ext) {
+            kind = "video"
+        } else if ext == "gif" {
+            kind = "gif"
+        } else if ["png", "jpg", "jpeg", "heic", "webp", "tiff", "bmp"].contains(ext) {
+            kind = "image"
+        } else {
+            return nil
+        }
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let name = UUID().uuidString + "." + ext
+        do {
+            try FileManager.default.copyItem(at: source, to: folder.appendingPathComponent(name))
+        } catch {
+            return nil
+        }
+        return (name, kind)
     }
 
     private func scheduleSave() {
@@ -358,7 +470,7 @@ final class WishStore: ObservableObject {
 
     func saveNow() {
         guard let url = fileURL else { return }
-        let snapshot = WishSnapshot(apps: apps, functions: functions, cards: cards, lastAppID: lastAppID)
+        let snapshot = WishSnapshot(apps: apps, functions: functions, cards: cards, lastAppID: lastAppID, templates: templates)
         guard let data = try? JSONEncoder().encode(snapshot) else { return }
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? data.write(to: url, options: .atomic)
