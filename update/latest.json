@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 214,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build214/EzMe-3.44-macOS.zip",
-  "sha256": "738ef0e5255602c62b68a069c251e943ba30be2efd611b70971e50fe1a22c4fb",
-  "notes": "WishStudio video covers\n\n- A cover video now shows from the top, not the middle.\n- New \"Crop and position\" under Media: Top / Middle / Bottom, up-down and left-right sliders, and zoom to crop. It works for the cover, the middle of the card and the card background.\n- Videos play for 10 seconds at most, then loop. For a longer video, choose \"Start at\" to pick which 10 seconds play.\n- The same limit and position apply on the saved web page.",
-  "published": "2026-11-09T08:48:43Z",
+  "build": 216,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build216/EzMe-3.44-macOS.zip",
+  "sha256": "8933287b207fe6b5d6c54c9517e74f201c517a7e9738df52a5bbbad39fac2906",
+  "notes": "- New popup design (type \\ or / in any app): a Spotlight-style layout. Results are grouped into collapsible sections on the left, and a preview of the highlighted result sits on the right with Paste, Edit and Copy name buttons.\n- Keyboard: Up and Down arrows move through the results, Return runs the highlighted one (before, Return always picked the first), and Esc closes. The mouse works too: hover to preview, click to run.\n- Fixed: pressing the arrow keys no longer types stray characters into the search.",
+  "published": "2026-11-09T20:46:03Z",
   "minimumSystemVersion": "14.0"
 }
