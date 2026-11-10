@@ -64,7 +64,7 @@ struct SpotlightResults: View {
             }
             footer
         }
-        .background(Color(nsColor: .windowBackgroundColor).overlay(Butter.cream.opacity(0.7)), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(nsColor: .windowBackgroundColor).overlay(Butter.cream.opacity(0.7)))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Butter.honey, lineWidth: 1.2))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .onAppear { search.hasSpotlight = true }
