@@ -1,6 +1,6 @@
-Contacts to shortcuts, search words and short endings
+Attach a list in Collection Builder, then edit before adding
 
-- Short endings: type the start of an ending and EzMe finds the shortcut. yogesh.n runs yogesh.name, and yogesh.mo runs yogesh.mobile. If you made a shortcut with that exact ending, such as yogesh.n, it always wins. When several endings fit, the usual ones come first: name, mobile, phone, firstname, lastname, email, address.
-- Search words: every shortcut has a new "Search words" field. It helps you find the shortcut and is never pasted. In Collection Builder each draft has the field too.
-- Import contacts: in Collection Builder, choose a VCF or CSV file (exports from Google Contacts or Zoho work) and EzMe creates shortcuts like yogeshsahu.name, yogeshsahu.mobile and yogeshsahu.email. Pick how the first part is built: full first and last name, first 3 and last 3 letters, first letter and full last name (ysahu), and more. Each contact's name, company and email are saved as search words.
-- Live sync with Google Contacts or Zoho is not connected yet. Export the file and choose it for now.
+- The contacts import moved to the left side of Collection Builder as "Build from an attached list". First choose what kind of file it is (contacts or people, products or items, or another list) and optionally describe it, then attach a VCF or CSV. EzMe reads it according to the kind you chose.
+- Products and other lists: pick the name column and the columns to turn into shortcuts. Each column becomes an ending, for example cottonshirt.price.
+- Review before adding: every shortcut can be edited (code, name, expands-to text and search words), removed, selected, and renamed with the same bulk rename rules used in Library > Collections.
+- The attached file shows with its kind, row count and a Remove file button.

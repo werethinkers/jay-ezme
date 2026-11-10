@@ -222,7 +222,7 @@ enum EzContactImport {
 
     // MARK: CSV (Google Contacts and Zoho exports)
 
-    private static func csvRows(_ text: String) -> [[String]] {
+    static func csvRows(_ text: String) -> [[String]] {
         var rows: [[String]] = []
         var row: [String] = []
         var field = ""
@@ -308,6 +308,55 @@ enum EzContactImport {
         return result
     }
 
+    // MARK: Any other list (products, items, vendors...)
+
+    static func readTable(url: URL) throws -> (headers: [String], rows: [[String]]) {
+        let data = try Data(contentsOf: url)
+        guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
+            throw NSError(domain: "EzMeContacts", code: 1, userInfo: [NSLocalizedDescriptionKey: "That file could not be read as text."])
+        }
+        let rows = csvRows(text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text)
+        guard let header = rows.first else { return ([], []) }
+        return (header.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, Array(rows.dropFirst().prefix(maxContacts)))
+    }
+
+    private static func cleanWord(_ value: String) -> String {
+        String(String.UnicodeScalarView(value.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) && $0.isASCII }))
+    }
+
+    static func tableShortcuts(headers: [String], rows: [[String]], nameColumn: Int, columns: Set<Int>, shortWords: Bool, group: String, note: String) -> [Clip] {
+        var stems = Set<String>()
+        var clips: [Clip] = []
+        for row in rows {
+            guard nameColumn < row.count else { continue }
+            let name = row[nameColumn].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            let words = name.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map { cleanWord(String($0)) }.filter { !$0.isEmpty }
+            var stem = shortWords ? String(words.map { String($0.prefix(3)) }.joined().prefix(14)) : String(words.joined().prefix(14))
+            if stem.isEmpty { stem = "item" }
+            let base = stem
+            var number = 2
+            while stems.contains(stem) { stem = base + String(number); number += 1 }
+            stems.insert(stem)
+            var endings = Set<String>()
+            for column in columns.sorted() {
+                let isName = column == nameColumn
+                guard column < row.count, column < headers.count else { continue }
+                let text = row[column].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { continue }
+                var ending = isName ? "name" : cleanWord(headers[column])
+                if ending.isEmpty { ending = "col\(column + 1)" }
+                guard endings.insert(ending).inserted else { continue }
+                clips.append(Clip(key: "/" + stem + "." + ending,
+                                  name: name + " · " + (isName ? "Name" : headers[column]),
+                                  text: text,
+                                  group: group,
+                                  keywords: [name, note].filter { !$0.isEmpty }.joined(separator: " ")))
+            }
+        }
+        return clips
+    }
+
     // MARK: Shortcuts
 
     static func shortcuts(for contacts: [EzContact], style: EzContactCodeStyle, fields: Set<EzContactField>, group: String) -> [Clip] {
@@ -334,82 +383,248 @@ enum EzContactImport {
     }
 }
 
-// MARK: - Collection Builder card
+// MARK: - Collection Builder: attach a list on the left
 
-struct EzContactImportCard: View {
+enum EzAttachmentKind: String, CaseIterable, Identifiable {
+    case contacts, products, other
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .contacts: return "Contacts or people"
+        case .products: return "Products or items"
+        case .other: return "Another kind of list"
+        }
+    }
+    var hint: String {
+        switch self {
+        case .contacts: return "VCF from Google Contacts or Zoho, or a CSV export. Creates name, first name, last name, mobile, phone, email, address and more."
+        case .products: return "A CSV with one row per product or item. Each column becomes an ending, for example cottonshirt.price."
+        case .other: return "A CSV with one row per entry, such as vendors, places or recipes. Each column becomes an ending."
+        }
+    }
+}
+
+struct EzAttachmentImportCard: View {
     var onCreate: ([Clip], String) -> Void
-    @State private var contacts: [EzContact] = []
+    @State private var kind: EzAttachmentKind?
+    @State private var note = ""
     @State private var fileName = ""
+    @State private var contacts: [EzContact] = []
+    @State private var headers: [String] = []
+    @State private var rows: [[String]] = []
     @State private var style: EzContactCodeStyle = .fullFirstFullLast
     @State private var fields: Set<EzContactField> = [.name, .firstname, .lastname, .mobile, .phone, .email, .address]
+    @State private var nameColumn = 0
+    @State private var columns = Set<Int>()
+    @State private var shortWords = false
     @State private var group = "Contacts"
+    @State private var staged: [Clip] = []
+    @State private var selected = Set<UUID>()
+    @State private var showRename = false
     @State private var status = ""
 
-    private var preview: [Clip] { EzContactImport.shortcuts(for: Array(contacts.prefix(1)), style: style, fields: fields, group: group) }
-    private var exampleStem: String {
-        guard let key = preview.first?.key else { return "name" }
-        let trimmed = key.trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
-        return trimmed.components(separatedBy: ".").first ?? trimmed
-    }
-    private var total: Int { EzContactImport.shortcuts(for: contacts, style: style, fields: fields, group: group).count }
+    private var hasFile: Bool { !fileName.isEmpty }
+    private var rowCount: Int { kind == .contacts ? contacts.count : rows.count }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Make shortcuts from a contact list, one for each detail such as name, mobile or email. Export your Google Contacts or Zoho contacts as VCF or CSV and choose the file.")
-                .font(.caption).foregroundStyle(.secondary)
-            Button("Choose VCF or CSV file…", systemImage: "person.crop.circle.badge.plus") { choose() }
-                .buttonStyle(.bordered)
-            if !contacts.isEmpty {
-                Text("\(contacts.count) contacts from \(fileName)").font(.caption.weight(.semibold))
-                Picker("Shortcut starts with", selection: $style) {
-                    ForEach(EzContactCodeStyle.allCases) { option in
-                        Text("\(option.title) · \(option.example(first: contacts[0].first, last: contacts[0].last))").tag(option)
-                    }
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                Image(systemName: "paperclip").foregroundStyle(Butter.coral)
+                Text("Build from an attached list").font(.system(size: 17, weight: .bold, design: .rounded))
+                Text("optional").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+            }
+            if !hasFile {
+                Picker("What kind of file is it?", selection: $kind) {
+                    Text("Choose the kind of file…").tag(EzAttachmentKind?.none)
+                    ForEach(EzAttachmentKind.allCases) { option in Text(option.title).tag(Optional(option)) }
                 }
                 .pickerStyle(.menu)
-                Text("Details to create").font(.caption.weight(.semibold))
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 6)], alignment: .leading, spacing: 6) {
-                    ForEach(EzContactField.allCases) { field in
-                        Toggle(field.label, isOn: Binding(get: { fields.contains(field) }, set: { on in if on { fields.insert(field) } else { fields.remove(field) } }))
-                            .toggleStyle(.checkbox).font(.caption)
-                    }
-                }
-                TextField("Collection name", text: $group).textFieldStyle(.roundedBorder)
-                ForEach(preview) { clip in
-                    HStack(spacing: 6) {
-                        Text(displayTrigger(clip.key)).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Butter.coral)
-                        Text(clip.text).font(.system(size: 11)).lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                }
-                Text("Short endings work too: \\" + exampleStem + ".n runs the .name shortcut.")
+                if let kind { Text(kind.hint).font(.caption).foregroundStyle(.secondary) }
+                TextField("What is in it? e.g. Clients from Zoho, March price list (optional)", text: $note).textFieldStyle(.roundedBorder)
+                Button("Attach VCF or CSV file…", systemImage: "paperclip.badge.ellipsis") { choose() }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral).disabled(kind == nil)
+                Text("Pick the kind first, so EzMe knows how to read the file. Google Contacts and Zoho: export as VCF or CSV, then attach it here. Live sync is not connected yet.")
                     .font(.caption2).foregroundStyle(.secondary)
-                Button("Create \(total) shortcuts", systemImage: "plus.circle.fill") {
-                    let name = group.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !name.isEmpty else { status = "Give the collection a name."; return }
-                    onCreate(EzContactImport.shortcuts(for: contacts, style: style, fields: fields, group: name), name)
-                    status = "Created \(total) shortcuts in \(name)."
-                }
-                .buttonStyle(.borderedProminent).tint(Butter.coral).disabled(total == 0 || fields.isEmpty)
+            } else {
+                attachedRow
+                if staged.isEmpty { options } else { review }
             }
             if !status.isEmpty { Text(status).font(.caption).foregroundStyle(.secondary) }
         }
+        .padding(15).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Butter.cream, in: RoundedRectangle(cornerRadius: 17))
+        .overlay(RoundedRectangle(cornerRadius: 17).stroke(Butter.coral.opacity(0.14), lineWidth: 1))
+        .sheet(isPresented: $showRename) {
+            BulkShortcutRenameSheet(clips: staged.filter { selected.isEmpty || selected.contains($0.id) }, allKeys: [], onApply: { changes in
+                for index in staged.indices { if let value = changes[staged[index].id] { staged[index].key = value.key; staged[index].name = value.name } }
+            })
+        }
+    }
+
+    private var attachedRow: some View {
+        HStack(spacing: 10) {
+            Image(systemName: kind == .contacts ? "person.crop.rectangle.stack" : "tablecells").foregroundStyle(Butter.coral)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(fileName).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                Text("\(kind?.title ?? "") · \(rowCount) rows" + (note.isEmpty ? "" : " · " + note)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer()
+            Button("Remove file", systemImage: "xmark.circle") { reset() }.buttonStyle(.bordered).controlSize(.small)
+        }
+        .padding(10).background(Butter.coral.opacity(0.06), in: RoundedRectangle(cornerRadius: 11))
+    }
+
+    @ViewBuilder private var options: some View {
+        if kind == .contacts, let first = contacts.first {
+            Picker("Shortcut starts with", selection: $style) {
+                ForEach(EzContactCodeStyle.allCases) { option in
+                    Text("\(option.title) · \(option.example(first: first.first, last: first.last))").tag(option)
+                }
+            }
+            .pickerStyle(.menu)
+            Text("Details to create").font(.caption.weight(.semibold))
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 6)], alignment: .leading, spacing: 6) {
+                ForEach(EzContactField.allCases) { field in
+                    Toggle(field.label, isOn: Binding(get: { fields.contains(field) }, set: { on in if on { fields.insert(field) } else { fields.remove(field) } }))
+                        .toggleStyle(.checkbox).font(.caption)
+                }
+            }
+        } else if kind != .contacts, !headers.isEmpty {
+            Picker("Name column", selection: $nameColumn) {
+                ForEach(Array(headers.enumerated()), id: \.offset) { index, title in Text(title.isEmpty ? "Column \(index + 1)" : title).tag(index) }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: nameColumn) { value in columns.insert(value) }
+            Text("Columns to turn into shortcuts").font(.caption.weight(.semibold))
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 6)], alignment: .leading, spacing: 6) {
+                ForEach(Array(headers.enumerated()), id: \.offset) { index, title in
+                    Toggle(title.isEmpty ? "Column \(index + 1)" : title, isOn: Binding(get: { columns.contains(index) }, set: { on in if on { columns.insert(index) } else { columns.remove(index) } }))
+                        .toggleStyle(.checkbox).font(.caption)
+                }
+            }
+            Picker("Shortcut starts with", selection: $shortWords) {
+                Text("The name as one word").tag(false)
+                Text("First 3 letters of each word").tag(true)
+            }
+            .pickerStyle(.segmented)
+        }
+        TextField("Collection name", text: $group).textFieldStyle(.roundedBorder)
+        Button("Review shortcuts", systemImage: "list.bullet.rectangle") { buildStaged() }
+            .buttonStyle(.borderedProminent).tint(Butter.coral)
+    }
+
+    private var review: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("\(staged.count) shortcuts · edit anything before adding").font(.caption.weight(.semibold))
+                Spacer()
+                Button(selected.count == staged.count ? "Clear" : "Select all", systemImage: "checkmark.circle") {
+                    selected = selected.count == staged.count ? [] : Set(staged.map(\.id))
+                }.controlSize(.small)
+                Button("Rename…", systemImage: "text.cursor") { showRename = true }.controlSize(.small)
+                    .help(selected.isEmpty ? "Rename every shortcut with one rule" : "Rename the selected shortcuts with one rule")
+                Button("Delete", systemImage: "trash", role: .destructive) {
+                    staged.removeAll { selected.contains($0.id) }; selected.removeAll()
+                }.controlSize(.small).disabled(selected.isEmpty)
+            }
+            .buttonStyle(.bordered)
+            ScrollView {
+                LazyVStack(spacing: 8) {
+                    ForEach($staged) { $clip in
+                        HStack(alignment: .top, spacing: 8) {
+                            Toggle("", isOn: Binding(get: { selected.contains(clip.id) }, set: { on in if on { selected.insert(clip.id) } else { selected.remove(clip.id) } }))
+                                .toggleStyle(.checkbox).labelsHidden()
+                            VStack(alignment: .leading, spacing: 5) {
+                                HStack(spacing: 6) {
+                                    Text("\\").font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundStyle(Butter.coral)
+                                    TextField("Shortcut", text: codeBinding($clip)).font(.system(size: 13, weight: .semibold, design: .monospaced)).textFieldStyle(.roundedBorder)
+                                    TextField("Name", text: $clip.name).textFieldStyle(.roundedBorder)
+                                }
+                                TextField("Expands to", text: $clip.text).textFieldStyle(.roundedBorder).font(.system(size: 12))
+                                TextField("Search words (not pasted)", text: keywordBinding($clip)).textFieldStyle(.roundedBorder).font(.system(size: 11))
+                            }
+                            Button { staged.removeAll { $0.id == clip.id }; selected.remove(clip.id) } label: { Image(systemName: "trash") }
+                                .buttonStyle(.plain).foregroundStyle(.secondary).help("Remove this shortcut")
+                        }
+                        .padding(9).background(Color.white.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+                    }
+                }
+            }
+            .frame(maxHeight: 380)
+            HStack {
+                Button("Back to options", systemImage: "chevron.left") { staged = []; selected = [] }.buttonStyle(.bordered)
+                Spacer()
+                Button("Add \(staged.count) shortcuts to My Shortcuts", systemImage: "plus.circle.fill") {
+                    let name = group.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let count = staged.count
+                    onCreate(staged, name.isEmpty ? "Imported" : name)
+                    status = "Added \(count) shortcuts to \(name.isEmpty ? "Imported" : name)."
+                    staged = []; selected = []
+                }
+                .buttonStyle(.borderedProminent).tint(Butter.coral).disabled(staged.isEmpty)
+            }
+            Text("Short endings work too: type the start of an ending, such as .n for .name.").font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+
+    private func codeBinding(_ clip: Binding<Clip>) -> Binding<String> {
+        Binding(
+            get: { clip.wrappedValue.key.trimmingCharacters(in: CharacterSet(charactersIn: "/\\")) },
+            set: { value in
+                let clean = String(value.filter { $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == "_" })
+                clip.wrappedValue.key = "/" + clean
+            })
+    }
+
+    private func keywordBinding(_ clip: Binding<Clip>) -> Binding<String> {
+        Binding(get: { clip.wrappedValue.keywords ?? "" }, set: { clip.wrappedValue.keywords = $0.isEmpty ? nil : $0 })
+    }
+
+    private func buildStaged() {
+        let name = group.trimmingCharacters(in: .whitespacesAndNewlines)
+        let target = name.isEmpty ? "Imported" : name
+        if kind == .contacts {
+            staged = EzContactImport.shortcuts(for: contacts, style: style, fields: fields, group: target)
+        } else {
+            staged = EzContactImport.tableShortcuts(headers: headers, rows: rows, nameColumn: nameColumn, columns: columns, shortWords: shortWords, group: target, note: note)
+        }
+        selected = []
+        status = staged.isEmpty ? "Nothing to create. Check the details or columns you picked." : ""
+    }
+
+    private func reset() {
+        fileName = ""; contacts = []; headers = []; rows = []; staged = []; selected = []; columns = []; nameColumn = 0; status = ""
     }
 
     private func choose() {
+        guard let kind else { return }
         let panel = NSOpenPanel()
-        panel.title = "Choose a contacts file"
+        panel.title = "Attach a contacts or list file"
         var types: [UTType] = [.commaSeparatedText]
         if let vcf = UTType(filenameExtension: "vcf") { types.append(vcf) }
         panel.allowedContentTypes = types
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do {
-            let parsed = try EzContactImport.parse(url: url)
-            guard !parsed.isEmpty else { status = "No contacts with a name were found in that file."; return }
-            contacts = parsed
+            if kind == .contacts {
+                let parsed = try EzContactImport.parse(url: url)
+                guard !parsed.isEmpty else { status = "No contacts with a name were found in that file."; return }
+                contacts = parsed
+                if group == "Contacts" || group.isEmpty { group = "Contacts" }
+            } else {
+                guard url.pathExtension.lowercased() != "vcf" else { status = "A VCF file holds contacts. Choose Contacts or people, or attach a CSV."; return }
+                let table = try EzContactImport.readTable(url: url)
+                guard !table.headers.isEmpty, !table.rows.isEmpty else { status = "That file has no rows to turn into shortcuts."; return }
+                headers = table.headers
+                rows = table.rows
+                let guess = headers.firstIndex { h in ["name", "product", "item", "title", "company"].contains { h.lowercased().contains($0) } } ?? 0
+                nameColumn = guess
+                columns = Set(headers.indices.prefix(12)).union([guess])
+                if group == "Contacts" || group.isEmpty { group = note.isEmpty ? (kind == .products ? "Products" : "Imported list") : note }
+            }
             fileName = url.lastPathComponent
-            status = parsed.count >= EzContactImport.maxContacts ? "Only the first \(EzContactImport.maxContacts) contacts were read." : ""
+            status = rowCount >= EzContactImport.maxContacts ? "Only the first \(EzContactImport.maxContacts) rows were read." : ""
         } catch {
             status = "Could not read that file: \(error.localizedDescription)"
         }
