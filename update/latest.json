@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 223,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build223/EzMe-3.44-macOS.zip",
-  "sha256": "730392868e7765d71f2ba5eedfd23021c576dd6f4fafd4762a56b0aebe01878d",
-  "notes": "Solid bottom bar in the popup\n\n- The bar at the bottom of the backslash popup now has a solid background, so the results behind it no longer show through the text. The popup body is solid too.",
-  "published": "2026-11-10T10:04:46Z",
+  "build": 224,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build224/EzMe-3.44-macOS.zip",
+  "sha256": "9af51d4f2f5327b5ce7d2a02777f8328f25c968eb9a1c955cb99abcab2a108af",
+  "notes": "Collection Builder cover media and app look\n\n- Collection Builder now has the same look options as the other AppBuilder apps: Icon gallery, Upload icon, Cover media (upload an image, GIF or video, generate with AI, crop and position, preview, remove) and Credits/use.\n- Your choices show on its card on the AppBuilder home page and on its tab.\n- Collection Builder is a built-in app, so it still cannot be deleted, copied, shared or published to the marketplace. Your own apps keep all of those options.",
+  "published": "2026-11-10T10:25:41Z",
   "minimumSystemVersion": "14.0"
 }
