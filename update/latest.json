@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 225,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build225/EzMe-3.44-macOS.zip",
-  "sha256": "446de3816e5020d92d9976cd0aff7361b7b2cab719721e76e8d5aadfca7668c8",
-  "notes": "Contacts to shortcuts, search words and short endings\n\n- Short endings: type the start of an ending and EzMe finds the shortcut. yogesh.n runs yogesh.name, and yogesh.mo runs yogesh.mobile. If you made a shortcut with that exact ending, such as yogesh.n, it always wins. When several endings fit, the usual ones come first: name, mobile, phone, firstname, lastname, email, address.\n- Search words: every shortcut has a new \"Search words\" field. It helps you find the shortcut and is never pasted. In Collection Builder each draft has the field too.\n- Import contacts: in Collection Builder, choose a VCF or CSV file (exports from Google Contacts or Zoho work) and EzMe creates shortcuts like yogeshsahu.name, yogeshsahu.mobile and yogeshsahu.email. Pick how the first part is built: full first and last name, first 3 and last 3 letters, first letter and full last name (ysahu), and more. Each contact's name, company and email are saved as search words.\n- Live sync with Google Contacts or Zoho is not connected yet. Export the file and choose it for now.",
-  "published": "2026-11-10T11:53:36Z",
+  "build": 226,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build226/EzMe-3.44-macOS.zip",
+  "sha256": "d354b31897e982a287d162b2e36c0e6835e00c4588152682c8b382aca3e8e988",
+  "notes": "Attach a list in Collection Builder, then edit before adding\n\n- The contacts import moved to the left side of Collection Builder as \"Build from an attached list\". First choose what kind of file it is (contacts or people, products or items, or another list) and optionally describe it, then attach a VCF or CSV. EzMe reads it according to the kind you chose.\n- Products and other lists: pick the name column and the columns to turn into shortcuts. Each column becomes an ending, for example cottonshirt.price.\n- Review before adding: every shortcut can be edited (code, name, expands-to text and search words), removed, selected, and renamed with the same bulk rename rules used in Library > Collections.\n- The attached file shows with its kind, row count and a Remove file button.",
+  "published": "2026-11-10T12:34:32Z",
   "minimumSystemVersion": "14.0"
 }
