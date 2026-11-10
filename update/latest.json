@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 224,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build224/EzMe-3.44-macOS.zip",
-  "sha256": "9af51d4f2f5327b5ce7d2a02777f8328f25c968eb9a1c955cb99abcab2a108af",
-  "notes": "Collection Builder cover media and app look\n\n- Collection Builder now has the same look options as the other AppBuilder apps: Icon gallery, Upload icon, Cover media (upload an image, GIF or video, generate with AI, crop and position, preview, remove) and Credits/use.\n- Your choices show on its card on the AppBuilder home page and on its tab.\n- Collection Builder is a built-in app, so it still cannot be deleted, copied, shared or published to the marketplace. Your own apps keep all of those options.",
-  "published": "2026-11-10T10:25:41Z",
+  "build": 225,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build225/EzMe-3.44-macOS.zip",
+  "sha256": "446de3816e5020d92d9976cd0aff7361b7b2cab719721e76e8d5aadfca7668c8",
+  "notes": "Contacts to shortcuts, search words and short endings\n\n- Short endings: type the start of an ending and EzMe finds the shortcut. yogesh.n runs yogesh.name, and yogesh.mo runs yogesh.mobile. If you made a shortcut with that exact ending, such as yogesh.n, it always wins. When several endings fit, the usual ones come first: name, mobile, phone, firstname, lastname, email, address.\n- Search words: every shortcut has a new \"Search words\" field. It helps you find the shortcut and is never pasted. In Collection Builder each draft has the field too.\n- Import contacts: in Collection Builder, choose a VCF or CSV file (exports from Google Contacts or Zoho work) and EzMe creates shortcuts like yogeshsahu.name, yogeshsahu.mobile and yogeshsahu.email. Pick how the first part is built: full first and last name, first 3 and last 3 letters, first letter and full last name (ysahu), and more. Each contact's name, company and email are saved as search words.\n- Live sync with Google Contacts or Zoho is not connected yet. Export the file and choose it for now.",
+  "published": "2026-11-10T11:53:36Z",
   "minimumSystemVersion": "14.0"
 }
