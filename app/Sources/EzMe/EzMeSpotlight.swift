@@ -64,7 +64,7 @@ struct SpotlightResults: View {
             }
             footer
         }
-        .background(Butter.cream.opacity(0.7), in: RoundedRectangle(cornerRadius: 14))
+        .background(Color(nsColor: .windowBackgroundColor).overlay(Butter.cream.opacity(0.7)), in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Butter.honey, lineWidth: 1.2))
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .onAppear { search.hasSpotlight = true }
@@ -235,6 +235,7 @@ struct SpotlightResults: View {
         .foregroundStyle(Butter.cocoa.opacity(0.65))
         .padding(.horizontal, 14).padding(.vertical, 8)
         .frame(maxWidth: .infinity)
+        .background(Color(nsColor: .windowBackgroundColor).overlay(Butter.cream))
         .overlay(alignment: .top) { Rectangle().fill(Butter.honey).frame(height: 1) }
     }
 
