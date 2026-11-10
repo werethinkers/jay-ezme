@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 220,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build220/EzMe-3.44-macOS.zip",
-  "sha256": "879f17100db7a1b7c14218fb9a0d8195495150dcf2b3378ac7c6996abf52d628",
-  "notes": "Cleaner popup and copy shortcode\n\n- The backslash popup: the bottom bar no longer overlaps. It switches to a shorter version when the window is narrow, and the Prompt view's buttons now sit on their own line under the message.\n- Copy shortcode: every shortcut in the popup has a copy button, the preview panel has \"Copy shortcode\", and each row in the Shortcuts list has a copy-shortcode button next to the copy-text one.",
-  "published": "2026-11-10T06:55:34Z",
+  "build": 221,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build221/EzMe-3.44-macOS.zip",
+  "sha256": "4a3ed1fc3e3d67e1b43e40445973a22b411f7fdfe7d6079afcbd9cd1d3e3caeb",
+  "notes": "Matching app pages, cover crop, and removable files\n\n- AppBuilder home: app covers now play videos and GIFs and show pictures, like WishStudio. Use \"Crop and position\" in an app's cover menu to choose what part shows, with top, middle or bottom, sliders and zoom.\n- WishStudio and AppBuilder now share the same card, tab and icon look. Wish apps use the same clear icons and warm colours as AppBuilder apps.\n- Media Resizer and Video Cutter: \"From shortcut\" adds the media of any saved shortcut as new files to edit.\n- Both tools: each added file has a remove button. It only takes the file out of the editor and never deletes the original.",
+  "published": "2026-11-10T07:41:09Z",
   "minimumSystemVersion": "14.0"
 }
