@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 219,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build219/EzMe-3.44-macOS.zip",
-  "sha256": "a4b8a1b08773773b966271d8ab1fa06c179f1787d5f519b28e72b75b23b25208",
-  "notes": "Copy to clipboard\n\n- Crop screen: the area you capture is now also copied to the clipboard, so you can paste it straight into another app.\n- Media Resizer: after you resize and save, the new image is also copied to the clipboard. If you resized several images, the first one is copied.",
-  "published": "2026-11-10T06:39:57Z",
+  "build": 220,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build220/EzMe-3.44-macOS.zip",
+  "sha256": "879f17100db7a1b7c14218fb9a0d8195495150dcf2b3378ac7c6996abf52d628",
+  "notes": "Cleaner popup and copy shortcode\n\n- The backslash popup: the bottom bar no longer overlaps. It switches to a shorter version when the window is narrow, and the Prompt view's buttons now sit on their own line under the message.\n- Copy shortcode: every shortcut in the popup has a copy button, the preview panel has \"Copy shortcode\", and each row in the Shortcuts list has a copy-shortcode button next to the copy-text one.",
+  "published": "2026-11-10T06:55:34Z",
   "minimumSystemVersion": "14.0"
 }
