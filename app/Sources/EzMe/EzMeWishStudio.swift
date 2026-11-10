@@ -989,10 +989,6 @@ struct WishCover: View {
     let store: WishStore
     var emojiSize: CGFloat = 34
 
-    private var design: WishDesign {
-        return WishDesigns.design(id: app.designID ?? "", kind: app.kind)
-    }
-
     private var url: URL? {
         guard let file = app.coverFile else { return nil }
         return store.mediaURL(file)
@@ -1005,18 +1001,21 @@ struct WishCover: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(wishHex: design.background), Color(wishHex: wishMix(design.background, with: design.accent, amount: 0.3))],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
             if let url = url, FileManager.default.fileExists(atPath: url.path) {
                 WishCoverMedia(url: url, isVideo: isVideo, framing: app.coverFraming ?? WishFraming())
             } else {
-                Text(WishArtwork.emoji(app.artwork)).font(.system(size: emojiSize))
+                // Same look as an AppBuilder app without a cover: a clear icon on a warm gradient.
+                LinearGradient(colors: [Butter.coral.opacity(0.86), Color.pink.opacity(0.75), Color.orange.opacity(0.62)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                Image(systemName: app.artwork)
+                    .font(.system(size: emojiSize, weight: .semibold))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(Color.white)
             }
         }
         .clipped()
     }
 }
-
 
 // Plays a cover video (muted, looping, at most 10 seconds) or an animated GIF. A plain SwiftUI Image only shows the first frame.
 struct WishCoverMedia: NSViewRepresentable {
@@ -1177,6 +1176,7 @@ struct WishFramingControls: View {
     @Binding var framing: WishFraming
     let isVideo: Bool
     let url: URL?
+    var startsOpen: Bool = false
     @State private var open = false
     @State private var videoSeconds: Double = 0
 
@@ -1212,6 +1212,7 @@ struct WishFramingControls: View {
         } label: {
             Text("Crop and position").font(.system(size: 12, weight: .semibold))
         }
+        .onAppear { if startsOpen { open = true } }
         .task(id: url) {
             guard isVideo, let url = url else { videoSeconds = 0; return }
             let seconds = (try? await AVURLAsset(url: url).load(.duration).seconds) ?? 0
@@ -1251,7 +1252,7 @@ struct WishHeader: View {
                 .font(.system(size: 24))
                 .foregroundStyle(Color.white)
                 .frame(width: 48, height: 48)
-                .background(RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [Color(wishHex: "#6D4AB0"), Color(wishHex: "#D9577A"), Color(wishHex: "#F2A93B")], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                .background(RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [Butter.coral.opacity(0.9), Color.pink.opacity(0.8), Color.orange.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing)))
             VStack(alignment: .leading, spacing: 3) {
                 Text("WishStudio").font(.system(size: 23, weight: .bold, design: .rounded))
                 Text("Greetings and infographics that open like a web page, with photos, GIFs and video.")
@@ -1265,6 +1266,7 @@ struct WishHeader: View {
                 Label("Create with WishBuilder", systemImage: "wand.and.stars")
             }
             .buttonStyle(.borderedProminent)
+            .tint(Butter.coral)
         }
         .padding(18)
     }
@@ -1276,10 +1278,11 @@ struct WishHeader: View {
             } label: {
                 Label("WishStudio", systemImage: "chevron.left")
                     .font(.subheadline.weight(.semibold))
-                    .frame(width: 112, height: 52)
+                    .frame(width: 112, height: 58)
             }
             .buttonStyle(.bordered)
-            Divider().frame(height: 36)
+            .tint(Butter.coral)
+            Divider().frame(height: 38)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(store.apps) { item in
@@ -1290,8 +1293,18 @@ struct WishHeader: View {
                 .padding(.vertical, 2)
             }
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
         .padding(.vertical, 10)
+        .background(LinearGradient(colors: [Color.white.opacity(0.70), Butter.cream], startPoint: .leading, endPoint: .trailing))
+        .overlay(alignment: .bottom) { Rectangle().fill(Butter.coral.opacity(0.12)).frame(height: 1) }
+    }
+
+    // Same size, colours and layout as an AppBuilder tab.
+    private func tabBackground(active: Bool) -> some View {
+        RoundedRectangle(cornerRadius: 14)
+            .fill(active
+                  ? LinearGradient(colors: [Color.white, Color(red: 0.95, green: 0.89, blue: 1)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                  : LinearGradient(colors: [Color.white.opacity(0.88), Butter.cream], startPoint: .topLeading, endPoint: .bottomTrailing))
     }
 
     private func appTab(_ item: WishApp) -> some View {
@@ -1300,29 +1313,35 @@ struct WishHeader: View {
             model.openApp(item.id)
         } label: {
             HStack(spacing: 10) {
-                WishCover(app: item, store: store, emojiSize: 20)
-                    .frame(width: 54, height: 42)
-                    .clipShape(RoundedRectangle(cornerRadius: 9))
-                VStack(alignment: .leading, spacing: 3) {
+                WishCover(app: item, store: store, emojiSize: 22)
+                    .frame(width: 64, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 4) {
                     Text(item.name)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.white)
                         .lineLimit(1)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(Color.black.opacity(0.72)))
-                    Text(item.kind == .greeting ? "GREETING" : "INFOGRAPHIC")
+                        .minimumScaleFactor(0.75)
+                    Text(item.kind.title.uppercased())
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(active ? WishTheme.accent : WishTheme.muted)
-                        .padding(.leading, 2)
+                        .foregroundStyle(active ? Butter.coral : Color.secondary)
+                        .lineLimit(1)
+                    HStack(spacing: 3) {
+                        Image(systemName: "party.popper.fill")
+                        Text("WISH APP")
+                    }
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(Color.secondary.opacity(0.85))
                 }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 12).fill(active ? WishTheme.accentSoft : Color.white))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: active ? 1.5 : 1))
+            .frame(width: 192, height: 66)
+            .background(tabBackground(active: active))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(active ? Butter.coral.opacity(0.75) : Butter.coral.opacity(0.16), lineWidth: active ? 2 : 1))
+            .shadow(color: Butter.coral.opacity(active ? 0.14 : 0.035), radius: active ? 8 : 3, y: 3)
         }
         .buttonStyle(.plain)
+        .help(item.name)
     }
 
     private var builderTab: some View {
@@ -1330,19 +1349,33 @@ struct WishHeader: View {
         return Button {
             model.openBuilder()
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "wand.and.stars")
-                    .frame(width: 42, height: 42)
-                    .background(RoundedRectangle(cornerRadius: 9).fill(WishTheme.accentSoft))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("WishBuilder").font(.system(size: 12, weight: .bold, design: .rounded))
-                    Text("CREATE APPS").font(.system(size: 8, weight: .bold)).foregroundStyle(active ? WishTheme.accent : WishTheme.muted)
+            HStack(spacing: 10) {
+                ZStack {
+                    LinearGradient(colors: [Butter.coral.opacity(0.86), Color.pink.opacity(0.75), Color.orange.opacity(0.62)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(Color.white)
                 }
+                .frame(width: 64, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("WishBuilder").font(.system(size: 12, weight: .bold, design: .rounded)).lineLimit(1)
+                    Text("CREATE APPS").font(.system(size: 8, weight: .bold)).foregroundStyle(active ? Butter.coral : Color.secondary)
+                    HStack(spacing: 3) {
+                        Image(systemName: "sparkles")
+                        Text("FROM A PROMPT")
+                    }
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundStyle(Color.secondary.opacity(0.85))
+                }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(RoundedRectangle(cornerRadius: 12).fill(active ? WishTheme.accentSoft : Color.white))
-            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(active ? WishTheme.accent : WishTheme.line, style: StrokeStyle(lineWidth: active ? 1.5 : 1, dash: active ? [] : [4, 3])))
+            .frame(width: 192, height: 66)
+            .background(tabBackground(active: active))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(active ? Butter.coral.opacity(0.75) : Butter.coral.opacity(0.16), lineWidth: active ? 2 : 1))
+            .shadow(color: Butter.coral.opacity(active ? 0.14 : 0.035), radius: active ? 8 : 3, y: 3)
         }
         .buttonStyle(.plain)
     }
@@ -1361,9 +1394,9 @@ struct WishHomeView: View {
                     Text("Choose an app to get started").font(.system(size: 25, weight: .bold, design: .rounded))
                     Text("Each app is a small web page you fill in, restyle and save as a template. Or describe a new one and WishBuilder makes it.")
                         .foregroundStyle(WishTheme.muted)
-                        .frame(maxWidth: 720, alignment: .leading)
+                        .frame(maxWidth: 780, alignment: .leading)
                 }
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 230, maximum: 300), spacing: 18)], alignment: .leading, spacing: 18) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 236, maximum: 300), spacing: 16)], alignment: .leading, spacing: 16) {
                     ForEach(store.apps) { item in
                         appCard(item)
                     }
@@ -1380,45 +1413,29 @@ struct WishHomeView: View {
                     }
                 }
             }
-            .padding(28)
+            .padding(26)
+            .frame(maxWidth: 1260, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private func appCard(_ item: WishApp) -> some View {
-        Button {
-            model.openApp(item.id)
-        } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                WishCover(app: item, store: store, emojiSize: 52)
-                    .frame(height: 150)
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(item.name).font(.system(size: 16, weight: .bold, design: .rounded))
-                    Text(item.tagline.isEmpty ? item.prompt : item.tagline)
-                        .font(.system(size: 12))
-                        .foregroundStyle(WishTheme.muted)
-                        .lineLimit(2)
-                    HStack(spacing: 6) {
-                        Text(item.kind.title.uppercased())
-                            .font(.system(size: 9, weight: .bold))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(WishTheme.accentSoft))
-                        Text("\(item.fields.count) fields").font(.system(size: 10)).foregroundStyle(WishTheme.muted)
-                        Spacer()
-                        Image(systemName: "arrow.right.circle.fill").foregroundStyle(WishTheme.accent)
-                    }
-                    .padding(.top, 2)
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .background(RoundedRectangle(cornerRadius: 16).fill(Color.white))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
-            .shadow(color: Color.black.opacity(0.05), radius: 8, y: 3)
-        }
-        .buttonStyle(.plain)
+        let cover = item.coverFile.flatMap { store.mediaURL($0)?.path } ?? ""
+        return AppGalleryCard(
+            title: item.name,
+            description: item.tagline.isEmpty ? item.prompt : item.tagline,
+            sample: "",
+            category: item.kind.title,
+            icon: item.artwork,
+            iconPath: "",
+            coverPath: cover,
+            credits: "",
+            colors: [Butter.coral.opacity(0.86), Color.pink.opacity(0.75), Color.orange.opacity(0.62)],
+            action: { model.openApp(item.id) },
+            coverFraming: item.coverFraming ?? WishFraming(),
+            showsCredits: false,
+            badge: "WISH"
+        )
     }
 
     private var builderCard: some View {
