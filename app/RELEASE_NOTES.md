@@ -1,4 +1,4 @@
-Copy to clipboard
+Cleaner popup and copy shortcode
 
-- Crop screen: the area you capture is now also copied to the clipboard, so you can paste it straight into another app.
-- Media Resizer: after you resize and save, the new image is also copied to the clipboard. If you resized several images, the first one is copied.
+- The backslash popup: the bottom bar no longer overlaps. It switches to a shorter version when the window is narrow, and the Prompt view's buttons now sit on their own line under the message.
+- Copy shortcode: every shortcut in the popup has a copy button, the preview panel has "Copy shortcode", and each row in the Shortcuts list has a copy-shortcode button next to the copy-text one.

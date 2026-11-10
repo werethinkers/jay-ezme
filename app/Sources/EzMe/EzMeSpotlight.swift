@@ -152,26 +152,36 @@ struct SpotlightResults: View {
 
     private func row(_ entry: SpotlightEntry) -> some View {
         let isCurrent = entry.id == current?.id
-        return Button { entry.run() } label: {
-            HStack(spacing: 10) {
-                tile(entry, size: 30)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(entry.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Butter.cocoa).lineLimit(1)
-                    if !entry.hint.isEmpty {
-                        Text(entry.hint).font(.system(size: 11.5)).foregroundStyle(Butter.cocoa.opacity(0.6)).lineLimit(1)
+        return HStack(spacing: 6) {
+            Button { entry.run() } label: {
+                HStack(spacing: 10) {
+                    tile(entry, size: 30)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(entry.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Butter.cocoa).lineLimit(1)
+                        if !entry.hint.isEmpty {
+                            Text(entry.hint).font(.system(size: 11.5)).foregroundStyle(Butter.cocoa.opacity(0.6)).lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 6)
+                    if let key = entry.keyLabel {
+                        Text(key).font(.system(size: 10.5, design: .monospaced)).foregroundStyle(Butter.cocoa.opacity(0.75)).lineLimit(1)
+                            .padding(.horizontal, 6).padding(.vertical, 2).background(Butter.honey.opacity(0.7), in: RoundedRectangle(cornerRadius: 5))
                     }
                 }
-                Spacer(minLength: 6)
-                if let key = entry.keyLabel {
-                    Text(key).font(.system(size: 10.5, design: .monospaced)).foregroundStyle(Butter.cocoa.opacity(0.75))
-                        .padding(.horizontal, 6).padding(.vertical, 2).background(Butter.honey.opacity(0.7), in: RoundedRectangle(cornerRadius: 5))
-                }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 9).padding(.vertical, 6)
-            .background(isCurrent ? Butter.honey.opacity(0.75) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            if let clip = entry.clip {
+                Button { onCopyKey(clip) } label: {
+                    Image(systemName: "doc.on.doc").font(.system(size: 11, weight: .semibold)).foregroundStyle(Butter.coral)
+                        .frame(width: 26, height: 26).background(Butter.honey.opacity(0.6), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Copy shortcode")
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 9).padding(.vertical, 6)
+        .background(isCurrent ? Butter.honey.opacity(0.75) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
         .id(entry.id)
         .onHover { inside in
             if inside && Date().timeIntervalSince(lastKeyMove) > 0.4 { selected = entry.id }
@@ -185,19 +195,24 @@ struct SpotlightResults: View {
             Text(entry.detail).font(.system(size: 12.5)).foregroundStyle(Butter.cocoa.opacity(0.7)).lineLimit(9).padding(.top, 4)
             Spacer(minLength: 8)
             HStack {
-                Text(entry.badge).font(.system(size: 10, weight: .heavy)).foregroundStyle(Butter.cocoa.opacity(0.7))
-                Spacer()
+                Text(entry.badge).font(.system(size: 10, weight: .heavy)).foregroundStyle(Butter.cocoa.opacity(0.7)).lineLimit(1)
+                Spacer(minLength: 8)
                 if let key = entry.keyLabel {
-                    Text(key).font(.system(size: 10.5, design: .monospaced)).padding(.horizontal, 6).padding(.vertical, 2)
+                    Text(key).font(.system(size: 10.5, design: .monospaced)).lineLimit(1).truncationMode(.middle).padding(.horizontal, 6).padding(.vertical, 2)
                         .background(Butter.cream, in: RoundedRectangle(cornerRadius: 5)).overlay(RoundedRectangle(cornerRadius: 5).stroke(Butter.honey))
                 }
             }
-            HStack(spacing: 6) {
-                Button(entry.clip == nil ? "Open" : "Paste") { entry.run() }
-                    .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Button(entry.clip == nil ? "Open" : "Paste") { entry.run() }
+                        .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                    if let clip = entry.clip {
+                        Button("Edit") { onEdit(clip) }.buttonStyle(.bordered).controlSize(.small)
+                    }
+                }
                 if let clip = entry.clip {
-                    Button("Edit") { onEdit(clip) }.buttonStyle(.bordered).controlSize(.small)
-                    Button("Copy name") { onCopyKey(clip) }.buttonStyle(.bordered).controlSize(.small)
+                    Button { onCopyKey(clip) } label: { Label("Copy shortcode", systemImage: "doc.on.doc") }
+                        .buttonStyle(.bordered).controlSize(.small)
                 }
             }
             .padding(.top, 10)
@@ -210,18 +225,28 @@ struct SpotlightResults: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 14) {
-            Text("↑↓ to move")
-            Text("↵ to run")
-            Text("esc to close")
-            if !search.phraseMode { Text("\\ + space = plain words") }
-            Spacer()
-            Text(search.isLoading ? "\(entries.count) results · searching…" : "\(entries.count) results")
-            Button("Manage all", action: onManage).buttonStyle(.plain).foregroundStyle(Butter.coral).fontWeight(.semibold)
+        // Three layouts, widest first: the first one that fits the width is used, so text never overlaps.
+        ViewThatFits(in: .horizontal) {
+            footerRow(keys: ["\u{2191}\u{2193} to move", "\u{21B5} to run", "esc to close"], tip: search.phraseMode ? nil : "\\ + space = plain words", showManage: true)
+            footerRow(keys: ["\u{2191}\u{2193} move", "\u{21B5} run", "esc close"], tip: nil, showManage: true)
+            footerRow(keys: [], tip: nil, showManage: true)
         }
         .font(.system(size: 11.5))
         .foregroundStyle(Butter.cocoa.opacity(0.65))
         .padding(.horizontal, 14).padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
         .overlay(alignment: .top) { Rectangle().fill(Butter.honey).frame(height: 1) }
+    }
+
+    private func footerRow(keys: [String], tip: String?, showManage: Bool) -> some View {
+        HStack(spacing: 14) {
+            ForEach(keys, id: \.self) { Text($0).lineLimit(1).fixedSize() }
+            if let tip = tip { Text(tip).lineLimit(1).fixedSize() }
+            Spacer(minLength: 12)
+            Text(search.isLoading ? "\(entries.count) results \u{00B7} searching\u{2026}" : "\(entries.count) results").lineLimit(1).fixedSize()
+            if showManage {
+                Button("Manage all", action: onManage).buttonStyle(.plain).foregroundStyle(Butter.coral).fontWeight(.semibold).lineLimit(1).fixedSize()
+            }
+        }
     }
 }
