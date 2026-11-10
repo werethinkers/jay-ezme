@@ -158,7 +158,7 @@ enum EzMeWords {
     // MARK: - Phrase search
 
     /// Scores one shortcut against what someone typed. 0 means no match. Higher is better.
-    static func score(query rawQuery: String, key: String, name: String, text: String, groups: [String]) -> Int {
+    static func score(query rawQuery: String, key: String, name: String, text: String, groups: [String], keywords: String = "") -> Int {
         var raw = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if raw.hasPrefix("/") || raw.hasPrefix("\\") { raw.removeFirst() }
         guard !raw.isEmpty else { return 1 }
@@ -170,12 +170,14 @@ enum EzMeWords {
         if keyNorm == compact { score += 1000 }
         else if keyNorm.hasPrefix(compact) { score += 500 }
         else if compact.count >= 2, keyNorm.contains(compact) { score += 200 }
+        else if compact.count >= 3, !keywords.isEmpty, keywords.lowercased().contains(compact) { score += 120 }
 
         let queryWords = meaningful(raw)
         let nameWords = tokens(name)
         let nameCanon = Set(nameWords.map(canonical))
         let groupCanon = Set(groups.flatMap { tokens($0) }.map(canonical))
         let textCanon = Set(tokens(String(text.prefix(400))).map(canonical))
+        let keywordCanon = Set(tokens(keywords).map(canonical))
         var matchedAll = true
         for word in queryWords {
             let c = canonical(word)
@@ -185,6 +187,8 @@ enum EzMeWords {
             if word.count >= 2, nameWords.contains(where: { $0.hasPrefix(word) }) { best = max(best, 40) }
             if groupCanon.contains(c) { best = max(best, 30) }
             if textCanon.contains(c) { best = max(best, 20) }
+            if keywordCanon.contains(c) { best = max(best, 45) }
+            if word.count >= 2, !keywords.isEmpty, keywords.lowercased().contains(word) { best = max(best, 28) }
             if best == 0, word.count >= 4, nameWords.contains(where: { $0.count >= 4 && editDistance($0, word) <= 1 }) { best = 25 }
             if best == 0 { matchedAll = false }
             score += best
@@ -212,7 +216,7 @@ enum EzMeWords {
     /// Best matches first.
     static func rank(_ clips: [Clip], query: String, limit: Int = 60) -> [Clip] {
         let scored = clips.compactMap { clip -> (Int, Clip)? in
-            let s = score(query: query, key: clip.key, name: clip.name, text: clip.text, groups: clip.allGroups)
+            let s = score(query: query, key: clip.key, name: clip.name, text: clip.text, groups: clip.allGroups, keywords: clip.keywords ?? "")
             return s > 0 ? (s, clip) : nil
         }
         return scored.sorted { $0.0 != $1.0 ? $0.0 > $1.0 : $0.1.key.count < $1.1.key.count }.prefix(limit).map(\.1)
