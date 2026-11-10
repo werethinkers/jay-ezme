@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 226,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build226/EzMe-3.44-macOS.zip",
-  "sha256": "d354b31897e982a287d162b2e36c0e6835e00c4588152682c8b382aca3e8e988",
-  "notes": "Attach a list in Collection Builder, then edit before adding\n\n- The contacts import moved to the left side of Collection Builder as \"Build from an attached list\". First choose what kind of file it is (contacts or people, products or items, or another list) and optionally describe it, then attach a VCF or CSV. EzMe reads it according to the kind you chose.\n- Products and other lists: pick the name column and the columns to turn into shortcuts. Each column becomes an ending, for example cottonshirt.price.\n- Review before adding: every shortcut can be edited (code, name, expands-to text and search words), removed, selected, and renamed with the same bulk rename rules used in Library > Collections.\n- The attached file shows with its kind, row count and a Remove file button.",
-  "published": "2026-11-10T12:34:32Z",
+  "build": 227,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build227/EzMe-3.44-macOS.zip",
+  "sha256": "b49ac0d3f3bf4098f29781e9e6c94e5f9e425bfdf0b14ba5b8e63107dad3d22d",
+  "notes": "File Renamer: small previews and manual edit\n\n- Each file in the File Renamer list shows a small preview. Hover over it, or click it, to see the picture, GIF or video larger.\n- Every new name has a small pencil button to type the name by hand. Hand-edited names show in colour with an undo arrow to go back to the rule's name. The file extension is kept.",
+  "published": "2026-11-10T12:43:49Z",
   "minimumSystemVersion": "14.0"
 }
