@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 218,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build218/EzMe-3.44-macOS.zip",
-  "sha256": "5d5989b98e8a91d23f5a56c682aaf800f84edb63e49ff950735c2266d1156d64",
-  "notes": "# Plain-words search in the / popup\n\n- Type `\\` then press **Space** and the popup switches to plain words. Write a whole sentence, like \"send a payment reminder to Meera\".\n- The search understands short forms (\"bill\" finds invoice) and ignores small words like \"to\" and \"the\".\n- A **Best matches** group at the top shows the three closest results across shortcuts, AppBuilder cards and websites.\n- **Ask Merlin** group: find an Ezyourlife app for your sentence, or search the web in the EzMe browser.\n- AppBuilder cards and saved websites are now ranked by meaning, not only by exact letters.\n- The search bar shows a small Merlin tag, and the footer reminds you of the `\\` + space trick.\n- Exact shortcuts still work as before: type the shortcut and press Space, Return or Tab.",
-  "published": "2026-11-09T21:28:45Z",
+  "build": 219,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build219/EzMe-3.44-macOS.zip",
+  "sha256": "a4b8a1b08773773b966271d8ab1fa06c179f1787d5f519b28e72b75b23b25208",
+  "notes": "Copy to clipboard\n\n- Crop screen: the area you capture is now also copied to the clipboard, so you can paste it straight into another app.\n- Media Resizer: after you resize and save, the new image is also copied to the clipboard. If you resized several images, the first one is copied.",
+  "published": "2026-11-10T06:39:57Z",
   "minimumSystemVersion": "14.0"
 }
