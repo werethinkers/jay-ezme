@@ -1,3 +1,3 @@
-## Website icons on browser tabs
+## Collections: both panels scroll on their own
 
-- Each browser tab now shows the website's own icon next to its title. A globe appears while the icon loads or if the site has none, and the Home tab keeps its house.
+- In Library, Collections now fills the window, and the left panel (collection list and its buttons) and the right panel (shortcuts or records) each have their own scroll bar. Scrolling one no longer leaves the other blank.
