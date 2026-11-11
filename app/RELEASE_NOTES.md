@@ -1,10 +1,5 @@
-## New app: MyDatabase
+## Cleaner browser toolbar
 
-- MyDatabase is a new built-in app in AppBuilder, next to Collection Builder. It cannot be removed.
-- Contacts: add by hand or import VCF or CSV files. Duplicates are skipped.
-- Links: add a link, paste a list (one per line, "Name | link" to name one), or import a CSV.
-- Files: keep direct links to local files and folders. Drop files in, open them, show them in Finder, and check for broken links.
-- Tables: upload a CSV, then edit cells, add rows and columns, and export it again.
-- Shortcuts: search your shortcut database, open any shortcut to edit it, or copy all shortcuts into an editable table.
-- Everything has search, collections, tags, notes, select several to move or delete, and Export CSV.
-- File Renamer moved here from Ez Studio. When you rename files, their saved links update to the new names.
+- The address bar is about 10% shorter. The buttons beside it are matching icon buttons, just under the bar's height, in the main browser and in the side panels.
+- No more text in the browser toolbar. Every button is an icon, and hovering shows what it does.
+- In narrow panels the less-used buttons (go, save link, zoom, bookmarks, collections, import, incognito, private, split view) fold into one "more" menu so the address bar keeps its space.
