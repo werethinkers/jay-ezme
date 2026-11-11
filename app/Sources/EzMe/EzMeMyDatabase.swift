@@ -195,6 +195,7 @@ struct DBTable: Identifiable, Codable, Hashable {
 struct MyDatabaseView: View {
     var clips: [Clip]
     var onOpenShortcuts: (String) -> Void = { _ in }
+    var onMakeShortcuts: ([Clip], String) -> Void = { _, _ in }
     @ObservedObject private var store = MyDatabaseStore.shared
     @State private var tab = "Contacts"
     @State private var search = ""
@@ -209,6 +210,9 @@ struct MyDatabaseView: View {
     @State private var shortcutSearch = ""
     @State private var newCollectionName = ""
     @State private var showNewCollection = false
+    @State private var makeSource: DBMakeSource?
+    @State private var renameItems: [DBRecord] = []
+    @State private var showBulkRename = false
 
     private let tabs: [(String, String)] = [
         ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"),
@@ -251,6 +255,16 @@ struct MyDatabaseView: View {
             DBRecordEditor(record: record, collections: store.collections) { saved in store.upsert(saved); editing = nil } onCancel: { editing = nil }
         }
         .sheet(isPresented: $showPasteLinks) { pasteLinksSheet }
+        .sheet(item: $makeSource) { source in
+            DBMakeShortcutsSheet(source: source) { clips, collection in
+                onMakeShortcuts(clips, collection)
+                store.message = "Created \(clips.count) shortcuts in \"\(collection)\"."
+                selection = []
+            }
+        }
+        .sheet(isPresented: $showBulkRename) {
+            DBBulkRenameSheet(records: renameItems) { names, onDisk in applyRename(names, onDisk: onDisk) }
+        }
         .alert("New collection", isPresented: $showNewCollection) {
             TextField("Collection name", text: $newCollectionName)
             Button("Cancel", role: .cancel) {}
@@ -268,6 +282,30 @@ struct MyDatabaseView: View {
             }
             return true
         }
+    }
+
+    /// The ticked rows, or every row in the list when none are ticked.
+    private var targetRecords: [DBRecord] {
+        selection.isEmpty ? visible : store.records.filter { selection.contains($0.id) && $0.kind == kind }
+    }
+
+    private func applyRename(_ names: [String: String], onDisk: Bool) {
+        var renamedFiles = 0, failed = 0
+        for index in store.records.indices {
+            guard let newName = names[store.records[index].id], !newName.isEmpty, newName != store.records[index].title else { continue }
+            if onDisk && store.records[index].kind == "file" {
+                let source = URL(fileURLWithPath: store.records[index].value)
+                let destination = source.deletingLastPathComponent().appendingPathComponent(newName)
+                if FileManager.default.fileExists(atPath: destination.path) || (try? FileManager.default.moveItem(at: source, to: destination)) == nil {
+                    failed += 1; continue
+                }
+                store.records[index].value = destination.standardizedFileURL.path
+                renamedFiles += 1
+            }
+            store.records[index].title = newName
+        }
+        store.save()
+        store.message = "Renamed \(names.count) row(s)" + (onDisk ? ", \(renamedFiles) file(s) on your Mac" : "") + (failed > 0 ? ". \(failed) file(s) were skipped because the new name already exists or the file is missing." : ".")
     }
 
     private var currentCollection: String { collectionFilter == "All collections" ? "General" : collectionFilter }
@@ -332,6 +370,10 @@ struct MyDatabaseView: View {
                     Button { chooseFiles() } label: { Label("Add files", systemImage: "doc.badge.plus") }.buttonStyle(.bordered)
                     Button { checkFiles() } label: { Label("Check links", systemImage: "checkmark.seal") }.buttonStyle(.bordered)
                 }
+                Button { makeSource = DBMakeSource(kind: kind, records: targetRecords) } label: { Label(selection.isEmpty ? "Make shortcuts (all \(visible.count))" : "Make shortcuts (\(targetRecords.count))", systemImage: "bolt.fill") }
+                    .buttonStyle(.bordered).disabled(targetRecords.isEmpty).help("Turn these rows into shortcuts in one click. Choose the collection name in the next step.")
+                Button { renameItems = targetRecords; showBulkRename = true } label: { Label("Bulk rename", systemImage: "textformat.abc") }
+                    .buttonStyle(.bordered).disabled(targetRecords.isEmpty).help("Add a prefix or suffix, or find and replace, in the names of the selected rows")
                 Button { exportCSV() } label: { Label("Export CSV", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered).disabled(visible.isEmpty)
                 Spacer()
                 if !selection.isEmpty {
@@ -552,6 +594,7 @@ struct MyDatabaseView: View {
                                     .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
                             }
                             Spacer()
+                            Button { makeSource = DBMakeSource(kind: "table", table: table) } label: { Label("Make shortcuts", systemImage: "bolt.fill") }.buttonStyle(.bordered)
                             Button("Open") { openTableID = table.id; page = 0 }.buttonStyle(.bordered)
                             Button(role: .destructive) { store.removeTable(table.id) } label: { Image(systemName: "trash") }.buttonStyle(.bordered)
                         }
@@ -579,6 +622,7 @@ struct MyDatabaseView: View {
                     if !name.isEmpty { store.addColumn(table: table.id, name: name); newColumnName = "" }
                 } label: { Label("Add column", systemImage: "plus.rectangle.on.rectangle") }.buttonStyle(.bordered)
                 Button { exportTable(table) } label: { Label("Export CSV", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered)
+                Button { makeSource = DBMakeSource(kind: "table", table: table) } label: { Label("Make shortcuts", systemImage: "bolt.fill") }.buttonStyle(.bordered)
                 Spacer()
             }
             ScrollView([.horizontal, .vertical]) {
@@ -749,5 +793,230 @@ struct DBRecordEditor: View {
             Text(label).font(.caption.weight(.bold)).foregroundStyle(.secondary).frame(width: 90, alignment: .leading)
             TextField(label, text: text).textFieldStyle(.roundedBorder)
         }
+    }
+}
+
+// MARK: - Make shortcuts from MyDatabase
+
+struct DBMakeSource: Identifiable {
+    let id = UUID()
+    var kind: String            // "contact", "link", "file" or "table"
+    var records: [DBRecord] = []
+    var table: DBTable?
+}
+
+private func dbSlug(_ value: String, limit: Int = 18) -> String {
+    let cleaned = String(String.UnicodeScalarView(value.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) && $0.isASCII }))
+    return String(cleaned.prefix(limit))
+}
+
+/// One click turns the chosen rows into shortcuts. The collection name is filled in and can be changed for all rows.
+struct DBMakeShortcutsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let source: DBMakeSource
+    var onCreate: ([Clip], String) -> Void
+
+    @State private var collection: String
+    @State private var prefix = ""
+    @State private var suffix = ""
+    @State private var style: EzContactCodeStyle = .fullFirstFullLast
+    @State private var fields: Set<EzContactField> = [.name, .mobile, .email]
+    @State private var nameColumn = 0
+    @State private var columns = Set<Int>()
+    @State private var shortWords = false
+
+    init(source: DBMakeSource, onCreate: @escaping ([Clip], String) -> Void) {
+        self.source = source
+        self.onCreate = onCreate
+        let defaultName: String
+        switch source.kind {
+        case "contact": defaultName = "Contacts"
+        case "link": defaultName = "Links"
+        case "file": defaultName = "Files"
+        default: defaultName = source.table?.name ?? "Table"
+        }
+        _collection = State(initialValue: defaultName)
+        if let table = source.table { _columns = State(initialValue: Set(0..<table.headers.count)) }
+    }
+
+    private var count: Int { source.table?.rows.count ?? source.records.count }
+
+    private func decorate(_ clips: [Clip]) -> [Clip] {
+        let pre = dbSlug(prefix, limit: 12), suf = dbSlug(suffix, limit: 12)
+        let group = collection.trimmingCharacters(in: .whitespacesAndNewlines)
+        return clips.map { clip in
+            var copy = clip
+            var key = clip.key.hasPrefix("/") ? String(clip.key.dropFirst()) : clip.key
+            key = pre + key
+            if !suf.isEmpty { key += "." + suf }
+            copy.key = "/" + key
+            copy.group = group.isEmpty ? clip.group : group
+            return copy
+        }
+    }
+
+    private func build() -> [Clip] {
+        let group = collection.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch source.kind {
+        case "contact":
+            let contacts = source.records.map { record -> EzContact in
+                let parts = record.title.split(separator: " ").map(String.init)
+                return EzContact(first: parts.first ?? "", last: parts.dropFirst().joined(separator: " "), full: record.title,
+                                 mobile: record.value, email: record.email, address: record.address, company: record.company)
+            }
+            return decorate(EzContactImport.shortcuts(for: contacts, style: style, fields: fields, group: group))
+        case "table":
+            guard let table = source.table, !columns.isEmpty else { return [] }
+            return decorate(EzContactImport.tableShortcuts(headers: table.headers, rows: table.rows, nameColumn: nameColumn, columns: columns, shortWords: shortWords, group: group, note: ""))
+        default:
+            var stems = Set<String>()
+            var clips: [Clip] = []
+            for record in source.records {
+                var stem = dbSlug(record.title.isEmpty ? record.value : (record.kind == "file" ? (record.title as NSString).deletingPathExtension : record.title))
+                if stem.isEmpty { stem = record.kind }
+                let base = stem
+                var number = 2
+                while stems.contains(stem) { stem = base + String(number); number += 1 }
+                stems.insert(stem)
+                clips.append(Clip(key: "/" + stem, name: record.title, text: record.value, group: group,
+                                  keywords: [record.tags, record.notes, record.title].filter { !$0.isEmpty }.joined(separator: " ")))
+            }
+            return decorate(clips)
+        }
+    }
+
+    var body: some View {
+        let preview = build()
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Make shortcuts").font(.system(size: 22, weight: .bold, design: .rounded))
+            Text("\(count) row(s) become shortcuts. The collection name below is used for all of them. You can change it.")
+                .font(.subheadline).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Text("Collection").font(.caption.weight(.bold)).foregroundStyle(.secondary).frame(width: 80, alignment: .leading)
+                TextField("Collection name", text: $collection).textFieldStyle(.roundedBorder)
+            }
+            HStack {
+                Text("Prefix").font(.caption.weight(.bold)).foregroundStyle(.secondary).frame(width: 80, alignment: .leading)
+                TextField("Before every code, example: acc", text: $prefix).textFieldStyle(.roundedBorder)
+                Text("Suffix").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                TextField("After every code, example: pmt", text: $suffix).textFieldStyle(.roundedBorder)
+            }
+            if source.kind == "contact" {
+                Picker("Code from name", selection: $style) { ForEach(EzContactCodeStyle.allCases) { Text($0.title).tag($0) } }
+                Text("Shortcuts to make for each person").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)], alignment: .leading, spacing: 4) {
+                    ForEach(EzContactField.allCases) { field in
+                        Toggle(field.label, isOn: Binding(get: { fields.contains(field) }, set: { on in if on { fields.insert(field) } else { fields.remove(field) } }))
+                            .toggleStyle(.checkbox).font(.system(size: 12))
+                    }
+                }
+            }
+            if let table = source.table {
+                Picker("Name column", selection: $nameColumn) { ForEach(Array(table.headers.enumerated()), id: \.offset) { index, header in Text(header).tag(index) } }
+                Text("Columns to turn into shortcuts").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 6)], alignment: .leading, spacing: 4) {
+                    ForEach(Array(table.headers.enumerated()), id: \.offset) { index, header in
+                        Toggle(header, isOn: Binding(get: { columns.contains(index) }, set: { on in if on { columns.insert(index) } else { columns.remove(index) } }))
+                            .toggleStyle(.checkbox).font(.system(size: 12))
+                    }
+                }
+                Toggle("Short codes (first 3 letters of each word)", isOn: $shortWords).toggleStyle(.checkbox).font(.system(size: 12))
+            }
+            Divider()
+            Text(preview.isEmpty ? "Nothing to create yet. Choose at least one field or column." : "\(preview.count) shortcuts · for example:")
+                .font(.caption.weight(.bold)).foregroundStyle(.secondary)
+            ForEach(preview.prefix(4)) { clip in
+                HStack(spacing: 8) {
+                    Text(displayTrigger(clip.key)).font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    Text(clip.text.replacingOccurrences(of: "\n", with: " ")).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                Button("Create \(preview.count) shortcuts") { onCreate(preview, collection.trimmingCharacters(in: .whitespacesAndNewlines)); dismiss() }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral)
+                    .disabled(preview.isEmpty || collection.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20).frame(width: 560)
+    }
+}
+
+// MARK: - Bulk rename
+
+struct DBBulkRenameSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let records: [DBRecord]
+    var onApply: ([String: String], Bool) -> Void   // new names by id, rename files on disk
+
+    @State private var mode = "Add prefix"
+    @State private var find = ""
+    @State private var replacement = ""
+    @State private var renameOnDisk = false
+    private let modes = ["Add prefix", "Add suffix", "Replace prefix", "Replace suffix", "Find & replace", "Lowercase", "UPPERCASE", "Title Case", "Spaces to hyphens"]
+
+    private var hasFiles: Bool { records.contains { $0.kind == "file" } }
+
+    private func transform(_ value: String) -> String {
+        switch mode {
+        case "Add prefix": return find + value
+        case "Add suffix": return value + find
+        case "Replace prefix": return !find.isEmpty && value.hasPrefix(find) ? replacement + value.dropFirst(find.count) : value
+        case "Replace suffix": return !find.isEmpty && value.hasSuffix(find) ? String(value.dropLast(find.count)) + replacement : value
+        case "Find & replace": return find.isEmpty ? value : value.replacingOccurrences(of: find, with: replacement, options: .caseInsensitive)
+        case "Lowercase": return value.lowercased()
+        case "UPPERCASE": return value.uppercased()
+        case "Title Case": return value.capitalized
+        default: return value.split(separator: " ").joined(separator: "-")
+        }
+    }
+
+    /// Files keep their extension; the rule applies to the name only.
+    private func newTitle(_ record: DBRecord) -> String {
+        guard record.kind == "file" else { return transform(record.title) }
+        let ext = (record.title as NSString).pathExtension
+        let base = (record.title as NSString).deletingPathExtension
+        return transform(base) + (ext.isEmpty ? "" : "." + ext)
+    }
+
+    private var needsFind: Bool { ["Add prefix", "Add suffix", "Replace prefix", "Replace suffix", "Find & replace"].contains(mode) }
+    private var needsReplacement: Bool { ["Replace prefix", "Replace suffix", "Find & replace"].contains(mode) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Bulk rename").font(.system(size: 22, weight: .bold, design: .rounded))
+            Text("One rule is applied to the names of all \(records.count) chosen rows.").font(.subheadline).foregroundStyle(.secondary)
+            Picker("Rule", selection: $mode) { ForEach(modes, id: \.self) { Text($0).tag($0) } }
+            if needsFind { TextField(mode.hasPrefix("Add") ? "Text to add" : "Find", text: $find).textFieldStyle(.roundedBorder) }
+            if needsReplacement { TextField("Replace with", text: $replacement).textFieldStyle(.roundedBorder) }
+            if hasFiles {
+                Toggle("Also rename the real files on this Mac", isOn: $renameOnDisk).toggleStyle(.checkbox)
+                Text(renameOnDisk ? "The files themselves are renamed in their folders. Their extensions stay the same." : "Only the names shown in MyDatabase change. The files on your Mac are not touched.")
+                    .font(.caption).foregroundStyle(renameOnDisk ? .orange : .secondary)
+            }
+            Divider()
+            ForEach(records.prefix(5)) { record in
+                HStack(spacing: 8) {
+                    Text(record.title).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
+                    Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(.secondary)
+                    Text(newTitle(record)).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                }
+            }
+            if records.count > 5 { Text("and \(records.count - 5) more").font(.caption).foregroundStyle(.secondary) }
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                Button("Rename \(records.count)") {
+                    var names = [String: String]()
+                    for record in records { names[record.id] = newTitle(record) }
+                    onApply(names, renameOnDisk && hasFiles)
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent).tint(Butter.coral)
+                .disabled(needsFind && find.isEmpty)
+            }
+        }
+        .padding(20).frame(width: 500)
     }
 }
