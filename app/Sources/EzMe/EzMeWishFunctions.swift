@@ -376,6 +376,19 @@ enum WishFormula {
         return String(format: "%.10g", locale: Locale(identifier: "en_US_POSIX"), value)
     }
 
+    /// The time in another city, for "{{worldclock:London}}" and "=WORLDCLOCK(\"London\")".
+    static func worldClock(_ place: String, now: Date) -> String {
+        let aliases = ["london": "Europe/London", "new york": "America/New_York", "tokyo": "Asia/Tokyo",
+                       "sydney": "Australia/Sydney", "india": "Asia/Kolkata", "mumbai": "Asia/Kolkata",
+                       "delhi": "Asia/Kolkata", "dubai": "Asia/Dubai", "singapore": "Asia/Singapore",
+                       "paris": "Europe/Paris", "los angeles": "America/Los_Angeles"]
+        let trimmed = place.trimmingCharacters(in: .whitespacesAndNewlines)
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(identifier: aliases[trimmed.lowercased()] ?? trimmed) ?? .current
+        formatter.dateFormat = "EEE, d MMM yyyy · h:mm a zzz"
+        return formatter.string(from: now)
+    }
+
     static func parseDate(_ text: String) -> Date? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -613,6 +626,9 @@ struct WishEvaluator {
         case "minute": return .number(Double(cal.component(.minute, from: now)))
         case "second": return .number(Double(cal.component(.second, from: now)))
         case "week": return .number(Double(cal.component(.weekOfYear, from: now)))
+        case "unix": return .number(Double(Int(now.timeIntervalSince1970)))
+        case "timestamp": return .text(ISO8601DateFormatter().string(from: now))
+        case "uuid": return .text(UUID().uuidString)
         case "pi": return .number(Double.pi)
         case "true": return .bool(true)
         case "false": return .bool(false)
@@ -1351,6 +1367,8 @@ struct WishEvaluator {
             if hour < 12 { return .text(hindi ? "\u{0938}\u{0941}\u{092A}\u{094D}\u{0930}\u{092D}\u{093E}\u{0924}" : "Good morning") }
             if hour < 17 { return .text(hindi ? "\u{0936}\u{0941}\u{092D} \u{0926}\u{094B}\u{092A}\u{0939}\u{0930}" : "Good afternoon") }
             return .text(hindi ? "\u{0936}\u{0941}\u{092D} \u{0938}\u{0902}\u{0927}\u{094D}\u{092F}\u{093E}" : "Good evening")
+        case "WORLDCLOCK":
+            return .text(WishFormula.worldClock(s(0), now: context.now))
         default:
             return .error("#NAME?")
         }
@@ -1404,6 +1422,9 @@ enum WishFunctionCatalog {
         WishFunctionInfo("Hour", "=Hour", "The hour now, 0 to 23.", "Date & time"),
         WishFunctionInfo("Minute", "=Minute", "The minute now.", "Date & time"),
         WishFunctionInfo("Week", "=Week", "The week number of the year.", "Date & time"),
+        WishFunctionInfo("Unix", "=Unix", "Seconds since 1970, handy for unique numbers.", "Date & time"),
+        WishFunctionInfo("Timestamp", "=Timestamp", "Date and time in ISO form, like 2026-11-12T00:30:00Z.", "Date & time"),
+        WishFunctionInfo("UUID", "=UUID", "A new unique ID each time.", "Date & time"),
     ]
 
     static let all: [WishFunctionInfo] = [
@@ -1535,13 +1556,14 @@ enum WishFunctionCatalog {
         WishFunctionInfo("AGE", "AGE(date)", "Whole years since a date.", "KeyDo extras"),
         WishFunctionInfo("COUNTDOWN", "COUNTDOWN(date)", "Days until that date comes round next (birthdays, anniversaries).", "KeyDo extras"),
         WishFunctionInfo("GREETING", "GREETING()", "Good morning, afternoon or evening (Hindi on Hindi cards).", "KeyDo extras"),
+        WishFunctionInfo("WORLDCLOCK", "WORLDCLOCK(\"London\")", "The time in another city, such as London, Tokyo or Asia/Kolkata.", "KeyDo extras"),
     ]
 
     /// Names that a custom function may not reuse.
     static var reservedNames: Set<String> {
         var names = Set(all.map { $0.name.lowercased() })
         for word in words { names.insert(word.name.lowercased()) }
-        names.formUnion(["pi", "true", "false", "second"])
+        names.formUnion(["pi", "true", "false", "second", "unix", "timestamp", "uuid"])
         return names
     }
 }
