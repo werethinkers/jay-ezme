@@ -659,8 +659,10 @@ enum EzyLink {
 struct EzyFieldsForm: View {
     @ObservedObject var model: EzyRunModel
     var allowFixing = true
+    @StateObject private var guide = EzyVoiceGuide()
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if model.detail != nil { EzyVoiceBar(guide: guide, voice: guide.voice) }
             if let d = model.detail {
                 switch d.mode {
                 case "chat", "image":
@@ -688,6 +690,9 @@ struct EzyFieldsForm: View {
                 }
             }
         }
+        .onAppear { guide.model = model }
+        .onDisappear { guide.stop() }
+        .onChange(of: model.detail?.name) { _ in guide.stop() }
     }
 
     @ViewBuilder func fieldRow(_ f: EzyField) -> some View {
@@ -697,8 +702,9 @@ struct EzyFieldsForm: View {
                 Text(f.label + ((f.required ?? false) ? " *" : "")).font(.system(size: 12, weight: .bold)).foregroundStyle(EzyColor.muted)
                 Spacer()
                 if allowFixing {
-                    Toggle("Keep in shortcut", isOn: Binding(get: { model.fixed.contains(f.key) }, set: { on in if on { model.fixed.insert(f.key) } else { model.fixed.remove(f.key) } }))
-                        .toggleStyle(.checkbox).font(.system(size: 11)).help("When you save this as a shortcut, this box keeps its value. Other boxes are asked each time.")
+                    Toggle("Keep in EzMe shortcut", isOn: Binding(get: { model.fixed.contains(f.key) }, set: { on in if on { model.fixed.insert(f.key) } else { model.fixed.remove(f.key) } }))
+                        .toggleStyle(.checkbox).font(.system(size: 11, weight: .semibold)).fixedSize()
+                        .help("When you save this as a shortcut, this box keeps its value. Other boxes are asked each time.")
                 }
             }
             if let options = f.options, !options.isEmpty, f.type == "select" {
@@ -710,6 +716,9 @@ struct EzyFieldsForm: View {
             }
             if let help = f.help { Text(help).font(.system(size: 11)).foregroundStyle(EzyColor.muted) }
         }
+        .padding(guide.active && guide.current?.key == f.key ? 6 : 0)
+        .background(RoundedRectangle(cornerRadius: 10).fill(guide.active && guide.current?.key == f.key ? EzyColor.sun.opacity(0.28) : Color.clear))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(guide.active && guide.current?.key == f.key ? EzyColor.ink : Color.clear, lineWidth: 2))
     }
 }
 
@@ -992,6 +1001,9 @@ struct EzyAppsView: View {
     @State private var query = ""
     @State private var category = ""
     @State private var selected: String?
+    @ObservedObject private var look = EzyLook.shared
+    @State private var lookSheet: EzyHomeSheet?
+    @State private var lookNote = ""
 
     var shown: [EzyApp] {
         var list = api.catalogue.filter { $0.runnable }
@@ -1014,6 +1026,11 @@ struct EzyAppsView: View {
             }
             if !api.isConnected { EzyConnectCard() }
             TextField("Search apps: letter, invoice, photo, post, rent…", text: $query).textFieldStyle(.roundedBorder).font(.system(size: 14))
+            HStack(spacing: 6) {
+                Image(systemName: "ellipsis.circle").foregroundStyle(EzyColor.muted)
+                Text(lookNote.isEmpty ? "Click an app to open it. Use the ··· on a card to add a cover picture, GIF or video, or change its icon." : lookNote)
+                    .font(.system(size: 11)).foregroundStyle(EzyColor.muted)
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     chip("All", color: EzyColor.ink, on: category.isEmpty) { category = "" }
@@ -1022,7 +1039,7 @@ struct EzyAppsView: View {
             }
             HStack(alignment: .top, spacing: 16) {
                 ScrollView {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 12)], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 236, maximum: 300), spacing: 16)], spacing: 16) {
                         ForEach(shown) { app in card(app) }
                     }.padding(4)
                 }
@@ -1046,6 +1063,17 @@ struct EzyAppsView: View {
             if api.catalogue.isEmpty { HStack { ProgressView().controlSize(.small); Text("Loading apps from ezyourlife.com…").foregroundStyle(EzyColor.muted) } }
         }
         .task { await api.refreshCatalogue(); await api.refreshWallet() }
+        .onReceive(NotificationCenter.default.publisher(for: .ezmeBuilderIconChanged)) { _ in look.revision += 1 }
+        .sheet(item: $lookSheet) { sheet in
+            switch sheet {
+            case .icon(let app):
+                AppIconGallerySheet(appName: app.name, selected: look.selectedSymbol(app.id).isEmpty ? automaticAppIcon(app.name) : look.selectedSymbol(app.id)) { symbol in
+                    look.setSymbol(app.id, symbol); lookNote = "Icon updated for \(app.name)."
+                }
+            case .crop(let app):
+                EzCoverFramingSheet(app: EzyLook.framingName(app.id), path: look.coverPath(app.id))
+            }
+        }
     }
 
     func chip(_ title: String, color: Color, on: Bool, action: @escaping () -> Void) -> some View {
@@ -1058,21 +1086,30 @@ struct EzyAppsView: View {
     }
 
     func card(_ app: EzyApp) -> some View {
-        Button {
-            selected = app.id
-            Task { await model.open(app.id) }
-        } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                RoundedRectangle(cornerRadius: 8).fill(EzyColor.goal(app.goal_color)).frame(width: 26, height: 26).overlay(RoundedRectangle(cornerRadius: 8).stroke(EzyColor.ink, lineWidth: 2))
-                Text(app.name).font(.system(size: 14, weight: .bold)).foregroundStyle(EzyColor.ink).lineLimit(2)
-                Text(app.description).font(.system(size: 12)).foregroundStyle(EzyColor.muted).lineLimit(3)
-                Spacer(minLength: 0)
-                EzyBadge(text: ezyCredits(app.credits))
-            }
-            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
-            .padding(12)
-            .ezyBlock(selected == app.id ? EzyColor.cream : .white, radius: 16, shadow: selected == app.id ? 5 : 3)
-        }.buttonStyle(.plain)
+        let _ = look.revision
+        let tint = EzyColor.goal(app.goal_color)
+        return AppGalleryCard(
+            title: app.name,
+            description: app.description,
+            sample: "",
+            category: app.category,
+            icon: look.symbol(app.id, name: app.name),
+            iconPath: look.iconPath(app.id),
+            coverPath: look.coverPath(app.id),
+            credits: String(app.credits ?? 1),
+            colors: [tint, tint.opacity(0.62)],
+            action: {
+                selected = app.id
+                Task { await model.open(app.id) }
+            },
+            coverFraming: EzCoverFraming.load(EzyLook.framingName(app.id)),
+            showsCredits: true,
+            badge: "EZYOURLIFE"
+        )
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(selected == app.id ? Butter.coral : Color.clear, lineWidth: 3))
+        .overlay(alignment: .topTrailing) {
+            EzyLookMenu(app: app, look: look, sheet: $lookSheet, note: $lookNote).padding(10)
+        }
     }
 }
 
