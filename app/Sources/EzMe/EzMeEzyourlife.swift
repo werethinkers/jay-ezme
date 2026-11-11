@@ -660,6 +660,7 @@ struct EzyFieldsForm: View {
     @ObservedObject var model: EzyRunModel
     var allowFixing = true
     @StateObject private var guide = EzyVoiceGuide()
+    @FocusState private var focusedKey: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if model.detail != nil { EzyVoiceBar(guide: guide, voice: guide.voice) }
@@ -693,6 +694,11 @@ struct EzyFieldsForm: View {
         .onAppear { guide.model = model }
         .onDisappear { guide.stop() }
         .onChange(of: model.detail?.name) { _ in guide.stop() }
+        // Where you click or press Tab, voice follows; where voice moves, the cursor follows.
+        .onChange(of: focusedKey) { key in if let key { guide.select(key) } }
+        .onChange(of: guide.index) { _ in
+            if guide.active, let key = guide.current?.key, focusedKey != key { focusedKey = key }
+        }
     }
 
     @ViewBuilder func fieldRow(_ f: EzyField) -> some View {
@@ -702,20 +708,27 @@ struct EzyFieldsForm: View {
                 Text(f.label + ((f.required ?? false) ? " *" : "")).font(.system(size: 12, weight: .bold)).foregroundStyle(EzyColor.muted)
                 Spacer()
                 if allowFixing {
-                    Toggle("Keep in EzMe shortcut", isOn: Binding(get: { model.fixed.contains(f.key) }, set: { on in if on { model.fixed.insert(f.key) } else { model.fixed.remove(f.key) } }))
-                        .toggleStyle(.checkbox).font(.system(size: 11, weight: .semibold)).fixedSize()
-                        .help("When you save this as a shortcut, this box keeps its value. Other boxes are asked each time.")
+                    HStack(spacing: 4) {
+                        Image(systemName: model.fixed.contains(f.key) ? "pin.fill" : "pin").font(.system(size: 10)).foregroundStyle(EzyColor.muted)
+                        Toggle("", isOn: Binding(get: { model.fixed.contains(f.key) }, set: { on in if on { model.fixed.insert(f.key) } else { model.fixed.remove(f.key) } }))
+                            .toggleStyle(.checkbox).labelsHidden().fixedSize()
+                    }
+                    .help("Keep in EzMe shortcut: when you save this as a shortcut, this box keeps its value. Other boxes are asked each time.")
                 }
             }
             if let options = f.options, !options.isEmpty, f.type == "select" {
                 Picker("", selection: binding) { Text("Choose…").tag(""); ForEach(options, id: \.self) { Text($0).tag($0) } }.labelsHidden()
             } else if f.type == "textarea" || f.type == "rows" {
                 TextEditor(text: binding).font(.system(size: 13)).frame(minHeight: 54).padding(4).ezyBlock(.white, radius: 10, shadow: 0)
+                    .focused($focusedKey, equals: f.key)
             } else {
                 TextField(f.placeholder ?? "", text: binding).textFieldStyle(.roundedBorder)
+                    .focused($focusedKey, equals: f.key)
             }
             if let help = f.help { Text(help).font(.system(size: 11)).foregroundStyle(EzyColor.muted) }
         }
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture().onEnded { guide.select(f.key) })
         .padding(guide.active && guide.current?.key == f.key ? 6 : 0)
         .background(RoundedRectangle(cornerRadius: 10).fill(guide.active && guide.current?.key == f.key ? EzyColor.sun.opacity(0.28) : Color.clear))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(guide.active && guide.current?.key == f.key ? EzyColor.ink : Color.clear, lineWidth: 2))

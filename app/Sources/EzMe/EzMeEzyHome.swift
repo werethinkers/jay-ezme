@@ -175,6 +175,12 @@ struct EzyLookMenu: View {
         return fields.firstIndex { (model.values[$0.key] ?? "").trimmingCharacters(in: .whitespaces).isEmpty } ?? 0
     }
 
+    /// The person clicked or tabbed into a box: voice answers go there now.
+    func select(_ key: String) {
+        guard active, let position = fields.firstIndex(where: { $0.key == key }), position != index else { return }
+        index = position; note = ""
+    }
+
     func skip() { move(to: index + 1) }
     func back() { move(to: max(0, index - 1)) }
 

@@ -1,5 +1,4 @@
-## Fewer Mac password prompts after an update
+## Ezyourlife voice fill follows your cursor
 
-- All your saved keys (AI keys, private browser key and PIN, Ezyourlife key, and others) are now kept in one Keychain item instead of one item each. After an update, macOS asks for your Mac password about once instead of 6-7 times.
-- The first launch after this update moves your existing keys into the single item. It can still ask a few times, one last time. Choose "Always Allow" each time.
-- Nothing needs to be re-entered. Your keys are copied over automatically.
+- Fill by voice now goes into the box you click or Tab into. Change boxes with the mouse or Tab and your next words fill that box. Voice moving to the next box also puts the cursor there.
+- "Keep in EzMe shortcut" is now a small pin and checkbox on each box. The full wording shows when you hover, so the form is no longer crowded.
