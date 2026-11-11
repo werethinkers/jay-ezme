@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 227,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build227/EzMe-3.44-macOS.zip",
-  "sha256": "b49ac0d3f3bf4098f29781e9e6c94e5f9e425bfdf0b14ba5b8e63107dad3d22d",
-  "notes": "File Renamer: small previews and manual edit\n\n- Each file in the File Renamer list shows a small preview. Hover over it, or click it, to see the picture, GIF or video larger.\n- Every new name has a small pencil button to type the name by hand. Hand-edited names show in colour with an undo arrow to go back to the rule's name. The file extension is kept.",
-  "published": "2026-11-10T12:43:49Z",
+  "build": 228,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build228/EzMe-3.44-macOS.zip",
+  "sha256": "0a2d5c6925329a8f5f80bd84858f42120aceb8b66a18f0c094d1acf8c8615217",
+  "notes": "File Renamer: tidier list that scrolls\n\n- The file list now has column headings, even rows with clear spacing, and its own scroll bar, so long lists scroll. The whole page scrolls too when the window is short.\n- The pencil button now sits immediately to the left of the new name. Hand-edited names show in colour with an undo arrow at the right of the name.",
+  "published": "2026-11-11T04:49:20Z",
   "minimumSystemVersion": "14.0"
 }
