@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 234,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build234/EzMe-3.44-macOS.zip",
-  "sha256": "4d1b89a2c994cb2e42e676ccdca9c00cb935d9b2813faf6d724257ecc643a60b",
-  "notes": "## New app: MyDatabase\n\n- MyDatabase is a new built-in app in AppBuilder, next to Collection Builder. It cannot be removed.\n- Contacts: add by hand or import VCF or CSV files. Duplicates are skipped.\n- Links: add a link, paste a list (one per line, \"Name | link\" to name one), or import a CSV.\n- Files: keep direct links to local files and folders. Drop files in, open them, show them in Finder, and check for broken links.\n- Tables: upload a CSV, then edit cells, add rows and columns, and export it again.\n- Shortcuts: search your shortcut database, open any shortcut to edit it, or copy all shortcuts into an editable table.\n- Everything has search, collections, tags, notes, select several to move or delete, and Export CSV.\n- File Renamer moved here from Ez Studio. When you rename files, their saved links update to the new names.",
-  "published": "2026-11-11T09:03:26Z",
+  "build": 235,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build235/EzMe-3.44-macOS.zip",
+  "sha256": "16e298aaef715f9b667788968852995da7c825f4fb095d381ae5a49dfa932035",
+  "notes": "## Cleaner browser toolbar\n\n- The address bar is about 10% shorter. The buttons beside it are matching icon buttons, just under the bar's height, in the main browser and in the side panels.\n- No more text in the browser toolbar. Every button is an icon, and hovering shows what it does.\n- In narrow panels the less-used buttons (go, save link, zoom, bookmarks, collections, import, incognito, private, split view) fold into one \"more\" menu so the address bar keeps its space.",
+  "published": "2026-11-11T09:15:09Z",
   "minimumSystemVersion": "14.0"
 }
