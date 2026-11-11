@@ -197,7 +197,7 @@ final class EzMeUpdater: ObservableObject {
             try fm.createDirectory(at: extracted, withIntermediateDirectories: true)
             try Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, extracted.path])
             guard let newApp = try fm.contentsOfDirectory(at: extracted, includingPropertiesForKeys: nil).first(where: { $0.pathExtension == "app" }) else {
-                throw EzMeUpdateError.message("The download did not contain the EzMe app.")
+                throw EzMeUpdateError.message("The download did not contain the KeyDo app.")
             }
             try verify(newApp: newApp, manifest: manifest)
 
@@ -205,7 +205,7 @@ final class EzMeUpdater: ObservableObject {
             let parent = current.deletingLastPathComponent()
             guard fm.isWritableFile(atPath: parent.path) else {
                 NSWorkspace.shared.activateFileViewerSelecting([newApp])
-                throw EzMeUpdateError.message("EzMe can't write to \(parent.path). The new version is open in Finder: drag it into Applications to finish.")
+                throw EzMeUpdateError.message("KeyDo can't write to \(parent.path). The new version is open in Finder: drag it into Applications to finish.")
             }
             // Use a clean "EzMe.app" name when possible, so "EzMe 3.38.app" does not keep an old version in its name.
             var destination = parent.appendingPathComponent("EzMe.app")
@@ -266,7 +266,7 @@ final class EzMeUpdater: ObservableObject {
         guard let info = NSDictionary(contentsOf: newApp.appendingPathComponent("Contents/Info.plist")),
               let bundleID = info["CFBundleIdentifier"] as? String,
               bundleID == Bundle.main.bundleIdentifier else {
-            throw EzMeUpdateError.message("The download is not an EzMe build.")
+            throw EzMeUpdateError.message("The download is not a KeyDo build.")
         }
         let newBuild = Int(info["CFBundleVersion"] as? String ?? "0") ?? 0
         guard newBuild > currentBuild else {
@@ -296,7 +296,7 @@ final class EzMeUpdater: ObservableObject {
         var requirement: SecRequirement?
         guard SecCodeCopyDesignatedRequirement(selfStatic, [], &requirement) == errSecSuccess, let requirement else { return }
         guard SecStaticCodeCheckValidity(newCode, strict, requirement) == errSecSuccess else {
-            throw EzMeUpdateError.message("The new app is not signed by the EzMe publisher. Nothing was changed.")
+            throw EzMeUpdateError.message("The new app is not signed by the KeyDo publisher. Nothing was changed.")
         }
     }
 
@@ -395,7 +395,7 @@ struct EzMeUpdateSheet: View {
             HStack(spacing: 12) {
                 Image(systemName: "arrow.down.app.fill").font(.system(size: 34)).foregroundStyle(.purple)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("EzMe updates").font(.title2.bold())
+                    Text("KeyDo updates").font(.title2.bold())
                     Text("This Mac has version \(updater.currentVersion) (build \(String(updater.currentBuild))).")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
@@ -442,7 +442,7 @@ struct EzMeUpdateSheet: View {
                         .padding(10)
                         .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
                 }
-                Text("EzMe will download the update, replace itself and reopen. Your shortcuts, media and settings stay as they are.")
+                Text("KeyDo will download the update, replace itself and reopen. Your shortcuts, media and settings stay as they are.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         case .downloading(let value):
@@ -451,7 +451,7 @@ struct EzMeUpdateSheet: View {
                 ProgressView(value: value)
             }
         case .installing:
-            HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Installing. EzMe will reopen in a moment.") }
+            HStack(spacing: 10) { ProgressView().controlSize(.small); Text("Installing. KeyDo will reopen in a moment.") }
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
         }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds EzMe.app and a distributable zip. Runs on macOS with Xcode command line tools.
+# Builds KeyDo (the app bundle file is still named EzMe.app so installed copies update in place) and a distributable zip. Runs on macOS with Xcode command line tools.
 #   BUILD_NUMBER   CFBundleVersion (default: 169)
 #   OUT_DIR        output folder (default: app/build)
 #   SIGN_IDENTITY  codesign identity (name or SHA-1). Empty = ad-hoc signature.
@@ -14,14 +14,17 @@ APP="$OUT/EzMe.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-echo "Compiling EzMe $VERSION ($BUILD)..."
+echo "Compiling KeyDo $VERSION ($BUILD)..."
 xcrun swiftc -O -parse-as-library -swift-version 5 \
   -target arm64-apple-macos14.0 \
   -sdk "$(xcrun --show-sdk-path --sdk macosx)" \
   Sources/EzMe/*.swift \
   -o "$APP/Contents/MacOS/EzMe"
 
-cp Sources/EzMe/Resources/*.png "$APP/Contents/Resources/"
+cp Sources/EzMe/Resources/*.png Sources/EzMe/Resources/AppIcon.icns "$APP/Contents/Resources/"
+# The installed file stays EzMe.app so existing installs update in place; Finder and the menu bar show KeyDo.
+mkdir -p "$APP/Contents/Resources/en.lproj"
+printf '"CFBundleDisplayName" = "KeyDo";\n"CFBundleName" = "KeyDo";\n' > "$APP/Contents/Resources/en.lproj/InfoPlist.strings"
 sed -e "s/__VERSION__/$VERSION/" -e "s/__BUILD__/$BUILD/" Info.plist > "$APP/Contents/Info.plist"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 plutil -lint "$APP/Contents/Info.plist"

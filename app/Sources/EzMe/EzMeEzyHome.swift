@@ -303,7 +303,7 @@ struct EzyVoiceBar: View {
                         .overlay(Capsule().stroke(EzyColor.ink, lineWidth: 2))
                 }
                 .buttonStyle(.plain)
-                .help("Speak your answers. EzMe guides you through the boxes one by one.")
+                .help("Speak your answers. KeyDo guides you through the boxes one by one.")
                 Picker("", selection: Binding(get: { guide.language }, set: { guide.changeLanguage($0) })) {
                     Text("English").tag("en-IN")
                     Text("\u{0939}\u{093F}\u{0928}\u{094D}\u{0926}\u{0940}").tag("hi-IN")

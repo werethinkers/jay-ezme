@@ -1,4 +1,4 @@
-# EzMe: how changes ship
+# KeyDo (formerly EzMe): how changes ship
 
 Repo `werethinkers/jay-ezme` is the single source of truth. Work on `main` only.
 
@@ -26,5 +26,7 @@ Repo `werethinkers/jay-ezme` is the single source of truth. Work on `main` only.
 6. Tell the user what changed, the new version and build, and what you could not verify (the app is not opened from here).
 
 ## Known
+
+- The product is now called KeyDo (renamed 2026-11-12). Only what people see changed. The repo, bundle id (`com.ezme.mac`), executable, `EzMe.app` file name, `EzMe-*.zip` release files, workflow names, the site address and the Lovable project keep their EzMe names so installed copies update in place. Logo, icon and brand rules are in `brand/`.
 
 - 3.41 adds cloud sync with email-and-password accounts (Supabase Auth in the EzMe Marketing Backend). Google sign-in was tried and dropped on 2026-11-07. The Mac smoke test checks that email sign-in is enabled.

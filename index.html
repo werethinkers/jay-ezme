@@ -3,33 +3,34 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>EzMe: Type a backslash. Ho gaya!</title>
-<meta name="description" content="EzMe for Mac turns a backslash and a short key into saved text, media, live values, calculations and AI-written documents, in any app. Local by default.">
+<title>KeyDo: Type less. Say less. Do more.</title>
+<meta name="description" content="KeyDo for Mac turns a backslash and a short key into saved text, media, live values, calculations and AI-written documents, in any app. Local by default.">
 <link rel="canonical" href="https://ezme.ezyourlife.com/">
-<meta name="theme-color" content="#F8F5FC">
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#F8EFE1">
+<link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="assets/favicon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="EzMe">
-<meta property="og:title" content="EzMe: Type a backslash. Ho gaya!">
+<meta property="og:site_name" content="KeyDo">
+<meta property="og:title" content="KeyDo: Type less. Say less. Do more.">
 <meta property="og:description" content="Shortcuts, live values, a built-in calculator and AI builders for your Mac. Your library stays on your Mac.">
 <meta property="og:url" content="https://ezme.ezyourlife.com/">
 <meta property="og:image" content="https://ezme.ezyourlife.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
 html{padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}
-/* Layout: light lavender ground, dark "night" bands for AI and live values, one interactive demo as the hero's centre of gravity.
-   Single look by choice: the logo is violet and gold ink and needs a light ground. */
+/* Layout: light cream ground, dark "night" bands for AI and live values, one interactive demo as the hero's centre of gravity.
+   Single look by choice: KeyDo brand colours are charcoal, cream and coral (see brand/BRAND.md). */
 :root{
-  --ground:#F8F5FC; --panel:#FFFFFF; --line:#E4DBF1; --line-2:#D3C6E8;
-  --ink:#1D1035; --ink-2:#51446E; --ink-3:#7A6E94;
-  --violet:#5B2A9E; --violet-soft:#EEE6FA;
-  --gold:#B26A00; --gold-bright:#F2B33D; --gold-soft:#FCEFD3;
-  --night:#150C2B; --night-2:#21153F; --night-line:#352559; --night-ink:#F3EEFB; --night-ink-2:#B9ACD6;
+  --ground:#F8EFE1; --panel:#FFFFFF; --line:#E8DCC6; --line-2:#D8C8A8;
+  --ink:#1D2022; --ink-2:#4B5053; --ink-3:#6F7476;
+  --violet:#BC3F17; --violet-soft:#FDE6DA;
+  --gold:#BC3F17; --gold-bright:#FC774D; --gold-soft:#FFE9DE;
+  --night:#1D2022; --night-2:#2A2E31; --night-line:#3B4044; --night-ink:#F8EFE1; --night-ink-2:#BDB7AA;
   --ok:#1F7A4D;
-  --display:"Instrument Serif","Iowan Old Style",Georgia,serif;
+  --display:"Poppins","Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
   --sans:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   color-scheme:light;
@@ -48,21 +49,22 @@ p{margin:0}
 .eyebrow{font:600 .74rem/1 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--gold)}
 .mono{font-family:var(--mono)}
 .btn{display:inline-flex;align-items:center;gap:.55rem;font:600 .95rem/1 var(--sans);padding:.95rem 1.3rem;border-radius:12px;text-decoration:none;border:1px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .15s,background .15s}
-.btn-primary{background:var(--ink);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.15) inset,0 10px 24px -10px rgba(29,16,53,.55)}
-.btn-primary:hover{transform:translateY(-1px);background:#2c1a4d}
+.btn-primary{background:var(--ink);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.15) inset,0 10px 24px -10px rgba(29,32,34,.5)}
+.btn-primary:hover{transform:translateY(-1px);background:#2A2E31}
 .btn-ghost{background:transparent;border-color:var(--line-2);color:var(--ink)}
 .btn-ghost:hover{background:var(--violet-soft)}
-.btn-gold{background:var(--gold-bright);color:#2A1A00;box-shadow:0 10px 26px -12px rgba(242,179,61,.9)}
+.btn-gold{background:var(--gold-bright);color:#1D2022;box-shadow:0 10px 26px -12px rgba(252,119,77,.8)}
 .btn-gold:hover{transform:translateY(-1px)}
 svg.i{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
 
 /* nav */
-.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(248,245,252,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(248,239,225,.88);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-inline:calc(-1 * max(16px,env(safe-area-inset-left,0px)));padding-inline:max(16px,env(safe-area-inset-left,0px))}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--ground);z-index:30}
 .nav .wrap{display:flex;align-items:center;gap:1.5rem;height:64px}
-.brand{font:italic 400 1.9rem/1 var(--display);text-decoration:none;letter-spacing:-.01em}
-.brand b{font-weight:400;color:var(--violet)}
-.brand span{color:var(--gold)}
+.brand{display:inline-flex;align-items:center;text-decoration:none}
+.brand img{display:block;height:46px;width:auto}
+h1,h2,h3,.step .no{font-weight:700;letter-spacing:-.03em}
+h1 em,.step .no{font-style:normal}
 .nav ul{display:flex;gap:1.6rem;list-style:none;margin:0 auto 0 1.5rem;padding:0}
 .nav ul a{text-decoration:none;color:var(--ink-2);font-weight:500;font-size:.93rem}
 .nav ul a:hover{color:var(--ink)}
@@ -74,7 +76,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .pill{display:inline-flex;gap:.6rem;align-items:center;font:500 .82rem/1 var(--sans);color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:.45rem .8rem .45rem .5rem}
 .pill i{font-style:normal;background:var(--gold-soft);color:var(--gold);font-weight:700;font-size:.7rem;letter-spacing:.06em;padding:.2rem .5rem;border-radius:99px}
 h1{font-size:clamp(3rem,7.2vw,5.6rem);margin:1.1rem 0 1.1rem}
-h1 em{font-style:italic;color:var(--violet)}
+h1 em{font-style:normal;color:var(--violet)}
 h1 .bs{font-family:var(--mono);font-size:.78em;color:var(--gold);font-weight:500;margin-right:.04em}
 .lede{font-size:1.15rem;color:var(--ink-2);max-width:34rem}
 .cta-row{display:flex;flex-wrap:wrap;gap:.75rem;margin-top:1.8rem}
@@ -83,9 +85,9 @@ h1 .bs{font-family:var(--mono);font-size:.78em;color:var(--gold);font-weight:500
 .meta-row svg{color:var(--violet)}
 
 .stage{position:relative}
-.logo-float{position:absolute;right:-4%;top:-92px;width:clamp(150px,22vw,250px);z-index:3;pointer-events:none;animation:bob 7s ease-in-out infinite;filter:drop-shadow(0 14px 22px rgba(91,42,158,.18))}
+.logo-float{height:auto;position:absolute;right:-4%;top:-92px;width:clamp(92px,20vw,230px);z-index:3;pointer-events:none;animation:bob 7s ease-in-out infinite;filter:drop-shadow(0 14px 22px rgba(188,63,23,.18))}
 @keyframes bob{50%{transform:translateY(-8px) rotate(-.6deg)}}
-.win{background:var(--panel);border:1px solid var(--line-2);border-radius:18px;box-shadow:0 40px 80px -40px rgba(60,30,110,.45),0 2px 0 #fff inset;margin-top:92px;position:relative}
+.win{background:var(--panel);border:1px solid var(--line-2);border-radius:18px;box-shadow:0 40px 80px -40px rgba(29,32,34,.3),0 2px 0 #fff inset;margin-top:92px;position:relative}
 .win-bar{display:flex;align-items:center;gap:.5rem;padding:.8rem 1rem;border-bottom:1px solid var(--line);font-size:.8rem;color:var(--ink-3)}
 .dots{display:flex;gap:.4rem}.dots i{width:11px;height:11px;border-radius:50%;background:var(--line-2)}
 .win-bar .t{margin-left:.6rem;font-weight:500;color:var(--ink-2)}
@@ -93,7 +95,7 @@ h1 .bs{font-family:var(--mono);font-size:.78em;color:var(--gold);font-weight:500
 .win-bar .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok)}
 #demo-field{display:block;width:100%;min-height:172px;border:0;resize:none;padding:1.1rem 1.2rem;font:400 1rem/1.65 var(--sans);color:var(--ink);background:transparent;border-radius:0 0 18px 18px}
 #demo-field:focus{outline:none;box-shadow:inset 0 -2px 0 var(--violet)}
-.pop{margin:0 .9rem .9rem;background:var(--night);color:var(--night-ink);border-radius:14px;padding:.4rem;box-shadow:0 18px 40px -18px rgba(21,12,43,.8);border:1px solid var(--night-line)}
+.pop{margin:0 .9rem .9rem;background:var(--night);color:var(--night-ink);border-radius:14px;padding:.4rem;box-shadow:0 18px 40px -18px rgba(29,32,34,.85);border:1px solid var(--night-line)}
 .pop[hidden]{display:none!important}
 .pop-head{display:flex;justify-content:space-between;padding:.45rem .7rem .35rem;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--night-ink-2)}
 .pop button{all:unset;box-sizing:border-box;width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.8rem;align-items:center;padding:.55rem .7rem;border-radius:9px;cursor:pointer}
@@ -169,7 +171,7 @@ kbd{font:500 .82rem var(--mono);background:var(--violet-soft);color:var(--violet
 .cats div{display:grid;grid-template-columns:9.5rem minmax(0,1fr);gap:1rem;font-size:.92rem;color:var(--ink-2);padding-top:.9rem;border-top:1px solid var(--line)}
 .cats b{color:var(--ink);font-weight:600}
 .sheets{position:relative;min-height:520px}
-.sheets figure{margin:0;position:absolute;background:#fff;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(60,30,110,.5)}
+.sheets figure{margin:0;position:absolute;background:#fff;border:1px solid var(--line-2);border-radius:10px;overflow:hidden;box-shadow:0 30px 60px -30px rgba(29,32,34,.35)}
 .sheets img{display:block;width:100%;height:auto}
 .sheets figcaption{font-size:.72rem;color:var(--ink-3);padding:.45rem .7rem;border-top:1px solid var(--line);background:var(--ground)}
 .sheets .s1{left:0;top:0;width:56%;transform:rotate(-2.5deg)}
@@ -207,7 +209,7 @@ kbd{font:500 .82rem var(--mono);background:var(--violet-soft);color:var(--violet
 @media (max-width:980px){.news{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:520px){.nform .two{grid-template-columns:minmax(0,1fr)}}
 footer{padding-block:36px 48px;display:flex;flex-wrap:wrap;gap:1rem 2rem;justify-content:space-between;align-items:center;color:var(--ink-3);font-size:.86rem}
-footer .brand{font-size:1.5rem}
+footer .brand img{height:42px}
 
 @media (max-width:980px){
   .hero-grid,.docs,.dl{grid-template-columns:minmax(0,1fr)}
@@ -216,7 +218,7 @@ footer .brand{font-size:1.5rem}
   .perm{grid-template-columns:repeat(2,minmax(0,1fr))}
   .c7,.c5,.c6,.c4,.c8{grid-column:span 12}
   .nav ul{display:none}.nav .btn{margin-left:auto}
-  .logo-float{right:2%}
+  .logo-float{right:2%;top:-64px}
   .sheets{min-height:480px}
 }
 @media (max-width:520px){
@@ -253,7 +255,7 @@ footer .brand{font-size:1.5rem}
 
 <nav class="nav" aria-label="Primary">
   <div class="wrap">
-    <a class="brand" href="#top" aria-label="EzMe home"><b>ez</b><span>me</span></a>
+    <a class="brand" href="#top" aria-label="KeyDo home"><img src="assets/keydo-logo.png" width="154" height="44" alt="KeyDo: Type less. Say less. Do more."></a>
     <ul>
       <li><a href="#how">How it works</a></li>
       <li><a href="#highlights">Highlights</a></li>
@@ -270,8 +272,8 @@ footer .brand{font-size:1.5rem}
   <div class="hero-grid">
     <div>
       <span class="pill"><i>NEW</i> Version <span data-ezv>3.38</span> for Mac</span>
-      <h1><span class="bs">\</span>Type it once.<br><em>Ho gaya!</em></h1>
-      <p class="lede">EzMe turns a backslash and a short key into saved text, media, websites, live values and AI-written documents, inside any app on your Mac.</p>
+      <h1><span class="bs">\</span>Type less. Say less.<br><em>Do more.</em></h1>
+      <p class="lede">KeyDo turns a backslash and a short key into saved text, media, websites, live values and AI-written documents, inside any app on your Mac.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#download"><svg class="i"><use href="#i-down"/></svg>Download for macOS</a>
         <a class="btn btn-ghost" href="#everything">See every feature</a>
@@ -283,7 +285,7 @@ footer .brand{font-size:1.5rem}
     </div>
 
     <div class="stage">
-      <img class="logo-float" src="assets/ezme-logo.png" alt="EzMe logo: a genie lamp with violet and gold smoke forming the word ezme, with the tagline Ho Gaya">
+      <img class="logo-float" src="assets/keydo-icon.png" width="220" height="220" alt="KeyDo icon: a speech bubble with an arrow">
       <div class="win">
         <div class="win-bar"><div class="dots"><i></i><i></i><i></i></div><span class="t">Reply to Meera</span><span class="live">Try it</span></div>
         <label for="demo-field" class="sr" style="position:absolute;left:-9999px">Practice typing a backslash shortcut</label>
@@ -317,7 +319,7 @@ Your invoice is ready. \t</textarea>
   <div class="sec-head">
     <span class="eyebrow">How it works</span>
     <h2>Three keystrokes between you and done.</h2>
-    <p>No window to open and no app to switch to. EzMe waits in the background until you type a backslash.</p>
+    <p>No window to open and no app to switch to. KeyDo waits in the background until you type a backslash.</p>
   </div>
   <div class="steps">
     <div class="step"><span class="no">1</span><h3>Type a backslash</h3><p>In any text field, type <span class="mono">\</span> followed by the start of a shortcut key. A popup lists everything that matches.</p><div class="keys"><kbd>\</kbd><kbd>inv</kbd></div></div>
@@ -360,7 +362,7 @@ Your invoice is ready. \t</textarea>
     <article class="card c6">
       <div class="ic"><svg class="i"><use href="#i-globe"/></svg></div>
       <h3>A browser that knows your shortcuts</h3>
-      <p>EzMe Browser has tabs, named tab groups, favourites and a start page. Import Chrome bookmarks, turn on a magnifier lens for fine detail, and lock the whole workspace behind a six-digit Private Mode passcode.</p>
+      <p>KeyDo Browser has tabs, named tab groups, favourites and a start page. Import Chrome bookmarks, turn on a magnifier lens for fine detail, and lock the whole workspace behind a six-digit Private Mode passcode.</p>
     </article>
     <article class="card c6">
       <div class="ic"><svg class="i"><use href="#i-img"/></svg></div>
@@ -375,7 +377,7 @@ Your invoice is ready. \t</textarea>
     <div>
       <span class="eyebrow">Documents and writing</span>
       <h2 style="font-size:clamp(2.2rem,4.6vw,3.6rem);margin:.8rem 0 1rem;color:var(--night-ink)">From saved records to a finished page.</h2>
-      <p style="color:var(--night-ink-2);font-size:1.08rem;max-width:34rem">Keep customers, products, candidates or contacts as collections. Pick records, fill the gaps, and EzMe builds the document from your template. Totals and GST can be calculated on your Mac with no AI call at all.</p>
+      <p style="color:var(--night-ink-2);font-size:1.08rem;max-width:34rem">Keep customers, products, candidates or contacts as collections. Pick records, fill the gaps, and KeyDo builds the document from your template. Totals and GST can be calculated on your Mac with no AI call at all.</p>
       <div class="cats" style="--c:var(--night-ink-2)">
         <div style="border-color:var(--night-line);color:var(--night-ink-2)"><b style="color:var(--night-ink)">Finance &amp; billing</b><span>Quotation, invoice, purchase order, payment receipt, payment reminder, business report</span></div>
         <div style="border-color:var(--night-line);color:var(--night-ink-2)"><b style="color:var(--night-ink)">Legal &amp; agreements</b><span>Agreement builder, appointment letter, offer of employment, proposal builder</span></div>
@@ -446,7 +448,7 @@ Your invoice is ready. \t</textarea>
       <li><span><b>File Renamer</b> for tidying batches of media files</span></li>
       <li><span>Video generation through a Google Gemini profile</span></li>
     </ul></div>
-    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-globe"/></svg></span>EzMe Browser</h3><ul>
+    <div class="grp"><h3><span class="ic"><svg class="i"><use href="#i-globe"/></svg></span>KeyDo Browser</h3><ul>
       <li><span>Tabs, named <b>tab groups</b> and a favourites start page</span></li>
       <li><span>Save any page to Favourites with a note on why you saved it</span></li>
       <li><span>Import Google Chrome bookmarks, from an HTML export or a profile</span></li>
@@ -489,11 +491,11 @@ Your invoice is ready. \t</textarea>
 <section id="download"><div class="wrap">
   <div class="dl">
     <div>
-      <span class="eyebrow">Get EzMe</span>
+      <span class="eyebrow">Get KeyDo</span>
       <h2>Ready when you are.</h2>
       <p>Download the Mac app, create a local account in under a minute, and type your first backslash.</p>
       <div class="cta-row">
-        <a class="btn btn-gold" href="downloads/EzMe-3.38-macOS.zip" data-ezdl download><svg class="i"><use href="#i-down"/></svg>Download EzMe <span data-ezv>3.38</span></a>
+        <a class="btn btn-gold" href="downloads/EzMe-3.38-macOS.zip" data-ezdl download><svg class="i"><use href="#i-down"/></svg>Download KeyDo <span data-ezv>3.38</span></a>
         <a class="btn btn-ghost" href="#everything">Review features</a>
       </div>
     </div>
@@ -504,20 +506,20 @@ Your invoice is ready. \t</textarea>
       <div><span>Package</span><b>.zip, about 4.4 MB</b></div>
       <div><span>Account</span><b>Local, no email needed</b></div>
     </div>
-    <p class="tip">First launch: unzip, drag EzMe to Applications, then right-click it and choose Open. If macOS still blocks it, open System Settings, Privacy &amp; Security, and click Open Anyway. You only do this once: after that, EzMe updates itself from the sidebar.</p>
+    <p class="tip">First launch: unzip, drag KeyDo to Applications, then right-click it and choose Open. If macOS still blocks it, open System Settings, Privacy &amp; Security, and click Open Anyway. You only do this once: after that, KeyDo updates itself from the sidebar.</p>
   </div>
 
   <div class="news" id="updates">
     <div>
       <h3>Hear about new releases.</h3>
-      <p>Leave your email and a line about how you would use EzMe. We store only what you enter here.</p>
+      <p>Leave your email and a line about how you would use KeyDo. We store only what you enter here.</p>
     </div>
     <form class="nform" id="nform" novalidate>
       <div class="two">
         <label for="n-email">Email<input id="n-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com"></label>
         <label for="n-name">Name (optional)<input id="n-name" name="name" type="text" autocomplete="name" maxlength="120" placeholder="Your name"></label>
       </div>
-      <label for="n-note">How would you use EzMe? (optional)<textarea id="n-note" name="note" maxlength="1000" placeholder="Invoices, replies, media shortcuts..."></textarea></label>
+      <label for="n-note">How would you use KeyDo? (optional)<textarea id="n-note" name="note" maxlength="1000" placeholder="Invoices, replies, media shortcuts..."></textarea></label>
       <div class="hp" aria-hidden="true"><label>Leave empty<input id="n-web" name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
       <div class="row"><button class="btn btn-primary" id="n-btn" type="submit">Keep me posted</button><span id="nmsg" role="status" aria-live="polite"></span></div>
     </form>
@@ -527,7 +529,7 @@ Your invoice is ready. \t</textarea>
 
 <div class="wrap"><footer>
   <a class="brand" href="#top"><b>ez</b><span>me</span></a>
-  <span>EzMe <span data-ezv>3.38</span> for macOS. AI provider charges apply when you use your own API keys.</span>
+  <span>KeyDo <span data-ezv>3.38</span> for macOS. AI provider charges apply when you use your own API keys.</span>
 </footer></div>
 
 <script>

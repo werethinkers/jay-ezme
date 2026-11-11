@@ -706,7 +706,7 @@ struct EzMeCloudSignInView: View {
             if let logo = ezMeBrandImage() {
                 Image(nsImage: logo).resizable().scaledToFit().frame(width: 150, height: 100)
             }
-            Text("Welcome to EzMe").font(.system(size: 30, weight: .bold, design: .rounded))
+            Text("Welcome to KeyDo").font(.system(size: 30, weight: .bold, design: .rounded))
             Text("Sign in to use your shortcuts, collections and media on every Mac.")
                 .font(.title3).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
             Picker("", selection: $creating) {
@@ -736,7 +736,7 @@ struct EzMeCloudSignInView: View {
                 Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).frame(maxWidth: 460)
             }
             Spacer()
-            Text("Everything you save, including your AI keys, lives in your private EzMe cloud account. When you sign out, EzMe removes it from this Mac.")
+            Text("Everything you save, including your AI keys, lives in your private KeyDo cloud account. When you sign out, KeyDo removes it from this Mac.")
                 .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 520).padding(.bottom, 24)
         }
         .padding(28)
@@ -751,7 +751,7 @@ struct EzMeCloudAccountBox: View {
     @State private var offerForce = false
 
     var body: some View {
-        GroupBox("EzMe cloud account") {
+        GroupBox("KeyDo cloud account") {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Label(cloud.email, systemImage: "person.crop.circle.fill")

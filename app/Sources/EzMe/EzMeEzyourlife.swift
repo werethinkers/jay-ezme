@@ -324,7 +324,7 @@ enum EzyLink {
     // Catalogue (public, cached on disk so the picker can rank it without waiting)
 
     private var cacheURL: URL {
-        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("EzMe", isDirectory: true)
+        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("KeyDo", isDirectory: true)
         try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         return base.appendingPathComponent("ezyourlife-apps.json")
     }
@@ -713,7 +713,7 @@ struct EzyFieldsForm: View {
                         Toggle("", isOn: Binding(get: { model.fixed.contains(f.key) }, set: { on in if on { model.fixed.insert(f.key) } else { model.fixed.remove(f.key) } }))
                             .toggleStyle(.checkbox).labelsHidden().fixedSize()
                     }
-                    .help("Keep in EzMe shortcut: when you save this as a shortcut, this box keeps its value. Other boxes are asked each time.")
+                    .help("Keep in KeyDo shortcut: when you save this as a shortcut, this box keeps its value. Other boxes are asked each time.")
                 }
             }
             if let options = f.options, !options.isEmpty, f.type == "select" {
@@ -741,7 +741,7 @@ struct EzyConnectCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Connect your Ezyourlife account").font(.system(size: 16, weight: .bold))
-            Text("Use Ezyourlife apps, PromptMaster and your shortcuts in EzMe. Runs use the same credits as ezyourlife.com, only when an app gives a result.")
+            Text("Use Ezyourlife apps, PromptMaster and your shortcuts in KeyDo. Runs use the same credits as ezyourlife.com, only when an app gives a result.")
                 .font(.system(size: 13)).foregroundStyle(EzyColor.muted).fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button(api.isConnecting ? "Opening…" : "Connect Ezyourlife") { api.connect() }.buttonStyle(EzyButtonStyle()).disabled(api.isConnecting)
@@ -1030,7 +1030,7 @@ struct EzyAppsView: View {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Ezyourlife apps").font(.system(size: 26, weight: .heavy))
-                    Text("\(api.catalogue.filter { $0.runnable }.count) apps you can run from EzMe. Pick one, fill the boxes, and paste or save the result.")
+                    Text("\(api.catalogue.filter { $0.runnable }.count) apps you can run from KeyDo. Pick one, fill the boxes, and paste or save the result.")
                         .font(.system(size: 13)).foregroundStyle(EzyColor.muted)
                 }
                 Spacer()
@@ -1188,16 +1188,16 @@ struct EzyCreditsView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 Text("Shortcuts on ezyourlife.com").font(.system(size: 16, weight: .bold))
-                Text("Your ezyourlife.com shortcuts (browser extension and Speedy Notebook) and your EzMe text shortcuts can be one list.")
+                Text("Your ezyourlife.com shortcuts (browser extension and Speedy Notebook) and your KeyDo text shortcuts can be one list.")
                     .font(.system(size: 13)).foregroundStyle(EzyColor.muted)
                 HStack {
-                    Button("Bring them into EzMe") {
+                    Button("Bring them into KeyDo") {
                         Task {
                             do { let n = importShortcuts(try await api.pullShortcuts()); syncStatus = "Added or updated \(n) shortcuts in the \"Ezyourlife\" collection." }
                             catch { syncStatus = error.localizedDescription }
                         }
                     }.buttonStyle(EzyButtonStyle(fill: .white))
-                    Button("Send my EzMe shortcuts there") {
+                    Button("Send my KeyDo shortcuts there") {
                         Task {
                             do { let n = try await api.pushShortcuts(exportShortcuts()); syncStatus = "Ezyourlife now has \(n) shortcuts." }
                             catch { syncStatus = error.localizedDescription }
@@ -1209,7 +1209,7 @@ struct EzyCreditsView: View {
             .padding(16).ezyBlock(.white, radius: 16, shadow: 3)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("How EzMe uses Ezyourlife").font(.system(size: 16, weight: .bold))
+                Text("How KeyDo uses Ezyourlife").font(.system(size: 16, weight: .bold))
                 Toggle("Show matching Ezyourlife apps in the \\ picker", isOn: $showInPicker)
                 Toggle("Option-Space opens the Ask bar", isOn: $hotKey)
                     .onChange(of: hotKey) { on in if on { EzyHotKey.install() } else { EzyHotKey.uninstall() } }

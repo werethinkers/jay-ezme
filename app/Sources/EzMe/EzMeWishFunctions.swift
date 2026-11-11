@@ -1390,7 +1390,7 @@ struct WishFunctionInfo: Identifiable, Hashable {
 }
 
 enum WishFunctionCatalog {
-    static let categories = ["Date & time", "Text", "Logic", "Math", "Lists", "EzMe extras"]
+    static let categories = ["Date & time", "Text", "Logic", "Math", "Lists", "KeyDo extras"]
 
     /// Words that work on their own, without brackets.
     static let words: [WishFunctionInfo] = [
@@ -1530,11 +1530,11 @@ enum WishFunctionCatalog {
         WishFunctionInfo("UNIQUE", "UNIQUE(list)", "Removes repeats.", "Lists"),
         WishFunctionInfo("FIELD", "FIELD(\"name\")", "The value of an Information field.", "Lists"),
         // EzMe extras
-        WishFunctionInfo("INR", "INR(number)", "Rupees with Indian grouping: \u{20B9}12,34,567.", "EzMe extras"),
-        WishFunctionInfo("ORDINAL", "ORDINAL(number)", "1st, 2nd, 3rd. Try =ORDINAL(AGE(dob)).", "EzMe extras"),
-        WishFunctionInfo("AGE", "AGE(date)", "Whole years since a date.", "EzMe extras"),
-        WishFunctionInfo("COUNTDOWN", "COUNTDOWN(date)", "Days until that date comes round next (birthdays, anniversaries).", "EzMe extras"),
-        WishFunctionInfo("GREETING", "GREETING()", "Good morning, afternoon or evening (Hindi on Hindi cards).", "EzMe extras"),
+        WishFunctionInfo("INR", "INR(number)", "Rupees with Indian grouping: \u{20B9}12,34,567.", "KeyDo extras"),
+        WishFunctionInfo("ORDINAL", "ORDINAL(number)", "1st, 2nd, 3rd. Try =ORDINAL(AGE(dob)).", "KeyDo extras"),
+        WishFunctionInfo("AGE", "AGE(date)", "Whole years since a date.", "KeyDo extras"),
+        WishFunctionInfo("COUNTDOWN", "COUNTDOWN(date)", "Days until that date comes round next (birthdays, anniversaries).", "KeyDo extras"),
+        WishFunctionInfo("GREETING", "GREETING()", "Good morning, afternoon or evening (Hindi on Hindi cards).", "KeyDo extras"),
     ]
 
     /// Names that a custom function may not reuse.

@@ -355,7 +355,7 @@ enum EzMeNavigation {
     struct Area: Identifiable { var id: String { title }; var title: String; var items: [Item] }
 
     static let areas: [Area] = [
-        Area(title: "", items: [Item(id: "Dashboard", title: "Home", hint: "Your start page. Type what you want and EzMe finds it for you.")]),
+        Area(title: "", items: [Item(id: "Dashboard", title: "Home", hint: "Your start page. Type what you want and KeyDo finds it for you.")]),
         Area(title: "YOUR LIBRARY", items: [
             Item(id: "My shortcuts", title: "Shortcuts", hint: "Short words that turn into long text. Type \\ then the short word anywhere."),
             Item(id: "Collections", title: "Collections", hint: "Folders of shortcuts, like a list of customers or products."),
@@ -373,13 +373,13 @@ enum EzMeNavigation {
         Area(title: "APPS & WEB", items: [
             Item(id: "Apps & links", title: "Apps & links", hint: "Open your favourite websites and apps just by typing their name."),
             Item(id: "Desktop apps", title: "Desktop apps", hint: "All the apps on this Mac, ready to open."),
-            Item(id: "Browser", title: "Browser", hint: "A web browser inside EzMe."),
+            Item(id: "Browser", title: "Browser", hint: "A web browser inside KeyDo."),
         ]),
         Area(title: "SETUP", items: [
             Item(id: "API configuration", title: "AI keys", hint: "Paste the secret keys that let the AI robots work. Do it once."),
             Item(id: "Ezyourlife credits", title: "Credits", hint: "Your coins for Ezyourlife apps. Top up here."),
             Item(id: "Settings", title: "Account & settings", hint: "Your account, colours and backups."),
-            Item(id: "User guide", title: "Guide", hint: "A picture guide to using EzMe."),
+            Item(id: "User guide", title: "Guide", hint: "A picture guide to using KeyDo."),
         ]),
     ]
 

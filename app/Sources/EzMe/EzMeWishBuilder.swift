@@ -470,7 +470,7 @@ struct WishCollectionStep: View {
         VStack(alignment: .leading, spacing: 14) {
             WishBuilderTools.section("3 \u{00B7} Collection", "Choose which of your collections are shown while you use voice. Their values become tap-to-fill chips, and you can say \u{201C}use <name>\u{201D}.")
             if collections.isEmpty {
-                Text("You have no collections yet. Create one in EzMe and it will appear here.").foregroundStyle(WishTheme.muted)
+                Text("You have no collections yet. Create one in KeyDo and it will appear here.").foregroundStyle(WishTheme.muted)
             }
             if app.fields.isEmpty {
                 Text("Add fields in step 2 first, so a collection has somewhere to go.").foregroundStyle(WishTheme.muted)

@@ -484,7 +484,7 @@ struct EzAttachmentImportCard: View {
                 TextField("What is in it? e.g. Clients from Zoho, March price list (optional)", text: $note).textFieldStyle(.roundedBorder)
                 Button("Attach VCF or CSV file…", systemImage: "paperclip.badge.ellipsis") { choose() }
                     .buttonStyle(.borderedProminent).tint(Butter.coral).disabled(kind == nil)
-                Text("Pick the kind first, so EzMe knows how to read the file. Google Contacts and Zoho: export as VCF or CSV, then attach it here. Live sync is not connected yet.")
+                Text("Pick the kind first, so KeyDo knows how to read the file. Google Contacts and Zoho: export as VCF or CSV, then attach it here. Live sync is not connected yet.")
                     .font(.caption2).foregroundStyle(.secondary)
             } else {
                 attachedRow

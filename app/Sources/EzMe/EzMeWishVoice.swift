@@ -58,12 +58,12 @@ final class WishVoiceController: ObservableObject {
             Task { @MainActor in
                 guard let self = self, self.wanted else { return }
                 guard status == .authorized else {
-                    self.fail("Enable Speech Recognition for EzMe in System Settings \u{2192} Privacy & Security.")
+                    self.fail("Enable Speech Recognition for KeyDo in System Settings \u{2192} Privacy & Security.")
                     return
                 }
                 let audio = AVCaptureDevice.authorizationStatus(for: .audio)
                 if audio == .denied || audio == .restricted {
-                    self.fail("Enable Microphone access for EzMe in System Settings \u{2192} Privacy & Security.")
+                    self.fail("Enable Microphone access for KeyDo in System Settings \u{2192} Privacy & Security.")
                     return
                 }
                 if audio == .authorized {

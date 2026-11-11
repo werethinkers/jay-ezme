@@ -192,7 +192,7 @@ enum WishDrafter {
             asked.append(WishQuestion(id: "t-date", kind: .text, fieldKey: "date", ask: "Which date should it show? Type a date, or =Date+7 for a week from today.", askHi: "कौन सी तारीख़ दिखानी है? तारीख़ लिखें, या एक हफ़्ते बाद के लिए =Date+7।", placeholder: "=Date"))
         }
         if !collections.isEmpty {
-            asked.append(WishQuestion(id: "c-name", kind: .collection, fieldKey: "name", ask: "Pick the name from one of your EzMe collections?", askHi: "नाम अपने EzMe कलेक्शन से चुनना चाहते हैं?", placeholder: "No, I will type it"))
+            asked.append(WishQuestion(id: "c-name", kind: .collection, fieldKey: "name", ask: "Pick the name from one of your KeyDo collections?", askHi: "नाम अपने KeyDo कलेक्शन से चुनना चाहते हैं?", placeholder: "No, I will type it"))
         }
         return WishDraft(app: app, questions: asked + questions)
     }

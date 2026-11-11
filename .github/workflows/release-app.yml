@@ -83,7 +83,7 @@ jobs:
           gh release create "${{ steps.v.outputs.tag }}" \
             "$RUNNER_TEMP/out/EzMe-${{ steps.v.outputs.version }}-macOS.zip" \
             "$RUNNER_TEMP/out/EzMe-macOS.zip" \
-            --title "EzMe ${{ steps.v.outputs.version }} (build ${{ steps.v.outputs.build }})" \
+            --title "KeyDo ${{ steps.v.outputs.version }} (build ${{ steps.v.outputs.build }})" \
             --notes-file app/RELEASE_NOTES.md \
             --target "$GITHUB_SHA" \
             --latest

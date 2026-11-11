@@ -58,7 +58,7 @@ struct ButterTopBar: View {
         let current = ButterNav.area(containing: section)
         VStack(spacing: 0) {
             HStack(spacing: 6) {
-                Text("EzMe")
+                Text("KeyDo")
                     .font(.system(size: 20, weight: .bold, design: .serif))
                     .foregroundStyle(Butter.cocoa)
                     .padding(.trailing, 10)

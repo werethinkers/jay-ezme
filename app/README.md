@@ -1,9 +1,9 @@
-# EzMe for macOS: app source
+# KeyDo for macOS: app source
 
-The EzMe Mac app (SwiftUI, Apple silicon, macOS 14+). The website at the repository root serves the download and the update feed.
+The KeyDo Mac app (SwiftUI, Apple silicon, macOS 14+). The website at the repository root serves the download and the update feed.
 
 - `Sources/EzMe/EzMe.swift`: the app.
-- `Sources/EzMe/EzMeUpdater.swift`: the in-app updater ("Check for updates" in the sidebar and in the EzMe menu).
+- `Sources/EzMe/EzMeUpdater.swift`: the in-app updater ("Check for updates" in the sidebar and in the KeyDo menu).
 - `Sources/EzMe/Resources/`: logo and document reference images bundled into the app.
 - `VERSION`: the version people see, such as `3.39`.
 - `RELEASE_NOTES.md`: what's new, shown in the update window and on the GitHub Release.
@@ -15,7 +15,7 @@ The EzMe Mac app (SwiftUI, Apple silicon, macOS 14+). The website at the reposit
 1. Change the code, bump `VERSION` and write `RELEASE_NOTES.md`.
 2. Merge to `main`.
 
-GitHub Actions (`.github/workflows/release-app.yml`) then builds the app on a Mac, publishes a GitHub Release and rewrites `update/latest.json`. The site's Download button reads that file, and installed copies of EzMe find the new build the next time they check. Pull requests only build the app, so a broken change shows up before it ships. The build number is 168 plus the workflow run number, so every release is newer than the last.
+GitHub Actions (`.github/workflows/release-app.yml`) then builds the app on a Mac, publishes a GitHub Release and rewrites `update/latest.json`. The site's Download button reads that file, and installed copies of KeyDo find the new build the next time they check. Pull requests only build the app, so a broken change shows up before it ships. The build number is 168 plus the workflow run number, so every release is newer than the last.
 
 ## Testing on a Mac
 
@@ -32,7 +32,7 @@ The updater's test hook (`defaults write com.ezme.mac EzMeUpdateFeed http://127.
 
 ## Database (Lovable Cloud)
 
-The backend is the Lovable project "EzMe Marketing Backend" (Supabase). `backend/0001_app_releases_and_events.sql` is the SQL that created:
+The backend is the Lovable project "KeyDo Marketing Backend" (Supabase). `backend/0001_app_releases_and_events.sql` is the SQL that created:
 
 - `app_releases`: every published build. Anyone can read it; only `publish_release()` can write it. The workflow calls that function when the `EZME_RELEASE_TOKEN` secret is set.
 - `app_events`: anonymous update checks, starts and failures from the app (version, build, macOS version). Insert-only for the public; read it in Lovable Cloud.
