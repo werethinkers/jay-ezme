@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 237,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build237/EzMe-3.44-macOS.zip",
-  "sha256": "75e35319f626999a08db2ce29d0dfedc2ba240e7905133bd4ab270a2a4d10f58",
-  "notes": "## Website icons on browser tabs\n\n- Each browser tab now shows the website's own icon next to its title. A globe appears while the icon loads or if the site has none, and the Home tab keeps its house.",
-  "published": "2026-11-11T15:23:56Z",
+  "build": 238,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build238/EzMe-3.44-macOS.zip",
+  "sha256": "0cade9e55a5e5a253f9c4e535d2ec2c2f9c5c4e81b36b322094fb4bc923b40a9",
+  "notes": "## Collections: both panels scroll on their own\n\n- In Library, Collections now fills the window, and the left panel (collection list and its buttons) and the right panel (shortcuts or records) each have their own scroll bar. Scrolling one no longer leaves the other blank.",
+  "published": "2026-11-11T15:37:43Z",
   "minimumSystemVersion": "14.0"
 }
