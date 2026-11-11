@@ -2395,37 +2395,70 @@ Return only valid JSON: {"shortcuts":[{"shortcut":"short-code","name":"short dis
 
 enum KeyStore {
  static let service="com.minij.mac"
+ /// All saved keys live in ONE Keychain item (a JSON dictionary), so an update asks for the Mac password about once, not once per key.
+ private static let vaultAccount="ezme.vault"
+ private static let marker="__m."
  private static let lock=NSLock()
- private static var cache:[String:String]=[:]
- private static var checked:Set<String>=[]
+ private static var vault:[String:String]?
  private static func query(_ account:String)->[String:Any]{[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:service,kSecAttrAccount as String:account]}
- static func save(_ value:String,account:String)->Bool {
-  let q=query(account)
-  guard !value.isEmpty else {
-   let status=SecItemDelete(q as CFDictionary)
-   lock.lock();cache.removeValue(forKey:account);checked.insert(account);lock.unlock()
-   return status==errSecSuccess || status==errSecItemNotFound
-  }
-  let data=Data(value.utf8)
+ /// Caller holds the lock. nil means the Keychain could not be read (for example access was denied), so nothing is cached or overwritten.
+ private static func vaultLocked()->[String:String]? {
+  if let v=vault{return v}
+  var q=query(vaultAccount);q[kSecReturnData as String]=true;q[kSecMatchLimit as String]=kSecMatchLimitOne
+  var result:CFTypeRef?
+  let status=SecItemCopyMatching(q as CFDictionary,&result)
+  if status==errSecItemNotFound{vault=[:];return [:]}
+  guard status==errSecSuccess,let data=result as? Data else{return nil}
+  let v=(try? JSONDecoder().decode([String:String].self,from:data)) ?? [:]
+  vault=v;return v
+ }
+ private static func writeVaultLocked(_ v:[String:String])->Bool {
+  guard let data=try? JSONEncoder().encode(v) else{return false}
+  let q=query(vaultAccount)
   var status=SecItemUpdate(q as CFDictionary,[kSecValueData as String:data] as CFDictionary)
   if status==errSecItemNotFound {var add=q;add[kSecValueData as String]=data;status=SecItemAdd(add as CFDictionary,nil)}
   guard status==errSecSuccess else{return false}
-  lock.lock();cache[account]=value;checked.insert(account);lock.unlock()
+  vault=v;return true
+ }
+ private static func readLegacy(_ account:String)->String? {
+  var q=query(account);q[kSecReturnData as String]=true;q[kSecMatchLimit as String]=kSecMatchLimitOne
+  var result:CFTypeRef?
+  guard SecItemCopyMatching(q as CFDictionary,&result)==errSecSuccess,let data=result as? Data else{return nil}
+  return String(data:data,encoding:.utf8)
+ }
+ static func save(_ value:String,account:String)->Bool {
+  lock.lock();defer{lock.unlock()}
+  guard var v=vaultLocked() else{return false}
+  if value.isEmpty{v.removeValue(forKey:account)}else{v[account]=value}
+  v[marker+account]="1"
+  guard writeVaultLocked(v) else{return false}
+  _=SecItemDelete(query(account) as CFDictionary)
   return true
  }
  /// Every account name EzMe has saved in the Keychain (names only, no values).
- static func allAccounts()->[String]{var q:[String:Any]=[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:service,kSecReturnAttributes as String:true,kSecMatchLimit as String:kSecMatchLimitAll];var result:CFTypeRef?;guard SecItemCopyMatching(q as CFDictionary,&result)==errSecSuccess,let items=result as? [[String:Any]] else{return []};q.removeAll();return items.compactMap{$0[kSecAttrAccount as String] as? String}.sorted()}
- static func load(account:String)->String? {
-  lock.lock()
-  if checked.contains(account){let value=cache[account];lock.unlock();return value}
-  lock.unlock()
-  var q=query(account);q[kSecReturnData as String]=true;q[kSecMatchLimit as String]=kSecMatchLimitOne
+ static func allAccounts()->[String]{
+  lock.lock();defer{lock.unlock()}
+  var names=Set<String>()
+  if let v=vaultLocked(){for k in v.keys where !k.hasPrefix(marker){names.insert(k)}}
+  let done=vault ?? [:]
+  let q:[String:Any]=[kSecClass as String:kSecClassGenericPassword,kSecAttrService as String:service,kSecReturnAttributes as String:true,kSecMatchLimit as String:kSecMatchLimitAll]
   var result:CFTypeRef?
-  guard SecItemCopyMatching(q as CFDictionary,&result)==errSecSuccess,let data=result as? Data,let value=String(data:data,encoding:.utf8) else {
-   lock.lock();checked.insert(account);lock.unlock();return nil
+  if SecItemCopyMatching(q as CFDictionary,&result)==errSecSuccess,let items=result as? [[String:Any]] {
+   for a in items.compactMap({$0[kSecAttrAccount as String] as? String}) where a != vaultAccount && done[marker+a]==nil {names.insert(a)}
   }
-  lock.lock();cache[account]=value;checked.insert(account);lock.unlock()
-  return value
+  return names.sorted()
+ }
+ static func load(account:String)->String? {
+  lock.lock();defer{lock.unlock()}
+  guard var v=vaultLocked() else{return nil}
+  if let x=v[account]{return x}
+  if v[marker+account] != nil{return nil}
+  // First read after the upgrade: move the old per-key item into the single vault item.
+  let old=readLegacy(account)
+  if let old=old{v[account]=old}
+  v[marker+account]="1"
+  if writeVaultLocked(v){_=SecItemDelete(query(account) as CFDictionary)}
+  return old
  }
 }
 
