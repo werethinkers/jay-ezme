@@ -310,7 +310,7 @@ enum EzMeSearchSources {
         guard !q.isEmpty else { return [] }
         let json = UserDefaults.standard.string(forKey: "ezmeCustomBuilderAppsJSON") ?? "[]"
         let custom = (try? JSONDecoder().decode([String].self, from: Data(json.utf8))) ?? []
-        var names = ["Collection Builder"]
+        var names = ["Collection Builder", "MyDatabase"]
         for name in custom where !names.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) { names.append(name) }
         var hits: [EzMeBuilderHit] = []
         for name in names {

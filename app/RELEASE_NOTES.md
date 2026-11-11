@@ -1,5 +1,10 @@
-## Cleaner browser tabs, bar and toolbar
+## New app: MyDatabase
 
-- Tabs are now neat equal-size tabs with an icon, a title that shortens cleanly and a close button. The open tab is highlighted. Right-click a tab for its group options.
-- The address bar is about 20% taller and keeps its width in small and middle windows. Back, forward and reload sit beside it. Zoom and magnifier are one icon. Collections, import, incognito, private and split view moved into one "more" menu.
-- The top row of the browser now uses icons only (hover for the name). In full screen, "EzMe Home" and "Exit full screen" are in a top row too, where they are always visible.
+- MyDatabase is a new built-in app in AppBuilder, next to Collection Builder. It cannot be removed.
+- Contacts: add by hand or import VCF or CSV files. Duplicates are skipped.
+- Links: add a link, paste a list (one per line, "Name | link" to name one), or import a CSV.
+- Files: keep direct links to local files and folders. Drop files in, open them, show them in Finder, and check for broken links.
+- Tables: upload a CSV, then edit cells, add rows and columns, and export it again.
+- Shortcuts: search your shortcut database, open any shortcut to edit it, or copy all shortcuts into an editable table.
+- Everything has search, collections, tags, notes, select several to move or delete, and Export CSV.
+- File Renamer moved here from Ez Studio. When you rename files, their saved links update to the new names.
