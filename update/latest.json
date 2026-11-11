@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 236,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build236/EzMe-3.44-macOS.zip",
-  "sha256": "e59d47ce7e7fc684a9ede1da35bbfa157b328f88bad7fb910aa86f03f11fc602",
-  "notes": "## MyDatabase: make shortcuts and bulk rename\n\n- Make shortcuts: one click turns the ticked rows (or the whole list if none are ticked) into shortcuts. The collection name is filled in (Contacts, Links, Files or the table name) and you can change it once for all rows. You can also add a prefix and a suffix to every code and see a preview first.\n- Contacts become shortcuts such as name, mobile and email, using the same code styles as Collection Builder. Links and files use their name as the code and their address or path as the text. Tables let you pick the name column and the columns to turn into shortcuts.\n- Bulk rename: add a prefix or suffix, replace a prefix or suffix, find and replace, change the case, or turn spaces into hyphens for all ticked rows. For saved files you can choose to rename the real files on your Mac too. Extensions stay the same.",
-  "published": "2026-11-11T13:58:08Z",
+  "build": 237,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build237/EzMe-3.44-macOS.zip",
+  "sha256": "75e35319f626999a08db2ce29d0dfedc2ba240e7905133bd4ab270a2a4d10f58",
+  "notes": "## Website icons on browser tabs\n\n- Each browser tab now shows the website's own icon next to its title. A globe appears while the icon loads or if the site has none, and the Home tab keeps its house.",
+  "published": "2026-11-11T15:23:56Z",
   "minimumSystemVersion": "14.0"
 }
