@@ -1,4 +1,4 @@
-File Renamer: small previews and manual edit
+File Renamer: tidier list that scrolls
 
-- Each file in the File Renamer list shows a small preview. Hover over it, or click it, to see the picture, GIF or video larger.
-- Every new name has a small pencil button to type the name by hand. Hand-edited names show in colour with an undo arrow to go back to the rule's name. The file extension is kept.
+- The file list now has column headings, even rows with clear spacing, and its own scroll bar, so long lists scroll. The whole page scrolls too when the window is short.
+- The pencil button now sits immediately to the left of the new name. Hand-edited names show in colour with an undo arrow at the right of the name.

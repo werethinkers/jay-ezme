@@ -1221,20 +1221,33 @@ struct EzMeWebView:NSViewRepresentable { @ObservedObject var state:EzMeBrowserTa
  @State private var busy=false
  private let modes=["Add prefix","Add suffix","Replace prefix","Replace suffix","Find & replace","Lowercase","UPPERCASE","Title Case","Spaces to hyphens","Sequential numbering"]
  private var previews:[(source:URL,name:String)]{files.enumerated().map{index,url in (url,manualNames[url] ?? renamedBase(url.deletingPathExtension().lastPathComponent,index:index))}}
- var body:some View{VStack(alignment:.leading,spacing:16){HStack{Image(systemName:"doc.badge.gearshape").font(.title2).foregroundStyle(Butter.coral);VStack(alignment:.leading,spacing:3){Text("File Renamer").font(.system(size:24,weight:.bold,design:.rounded));Text("Bulk rename files in place. Original extensions stay unchanged.").foregroundStyle(.secondary)};Spacer();Button("Choose files…",systemImage:"folder.badge.plus"){chooseFiles()}.buttonStyle(.borderedProminent)}
-  ButterAccordion("Choose files",open:true) { if files.isEmpty{ContentUnavailableView("No files selected",systemImage:"doc.on.doc",description:Text("Select files from Desktop or any folder. Names change only after you apply the preview." )).frame(maxWidth:.infinity,minHeight:120)}else{ScrollView{LazyVStack(spacing:6){ForEach(Array(previews.enumerated()),id:\.offset){index,item in FileRenamerRow(source:item.source,proposed:item.name,isManual:manualNames[item.source] != nil,fallbackIcon:icon(for:item.source),onRename:{manualNames[item.source]=$0},onReset:{manualNames[item.source]=nil},onRemove:{files.removeAll{$0==item.source};manualNames[item.source]=nil})}}.frame(maxHeight:280)}} }
+ var body:some View{ScrollView(.vertical){VStack(alignment:.leading,spacing:16){HStack{Image(systemName:"doc.badge.gearshape").font(.title2).foregroundStyle(Butter.coral);VStack(alignment:.leading,spacing:3){Text("File Renamer").font(.system(size:24,weight:.bold,design:.rounded));Text("Bulk rename files in place. Original extensions stay unchanged.").foregroundStyle(.secondary)};Spacer();Button("Choose files…",systemImage:"folder.badge.plus"){chooseFiles()}.buttonStyle(.borderedProminent)}
+  ButterAccordion("Choose files",open:true) { if files.isEmpty{ContentUnavailableView("No files selected",systemImage:"doc.on.doc",description:Text("Select files from Desktop or any folder. Names change only after you apply the preview." )).frame(maxWidth:.infinity,minHeight:120)}else{VStack(spacing:6){FileRenamerHeader();ScrollView(.vertical){LazyVStack(spacing:6){ForEach(Array(previews.enumerated()),id:\.offset){index,item in FileRenamerRow(source:item.source,proposed:item.name,isManual:manualNames[item.source] != nil,fallbackIcon:icon(for:item.source),onRename:{manualNames[item.source]=$0},onReset:{manualNames[item.source]=nil},onRemove:{files.removeAll{$0==item.source};manualNames[item.source]=nil})}}.padding(.trailing,10)}.frame(minHeight:120,maxHeight:340)}} }
   HStack(spacing:12){Picker("Rename action",selection:$mode){ForEach(modes,id:\.self){Text($0).tag($0)}}.pickerStyle(.menu).frame(width:230);if ["Add prefix","Add suffix","Replace prefix","Replace suffix","Find & replace"].contains(mode){TextField(mode=="Add prefix" ? "Prefix to add":(mode=="Add suffix" ? "Suffix to add":(mode=="Replace prefix" ? "Prefix to replace":(mode=="Replace suffix" ? "Suffix to replace":"Text to find"))),text:$value).textFieldStyle(.roundedBorder);if ["Replace prefix","Replace suffix","Find & replace"].contains(mode){TextField("Replace with",text:$replacement).textFieldStyle(.roundedBorder)}}else if mode=="Sequential numbering"{TextField("Starting number",text:$numberingStart).textFieldStyle(.roundedBorder)} }
   Text("Preview shows the new names while preserving each file extension. Files are renamed in their current folders.").font(.caption).foregroundStyle(.secondary)
   if !status.isEmpty{Text(status).font(.subheadline).foregroundStyle(status.hasPrefix("Renamed") ? .green:.orange)}
   HStack{Text("\(files.count) files selected").font(.caption).foregroundStyle(.secondary);Spacer();Button("Clear list",systemImage:"trash"){files.removeAll();manualNames=[:];status=""}.disabled(files.isEmpty || busy);Button(busy ? "Renaming…":"Rename files",systemImage:"pencil"){renameFiles()}.buttonStyle(.borderedProminent).disabled(files.isEmpty || busy || (mode.contains("prefix") || mode.contains("suffix") || mode=="Find & replace") && value.isEmpty)}
   Spacer(minLength:0)
- }.padding(20).frame(maxWidth:1000,alignment:.leading).frame(minHeight:620)}
+ }.padding(20).frame(maxWidth:1000,alignment:.leading).frame(minHeight:620)}}
  private func chooseFiles(){let panel=NSOpenPanel();panel.title="Choose files to rename";panel.allowedContentTypes=[.item];panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=true;if panel.runModal() == .OK{let combined=files+panel.urls.filter{!files.contains($0)};files=combined.filter{FileManager.default.fileExists(atPath:$0.path)};status="Preview the changes, then click Rename files to update the originals."}}
  private func icon(for url:URL)->String{let ext=url.pathExtension.lowercased();if ["png","jpg","jpeg","gif","webp","heic"].contains(ext){return "photo"};if ["mp4","mov","m4v","avi"].contains(ext){return "film"};if ["mp3","m4a","wav","aac"].contains(ext){return "waveform"};return "doc"}
  private func renamedBase(_ base:String,index:Int)->String{switch mode{case "Add prefix":return value+base;case "Add suffix":return base+value;case "Replace prefix":return base.hasPrefix(value) ? replacement+base.dropFirst(value.count):base;case "Replace suffix":return base.hasSuffix(value) ? String(base.dropLast(value.count))+replacement:base;case "Find & replace":return base.replacingOccurrences(of:value,with:replacement,options:.caseInsensitive);case "Lowercase":return base.lowercased();case "UPPERCASE":return base.uppercased();case "Title Case":return base.capitalized;case "Spaces to hyphens":return base.replacingOccurrences(of:"\\s+",with:"-",options:.regularExpression);case "Sequential numbering":return "\(base)-\((Int(numberingStart) ?? 1)+index)";default:return base}}
  private func renameFiles(){let proposals=previews.map{item in item.source.deletingLastPathComponent().appendingPathComponent(item.name+(item.source.pathExtension.isEmpty ? "":"."+item.source.pathExtension))};let standardized=proposals.map{$0.standardizedFileURL.path.lowercased()};guard Set(standardized).count==standardized.count else{status="Some preview names collide. Change the rule before renaming.";return};let selected=Set(files.map{$0.standardizedFileURL.path.lowercased()});for destination in proposals where FileManager.default.fileExists(atPath:destination.path) && !selected.contains(destination.standardizedFileURL.path.lowercased()){status="A target filename already exists: \(destination.lastPathComponent). Change the rule before renaming.";return};busy=true;defer{busy=false};var renamed=0;for (source,destination) in zip(files,proposals) where source.standardizedFileURL != destination.standardizedFileURL{do{try FileManager.default.moveItem(at:source,to:destination);renamed+=1}catch{status="Stopped after \(renamed) rename(s): \(error.localizedDescription)";return}};files=proposals;manualNames=[:];status="Renamed \(renamed) file(s)."}
 }
 
+struct FileRenamerHeader:View{
+ static let thumbWidth:CGFloat=36;static let arrowWidth:CGFloat=16;static let iconWidth:CGFloat=22
+ var body:some View{
+  HStack(spacing:10){
+   Color.clear.frame(width:Self.thumbWidth,height:1)
+   Text("CURRENT NAME").frame(maxWidth:.infinity,alignment:.leading)
+   Color.clear.frame(width:Self.arrowWidth,height:1)
+   Text("NEW NAME  ·  PENCIL TO EDIT").frame(maxWidth:.infinity,alignment:.leading)
+   Color.clear.frame(width:Self.iconWidth,height:1)
+  }
+  .font(.system(size:10,weight:.bold)).foregroundStyle(.secondary).padding(.horizontal,10).padding(.trailing,10)
+ }
+}
 struct FileRenamerRow:View{
  let source:URL;let proposed:String;let isManual:Bool;let fallbackIcon:String
  var onRename:(String)->Void;var onReset:()->Void;var onRemove:()->Void
@@ -1242,30 +1255,37 @@ struct FileRenamerRow:View{
  private var ext:String{source.pathExtension}
  private var kind:String{let e=ext.lowercased();if ["png","jpg","jpeg","webp","heic","tif","tiff","bmp"].contains(e){return "image"};if e=="gif"{return "gif"};if ["mp4","mov","m4v","avi","webm"].contains(e){return "video"};return "other"}
  var body:some View{
-  HStack(spacing:8){
+  HStack(spacing:10){
    Button{if kind != "other"{showPreview.toggle()}}label:{
     ZStack{
-     RoundedRectangle(cornerRadius:6).fill(Butter.coral.opacity(0.10))
+     RoundedRectangle(cornerRadius:7).fill(Butter.coral.opacity(0.10))
      if let thumb{Image(nsImage:thumb).resizable().scaledToFill()}else{Image(systemName:fallbackIcon).foregroundStyle(Butter.coral)}
      if kind=="video"{Image(systemName:"play.fill").font(.system(size:9)).foregroundStyle(.white).padding(3).background(.black.opacity(0.5),in:Circle())}
-    }.frame(width:36,height:36).clipShape(RoundedRectangle(cornerRadius:6))
+    }.frame(width:FileRenamerHeader.thumbWidth,height:36).clipShape(RoundedRectangle(cornerRadius:7))
    }.buttonStyle(.plain).help(kind=="other" ? "No preview for this file type":"Hover or click to see it larger")
    .onHover{inside in if kind != "other"{showPreview=inside}}
    .popover(isPresented:$showPreview,arrowEdge:.trailing){preview}
-   Text(source.lastPathComponent).lineLimit(1).frame(maxWidth:.infinity,alignment:.leading)
-   Image(systemName:"arrow.right").foregroundStyle(.secondary)
+   Text(source.lastPathComponent).font(.system(size:13)).lineLimit(1).truncationMode(.middle).frame(maxWidth:.infinity,alignment:.leading)
+   Image(systemName:"arrow.right").font(.system(size:11,weight:.semibold)).foregroundStyle(.tertiary).frame(width:FileRenamerHeader.arrowWidth)
    if editing{
-    TextField("New name",text:$draft).textFieldStyle(.roundedBorder).onSubmit{commit()}.frame(maxWidth:.infinity)
-    if !ext.isEmpty{Text("."+ext).foregroundStyle(.secondary)}
-    Button{commit()}label:{Image(systemName:"checkmark.circle.fill").foregroundStyle(.green)}.buttonStyle(.plain).help("Use this name")
-    Button{editing=false}label:{Image(systemName:"xmark.circle").foregroundStyle(.secondary)}.buttonStyle(.plain).help("Cancel")
+    HStack(spacing:6){
+     TextField("New name",text:$draft).textFieldStyle(.roundedBorder).onSubmit{commit()}
+     if !ext.isEmpty{Text("."+ext).font(.system(size:13)).foregroundStyle(.secondary)}
+     Button{commit()}label:{Image(systemName:"checkmark.circle.fill").foregroundStyle(.green)}.buttonStyle(.plain).help("Use this name")
+     Button{editing=false}label:{Image(systemName:"xmark.circle").foregroundStyle(.secondary)}.buttonStyle(.plain).help("Cancel")
+    }.frame(maxWidth:.infinity,alignment:.leading)
    }else{
-    Text(proposed+(ext.isEmpty ? "":"."+ext)).lineLimit(1).foregroundStyle(isManual ? Butter.coral:.primary).frame(maxWidth:.infinity,alignment:.leading)
-    Button{draft=proposed;editing=true}label:{Image(systemName:"pencil").font(.system(size:12))}.buttonStyle(.plain).foregroundStyle(Butter.coral).help("Edit this name by hand")
-    if isManual{Button{onReset()}label:{Image(systemName:"arrow.uturn.backward").font(.system(size:12))}.buttonStyle(.plain).foregroundStyle(.secondary).help("Go back to the rule's name")}
+    HStack(spacing:8){
+     Button{draft=proposed;editing=true}label:{Image(systemName:"pencil").font(.system(size:12,weight:.semibold)).foregroundStyle(Butter.coral).frame(width:FileRenamerHeader.iconWidth,height:FileRenamerHeader.iconWidth).background(Butter.coral.opacity(0.10),in:Circle())}.buttonStyle(.plain).help("Edit this name by hand")
+     Text(proposed+(ext.isEmpty ? "":"."+ext)).font(.system(size:13,weight:.medium)).lineLimit(1).truncationMode(.middle).foregroundStyle(isManual ? Butter.coral:Color.primary).frame(maxWidth:.infinity,alignment:.leading)
+     Button{onReset()}label:{Image(systemName:"arrow.uturn.backward").font(.system(size:12))}.buttonStyle(.plain).foregroundStyle(.secondary).help("Go back to the rule's name").opacity(isManual ? 1:0).disabled(!isManual).frame(width:FileRenamerHeader.iconWidth)
+    }.frame(maxWidth:.infinity,alignment:.leading)
    }
-   Button{onRemove()}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(.secondary)}.buttonStyle(.plain).help("Remove from the list")
+   Button{onRemove()}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(.secondary)}.buttonStyle(.plain).help("Remove from the list").frame(width:FileRenamerHeader.iconWidth)
   }
+  .padding(.horizontal,10).padding(.vertical,7)
+  .background(Color.white.opacity(0.75),in:RoundedRectangle(cornerRadius:10))
+  .overlay(RoundedRectangle(cornerRadius:10).stroke(Butter.coral.opacity(0.12),lineWidth:1))
   .task(id:source){thumb=await Self.thumbnail(for:source,kind:kind,size:120)}
  }
  private func commit(){let clean=draft.trimmingCharacters(in:.whitespacesAndNewlines).replacingOccurrences(of:"[/:\\\\]+",with:"-",options:.regularExpression);if !clean.isEmpty{onRename(clean)};editing=false}
