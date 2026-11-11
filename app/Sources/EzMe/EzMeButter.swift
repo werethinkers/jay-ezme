@@ -144,6 +144,9 @@ struct MerlinBar: View {
     @Binding var text: String
     var placeholder: String = "Find a shortcut, or tell Merlin what you need"
     var onSubmit: () -> Void = {}
+    /// Extra height for the browser address bar (about 20% taller than the search bars).
+    var verticalPadding: CGFloat = 11
+    var showsBadge = true
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -159,13 +162,15 @@ struct MerlinBar: View {
                 Button { text = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Butter.cocoa.opacity(0.4)) }
                     .buttonStyle(.plain)
             }
-            Text("Merlin")
-                .font(.system(size: 11, weight: .bold))
-                .padding(.horizontal, 9).padding(.vertical, 3)
-                .foregroundStyle(Butter.cream)
-                .background(Butter.coral, in: Capsule())
+            if showsBadge {
+                Text("Merlin")
+                    .font(.system(size: 11, weight: .bold))
+                    .padding(.horizontal, 9).padding(.vertical, 3)
+                    .foregroundStyle(Butter.cream)
+                    .background(Butter.coral, in: Capsule())
+            }
         }
-        .padding(.horizontal, 16).padding(.vertical, 11)
+        .padding(.horizontal, 16).padding(.vertical, verticalPadding)
         .background(Butter.cream, in: Capsule())
         .overlay(Capsule().stroke(focused ? Butter.coral : Butter.honey, lineWidth: focused ? 2 : 1.5))
     }
