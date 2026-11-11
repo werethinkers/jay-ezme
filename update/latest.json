@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 230,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build230/EzMe-3.44-macOS.zip",
-  "sha256": "dc766caf28aded36090d1f94e97e76cb19658728b69c2a034bfd2d976fdae97e",
-  "notes": "## Fewer Mac password prompts after an update\n\n- All your saved keys (AI keys, private browser key and PIN, Ezyourlife key, and others) are now kept in one Keychain item instead of one item each. After an update, macOS asks for your Mac password about once instead of 6-7 times.\n- The first launch after this update moves your existing keys into the single item. It can still ask a few times, one last time. Choose \"Always Allow\" each time.\n- Nothing needs to be re-entered. Your keys are copied over automatically.",
-  "published": "2026-11-11T07:43:06Z",
+  "build": 231,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build231/EzMe-3.44-macOS.zip",
+  "sha256": "7c197eda64738d5ec44a7d755ff7826be600cad83e8a6562a5815dc9a6db91b7",
+  "notes": "## Ezyourlife voice fill follows your cursor\n\n- Fill by voice now goes into the box you click or Tab into. Change boxes with the mouse or Tab and your next words fill that box. Voice moving to the next box also puts the cursor there.\n- \"Keep in EzMe shortcut\" is now a small pin and checkbox on each box. The full wording shows when you hover, so the form is no longer crowded.",
+  "published": "2026-11-11T07:55:14Z",
   "minimumSystemVersion": "14.0"
 }
