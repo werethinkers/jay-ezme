@@ -58,6 +58,17 @@ struct DBTable: Identifiable, Codable, Hashable {
         guard let data = try? Data(contentsOf: fileURL), let payload = try? JSONDecoder().decode(Payload.self, from: data) else { return }
         records = payload.records
         tables = payload.tables
+        // Older imports may hold "Name | Company | City". Keep the name and move the rest into notes.
+        var changed = false
+        for index in records.indices where records[index].kind == "contact" && records[index].title.contains("|") {
+            let full = records[index].title
+            records[index].title = EzContactImport.leftOfPipe(full)
+            if records[index].notes.isEmpty, let bar = full.firstIndex(of: "|") {
+                records[index].notes = String(full[full.index(after: bar)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            changed = true
+        }
+        if changed { save() }
     }
 
     func save() {
@@ -90,7 +101,8 @@ struct DBTable: Identifiable, Codable, Hashable {
     /// Adds contacts, skipping ones already saved (same mobile or email).
     @discardableResult func addContacts(_ contacts: [EzContact], collection: String) -> Int {
         var added = 0
-        for contact in contacts {
+        for raw in contacts {
+            let contact = EzContactImport.cleaned(raw)
             let name = contact.displayName
             guard !name.isEmpty else { continue }
             let mobile = contact.mobile.isEmpty ? (contact.phones.first ?? "") : contact.mobile
@@ -824,6 +836,7 @@ struct DBMakeShortcutsSheet: View {
     @State private var nameColumn = 0
     @State private var columns = Set<Int>()
     @State private var shortWords = false
+    @State private var wordStyle = "name"
 
     init(source: DBMakeSource, onCreate: @escaping ([Clip], String) -> Void) {
         self.source = source
@@ -855,13 +868,32 @@ struct DBMakeShortcutsSheet: View {
         }
     }
 
+    /// The first part of a code for a link or file, built the way the person chose.
+    private func wordStem(for record: DBRecord) -> String {
+        let title = record.title.isEmpty ? record.value : (record.kind == "file" ? (record.title as NSString).deletingPathExtension : record.title)
+        let words = title.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map { dbSlug(String($0), limit: 30) }.filter { !$0.isEmpty }
+        switch wordStyle {
+        case "short": return String(words.map { String($0.prefix(3)) }.joined().prefix(18))
+        case "initials": return String(words.map { String($0.prefix(1)) }.joined().prefix(10))
+        case "firstword": return words.first.map { String($0.prefix(18)) } ?? ""
+        case "domain":
+            if let host = URL(string: record.value)?.host {
+                let parts = host.lowercased().replacingOccurrences(of: "www.", with: "").split(separator: ".").map(String.init)
+                return dbSlug(parts.count >= 2 ? parts[parts.count - 2] : (parts.first ?? ""))
+            }
+            return dbSlug(title)
+        default: return dbSlug(title)
+        }
+    }
+
     private func build() -> [Clip] {
         let group = collection.trimmingCharacters(in: .whitespacesAndNewlines)
         switch source.kind {
         case "contact":
             let contacts = source.records.map { record -> EzContact in
-                let parts = record.title.split(separator: " ").map(String.init)
-                return EzContact(first: parts.first ?? "", last: parts.dropFirst().joined(separator: " "), full: record.title,
+                let name = EzContactImport.leftOfPipe(record.title)
+                let parts = name.split(separator: " ").map(String.init)
+                return EzContact(first: parts.first ?? "", last: parts.dropFirst().joined(separator: " "), full: name,
                                  mobile: record.value, email: record.email, address: record.address, company: record.company)
             }
             return decorate(EzContactImport.shortcuts(for: contacts, style: style, fields: fields, group: group))
@@ -872,7 +904,7 @@ struct DBMakeShortcutsSheet: View {
             var stems = Set<String>()
             var clips: [Clip] = []
             for record in source.records {
-                var stem = dbSlug(record.title.isEmpty ? record.value : (record.kind == "file" ? (record.title as NSString).deletingPathExtension : record.title))
+                var stem = wordStem(for: record)
                 if stem.isEmpty { stem = record.kind }
                 let base = stem
                 var number = 2
@@ -921,6 +953,15 @@ struct DBMakeShortcutsSheet: View {
                     }
                 }
                 Toggle("Short codes (first 3 letters of each word)", isOn: $shortWords).toggleStyle(.checkbox).font(.system(size: 12))
+            }
+            if source.kind == "link" || source.kind == "file" {
+                Picker("Code from", selection: $wordStyle) {
+                    Text("Full name").tag("name")
+                    Text("First 3 letters of each word").tag("short")
+                    Text("Initials of the words").tag("initials")
+                    Text("First word only").tag("firstword")
+                    if source.kind == "link" { Text("Website name (example.com → example)").tag("domain") }
+                }
             }
             Divider()
             Text(preview.isEmpty ? "Nothing to create yet. Choose at least one field or column." : "\(preview.count) shortcuts · for example:")

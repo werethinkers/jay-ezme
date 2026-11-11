@@ -60,7 +60,7 @@ struct EzContact: Identifiable {
 }
 
 enum EzContactField: String, CaseIterable, Identifiable {
-    case name, firstname, lastname, mobile, phone, email, address, company, title
+    case name, firstname, lastname, mobile, phone, email, address, company, title, card, whatsapp
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -73,6 +73,8 @@ enum EzContactField: String, CaseIterable, Identifiable {
         case .address: return "Address"
         case .company: return "Company"
         case .title: return "Job title"
+        case .card: return "Full contact card"
+        case .whatsapp: return "WhatsApp link"
         }
     }
 
@@ -87,13 +89,19 @@ enum EzContactField: String, CaseIterable, Identifiable {
         case .address: return contact.address
         case .company: return contact.company
         case .title: return contact.title
+        case .card:
+            return [contact.displayName, contact.company, contact.title, contact.mobile.isEmpty ? (contact.phones.first ?? "") : contact.mobile, contact.email, contact.address]
+                .filter { !$0.isEmpty }.joined(separator: "\n")
+        case .whatsapp:
+            let digits = String((contact.mobile.isEmpty ? (contact.phones.first ?? "") : contact.mobile).filter { $0.isNumber })
+            return digits.count >= 8 ? "https://wa.me/" + digits : ""
         }
     }
 }
 
 /// How the first part of each shortcut is built from the person's name.
 enum EzContactCodeStyle: String, CaseIterable, Identifiable {
-    case fullFirstFullLast, first3Last3, initialFullLast, first3FullLast, firstOnly
+    case fullFirstFullLast, first3Last3, initialFullLast, first3FullLast, firstOnly, firstLastInitial, first3LastInitial, firstLast2, lastFirstInitial, lastOnly
     var id: String { rawValue }
 
     var title: String {
@@ -103,6 +111,11 @@ enum EzContactCodeStyle: String, CaseIterable, Identifiable {
         case .initialFullLast: return "First letter + full last name"
         case .first3FullLast: return "First 3 letters + full last name"
         case .firstOnly: return "Full first name only"
+        case .firstLastInitial: return "Full first name + first letter of surname"
+        case .first3LastInitial: return "First 3 letters + first letter of surname"
+        case .firstLast2: return "Full first name + first 2 letters of surname"
+        case .lastFirstInitial: return "Full surname + first letter of first name"
+        case .lastOnly: return "Full surname only"
         }
     }
 
@@ -123,6 +136,11 @@ enum EzContactCodeStyle: String, CaseIterable, Identifiable {
         case .initialFullLast: return String(f.prefix(1)) + l
         case .first3FullLast: return String(f.prefix(3)) + l
         case .firstOnly: return f
+        case .firstLastInitial: return f + String(l.prefix(1))
+        case .first3LastInitial: return String(f.prefix(3)) + String(l.prefix(1))
+        case .firstLast2: return f + String(l.prefix(2))
+        case .lastFirstInitial: return l + String(f.prefix(1))
+        case .lastOnly: return l
         }
     }
 
@@ -139,7 +157,29 @@ enum EzContactImport {
         }
         let ext = url.pathExtension.lowercased()
         let contacts = (ext == "csv" || (ext != "vcf" && !text.contains("BEGIN:VCARD"))) ? parseCSV(text) : parseVCF(text)
-        return Array(contacts.filter { !$0.displayName.isEmpty }.prefix(maxContacts))
+        return Array(contacts.map(cleaned).filter { !$0.displayName.isEmpty }.prefix(maxContacts))
+    }
+
+    /// Text on the left of a | sign. Some address books store "Name | Company | City" in the name.
+    static func leftOfPipe(_ value: String) -> String {
+        guard let bar = value.firstIndex(of: "|") else { return value.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return String(value[..<bar]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// When a name has a | sign, only the part on its left is the person's name.
+    static func cleaned(_ contact: EzContact) -> EzContact {
+        guard contact.full.contains("|") || contact.first.contains("|") || contact.last.contains("|") else { return contact }
+        var c = contact
+        let fullHadBar = c.full.contains("|")
+        c.full = leftOfPipe(c.full)
+        c.first = leftOfPipe(c.first)
+        c.last = leftOfPipe(c.last)
+        if fullHadBar, !c.full.isEmpty {
+            let parts = c.full.split(separator: " ").map(String.init)
+            c.first = parts.first ?? c.first
+            c.last = parts.dropFirst().joined(separator: " ")
+        }
+        return c
     }
 
     // MARK: VCF
