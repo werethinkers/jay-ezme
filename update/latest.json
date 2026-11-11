@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 231,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build231/EzMe-3.44-macOS.zip",
-  "sha256": "7c197eda64738d5ec44a7d755ff7826be600cad83e8a6562a5815dc9a6db91b7",
-  "notes": "## Ezyourlife voice fill follows your cursor\n\n- Fill by voice now goes into the box you click or Tab into. Change boxes with the mouse or Tab and your next words fill that box. Voice moving to the next box also puts the cursor there.\n- \"Keep in EzMe shortcut\" is now a small pin and checkbox on each box. The full wording shows when you hover, so the form is no longer crowded.",
-  "published": "2026-11-11T07:55:14Z",
+  "build": 233,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build233/EzMe-3.44-macOS.zip",
+  "sha256": "08c3bc4cc195e738cf1448ca34be0e221745afc11a9be2611351f874202f0f04",
+  "notes": "## Cleaner browser tabs, bar and toolbar\n\n- Tabs are now neat equal-size tabs with an icon, a title that shortens cleanly and a close button. The open tab is highlighted. Right-click a tab for its group options.\n- The address bar is about 20% taller and keeps its width in small and middle windows. Back, forward and reload sit beside it. Zoom and magnifier are one icon. Collections, import, incognito, private and split view moved into one \"more\" menu.\n- The top row of the browser now uses icons only (hover for the name). In full screen, \"EzMe Home\" and \"Exit full screen\" are in a top row too, where they are always visible.",
+  "published": "2026-11-11T08:44:11Z",
   "minimumSystemVersion": "14.0"
 }
