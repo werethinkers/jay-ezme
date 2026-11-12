@@ -22,7 +22,7 @@ echo "Testing EzMe build $BUILD_A"
 # 1. Signature and bundle
 codesign --verify --strict --verbose=2 "$A" && pass "code signature is valid" || fail "code signature"
 [ "$(lipo -archs "$A/Contents/MacOS/EzMe")" = "arm64" ] && pass "binary is Apple silicon (arm64)" || fail "architecture"
-for f in EzMeLogo EzMeInvoiceReference EzMeQuoteReference EzMePurchaseOrderReference; do
+for f in KeyDoLogo EzMeInvoiceReference EzMeQuoteReference EzMePurchaseOrderReference; do
   [ -f "$A/Contents/Resources/$f.png" ] || fail "missing resource $f.png"
 done
 
