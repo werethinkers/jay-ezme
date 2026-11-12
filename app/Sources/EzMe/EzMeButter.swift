@@ -384,6 +384,7 @@ struct ButterHitRow: View {
 struct EzMeOpenRequests: ViewModifier {
     @Binding var section: String
     var openSite: (String) -> Void
+    var sendPrompt: (PromptDispatchRequest) -> Void = { _ in }
 
     func body(content: Content) -> some View {
         content
@@ -391,6 +392,9 @@ struct EzMeOpenRequests: ViewModifier {
                 section = "AppBuilder"
                 UserDefaults.standard.set(true, forKey: "ezmeAppBuilderHasSeenHome")
                 NSApp.activate(ignoringOtherApps: true)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .keydoSendPrompt)) { note in
+                if let request = note.object as? PromptDispatchRequest { sendPrompt(request) }
             }
             .onReceive(NotificationCenter.default.publisher(for: .ezmeOpenSite)) { note in
                 if let url = note.userInfo?["url"] as? String {
