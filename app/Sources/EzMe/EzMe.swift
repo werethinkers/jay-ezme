@@ -123,14 +123,6 @@ struct MarketplaceListing:Identifiable,Codable{var id=UUID().uuidString;var titl
  func clearError(){errorMessage=""}
  private func cleanup(cancelTask:Bool){if engine.isRunning{engine.stop()};engine.inputNode.removeTap(onBus:0);if cancelTask{task?.cancel()};request=nil;task=nil;onTranscript=nil;onPartial=nil;isListening=false}
 }
-@MainActor struct VoiceSearchAssistant:View{
- var clips:[Clip];var collections:[String];var onOpen:(String)->Void
- @StateObject private var speech=EzMeSpeechDictation();@State private var expanded=false;@State private var finalQuery="";@State private var liveQuery="";@State private var showError=false
- private var query:String{(liveQuery.isEmpty ? finalQuery:liveQuery).trimmingCharacters(in:.whitespacesAndNewlines)}
- private var matches:[Clip]{guard !query.isEmpty else{return []};return Array(clips.filter{$0.key.localizedCaseInsensitiveContains(query) || $0.name.localizedCaseInsensitiveContains(query) || $0.text.localizedCaseInsensitiveContains(query) || $0.allGroups.contains(where:{$0.localizedCaseInsensitiveContains(query)})}.prefix(5))}
- var body:some View{VStack(alignment:.trailing,spacing:10){if expanded{assistantCard};Button{withAnimation(.spring(response:0.3,dampingFraction:0.78)){if expanded{speech.stop();expanded=false}else{expanded=true;finalQuery="";liveQuery="";speech.startContinuous(onTranscript:{spoken in let value=spoken.trimmingCharacters(in:.whitespacesAndNewlines);guard !value.isEmpty else{return};finalQuery=value;liveQuery="";onOpen(value)},onPartial:{spoken in liveQuery=spoken})}}}label:{Image(systemName:speech.isListening ? "waveform.circle.fill":"mic.fill").font(.system(size:19,weight:.bold)).foregroundStyle(.white).frame(width:52,height:52).background(LinearGradient(colors:speech.isListening ? [.red,.pink]:[Color.blue,Butter.coral],startPoint:.topLeading,endPoint:.bottomTrailing),in:Circle()).shadow(color:Butter.coral.opacity(0.28),radius:9,y:3).overlay(Circle().stroke(.white.opacity(0.82),lineWidth:2))}.buttonStyle(.plain).help(speech.isListening ? "Stop voice search":"Search KeyDo by voice")}.onChange(of:speech.errorMessage){value in showError = !value.isEmpty}.alert("Voice search",isPresented:$showError){Button("OK"){speech.clearError()}}message:{Text(speech.errorMessage)}}
- private var assistantCard:some View{VStack(alignment:.leading,spacing:10){HStack{Image(systemName:speech.isListening ? "waveform":"mic.fill").foregroundStyle(speech.isListening ? .red:Butter.coral);Text(speech.isListening ? "Listening…":"Voice search").font(.headline);Spacer();Button{speech.stop();expanded=false}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(.secondary)}.buttonStyle(.plain)};Text(query.isEmpty ? "Say a section, collection, or shortcut name.":query).font(.system(size:14,weight:.semibold)).lineLimit(2).frame(maxWidth:.infinity,alignment:.leading).padding(9).background(Butter.coral.opacity(0.07),in:RoundedRectangle(cornerRadius:9));if !matches.isEmpty{ForEach(matches){clip in Button{speech.stop();expanded=false;onOpen(clip.key)}label:{HStack{Image(systemName:clip.files.isEmpty ? "text.alignleft":"paperclip").foregroundStyle(Butter.coral);VStack(alignment:.leading,spacing:2){Text(clip.key.hasPrefix("/") ? "\\"+clip.key.dropFirst():clip.key).font(.system(.caption,design:.monospaced).bold());Text(clip.name+" · "+clip.allGroups.joined(separator:", ")).font(.system(size:11)).foregroundStyle(.secondary).lineLimit(1)};Spacer();Image(systemName:"arrow.up.right").font(.caption)}}.buttonStyle(.plain)} };if let collection=collections.first(where:{$0.localizedCaseInsensitiveContains(query) && !query.isEmpty}){Button("Open collection · \(collection)",systemImage:"folder"){speech.stop();expanded=false;onOpen("collection:\(collection)")}.font(.caption).buttonStyle(.bordered)};Text("Say “open dashboard”, “my shortcuts”, “collections”, “browser”, “media”, or a saved shortcut.").font(.system(size:10)).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)}.padding(13).frame(width:310,alignment:.leading).background(.regularMaterial,in:RoundedRectangle(cornerRadius:17)).overlay(RoundedRectangle(cornerRadius:17).stroke(Butter.coral.opacity(0.2))).shadow(color:.black.opacity(0.16),radius:14,y:6)}
-}
 struct VoiceDictationButton:View{
  var onTranscript:(String)->Void;var onPartial:((String)->Void)?=nil;var onStart:(()->Void)?=nil;@StateObject private var speech=EzMeSpeechDictation();@State private var showError=false
  var body:some View{Button{if speech.isListening{speech.stop()}else{onStart?();speech.start(onTranscript:onTranscript,onPartial:onPartial)}}label:{Label(speech.isListening ? "Stop listening":"Speak",systemImage:speech.isListening ? "stop.circle.fill":"mic.fill").foregroundStyle(speech.isListening ? .red:.blue)}.buttonStyle(.bordered).onChange(of:speech.errorMessage){value in showError = !value.isEmpty}.alert("Voice input",isPresented:$showError){Button("OK"){speech.clearError()}}message:{Text(speech.errorMessage)}}
@@ -405,6 +397,7 @@ struct MainView:View {
    .onReceive(NotificationCenter.default.publisher(for:.miniJAutoExpand)){note in let trigger=note.userInfo?["trigger"] as? String ?? "";let suffix=note.userInfo?["suffix"] as? String ?? "";let length=note.userInfo?["length"] as? Int ?? trigger.count;autoExpand(trigger,suffix:suffix,length:length)}
    .onReceive(NotificationCenter.default.publisher(for:.miniJPickerQuery)){note in floatingPanel?.setQuery(note.userInfo?["query"] as? String ?? "")}
    .onReceive(NotificationCenter.default.publisher(for:.miniJChooseFirst)){_ in floatingPanel?.chooseFirst()}
+   .onReceive(NotificationCenter.default.publisher(for:.keydoVoiceActivate)){_ in if floatingPanel?.isVisible != true{openPicker(for:NSWorkspace.shared.frontmostApplication,slashTriggered:false)};KeyDoVoice.shared.start(.popup)}
    .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerateShortcut)){note in let trigger=note.userInfo?["trigger"] as? String ?? "";Task{await generateBuilderShortcut(trigger)}}
    .onReceive(NotificationCenter.default.publisher(for:.miniJClosePicker)){note in MiniJAppDelegate.current?.pickerActive=false;floatingPanel?.hide();handlePopupQuickAdd(note.userInfo?["action"] as? String ?? "")}
    .onAppear{floatingPanel=MiniJPickerPanel();EzyHotKey.install();EzyRunPanel.shared.saveShortcut={clip in saveEzyourlifeShortcut(clip)};EzMeSearchSources.savedSites={browser.saved};refreshAccess();if account.isAuthenticated && !slashReady && !ezmeUIPreview{showPermissionSetup=true};if account.isAuthenticated{db.activateProfile(identity:account.currentUsername,legacyEmail:account.legacyEmailToMigrate);marketplace.load(directory:db.dir);startCloudSync();refreshVisibleClips();desktopApps.refresh{apps in syncDesktopAppShortcuts(apps)};seedDefaultShortcuts()}}
@@ -2989,6 +2982,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     private var regularPopupSize:CGSize{let screen=NSScreen.screens.first(where:{$0.frame.contains(NSEvent.mouseLocation)}) ?? NSScreen.main;let visible=screen?.visibleFrame ?? NSRect(x:0,y:0,width:1200,height:800);let size=pickerPopupSize(visible:visible,areaPercent:popupAreaPercent);return CGSize(width:size.width,height:size.height)}
     @AppStorage("ezmePickerTransparency") private var popupTransparency=0.10
     @State private var showPopupOptions=false
+    @ObservedObject private var voice=KeyDoVoice.shared
     @State private var isGeneratingBuilder=false;@State private var builderElapsed=0;@State private var builderStatus="";@State private var generatedBuilderClip:Clip?
     @ObservedObject var db: DB
     @ObservedObject var search: PickerSearch
@@ -3034,11 +3028,12 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerationFinished)){note in isGeneratingBuilder=false;builderStatus=note.userInfo?["status"] as? String ?? "Generated.";let key=note.userInfo?["key"] as? String ?? "";generatedBuilderClip=db.clips.first(where:{$0.key.caseInsensitiveCompare(normalizedTrigger("/"+key)) == .orderedSame})}
     }
     private var pickerQuery:String{search.value.trimmingCharacters(in:.whitespacesAndNewlines)}
-    private var compactMode:Bool{pickerQuery.isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode}
+    private var compactMode:Bool{pickerQuery.isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode && !voice.wantsExpandedPopup}
     @ViewBuilder private var standardPickerView:some View { if compactMode { compactPickerView } else { expandedPickerView } }
     private var compactPickerView:some View {
         HStack(spacing:10){
             searchBar
+            Button{voice.start(.popup)}label:{Image(systemName:"mic.fill").font(.system(size:14,weight:.semibold)).foregroundStyle(Butter.coral).frame(width:30,height:30).background(Butter.coral.opacity(0.12),in:Circle())}.buttonStyle(.plain).help("Start voice commands. You can also press \\ twice")
             Button(action:close){Image(systemName:"xmark.circle.fill").font(.system(size:18)).foregroundStyle(Butter.cocoa.opacity(0.45))}.buttonStyle(.plain).help("Close popup")
         }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)
     }
@@ -3130,11 +3125,13 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
             HStack {
                 logoButton
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("KeyDo · choose a shortcut").font(.system(size: 21, weight: .bold,design:.rounded))
+                    Text("KeyDo · choose a shortcut").font(.system(size: 21, weight: .bold,design:.rounded)).lineLimit(1).minimumScaleFactor(0.7)
                     Text(search.value.isEmpty ? "Keep typing in your app · exact shortcut + space expands" : "Matches for “\(search.value)”").font(.system(size: 14,weight:.medium)).foregroundStyle(Color.white.opacity(0.84))
                 }
                 Spacer()
                 HStack(spacing:6){
+                    Button{if voice.phase == .off{voice.start(.popup)}else{voice.stop()}}label:{popupBarGlyph(voice.phase == .off ? "mic.fill":(voice.phase == .paused ? "pause.fill":"waveform"),hot:voice.phase == .listening)}.buttonStyle(.plain).help(voice.phase == .off ? "Start voice commands. You can also press \\ twice":"Stop listening")
+                    popupBarButton("gearshape","Voice settings"){voice.popupSettingsOpen.toggle()}
                     popupBarButton("slider.horizontal.3","Options: transparency, category and collection"){showPopupOptions.toggle()}
                     Menu{ForEach([0.10,0.15,0.20,0.25],id:\.self){size in Button("\(Int(size*100))% of screen") {popupAreaPercent=size}}}label:{popupBarGlyph("arrow.up.left.and.arrow.down.right")}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Resize popup")
                     popupBarButton("scope","Move popup to its default position. Drag this header to place it",action:resetPosition)
@@ -3143,6 +3140,8 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
                     popupBarButton("xmark","Close popup",action:close)
                 }.padding(.horizontal,6).padding(.vertical,5).background(Color.white.opacity(0.10),in:RoundedRectangle(cornerRadius:13))
             }.padding(.horizontal,10).padding(.vertical,8).foregroundStyle(.white).background(LinearGradient(colors:[Butter.cocoa,Butter.cocoa,Butter.cocoa],startPoint:.leading,endPoint:.trailing),in:RoundedRectangle(cornerRadius:14))
+            if voice.phase != .off || voice.popupSettingsOpen || !voice.errorMessage.isEmpty{VoiceControlBar(voice:voice,context:.popup)}
+            if voice.popupSettingsOpen{ScrollView{VoiceSettingsPanel(voice:voice)}.frame(maxHeight:230)}
             if showPopupOptions{VStack(alignment:.leading,spacing:11){HStack(spacing:7){Image(systemName:"circle.lefthalf.filled").foregroundStyle(Butter.coral);Text("Transparency").font(.system(size:12,weight:.medium));Slider(value:$popupTransparency,in:0...0.65).frame(width:170).tint(Butter.coral);Text("\(Int((popupTransparency*100).rounded()))%").font(.system(size:11,weight:.semibold,design:.monospaced)).frame(width:36,alignment:.trailing)};collectionPicker}.padding(11).frame(maxWidth:.infinity,alignment:.leading).background(Butter.coral.opacity(0.06),in:RoundedRectangle(cornerRadius:12)).overlay(RoundedRectangle(cornerRadius:12).stroke(Butter.coral.opacity(0.22)))}
             searchBar
             builderShortcutCard
@@ -3205,7 +3204,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     private var currentRewriteKey:String{let id=UserDefaults.standard.string(forKey:"ezmeSelectedAIModelProfile") ?? UserDefaults.standard.string(forKey:"ezmeCollectionSelectedProfile") ?? CollectionAIModelProfile.starter.id;guard let profile=AIModelProfileStore.load().first(where:{$0.id==id}) ?? AIModelProfileStore.load().first else{return ""};return KeyStore.load(account:profile.keyAccount) ?? ""}
     private func rewriteClipboardText()async{let profiles=AIModelProfileStore.load();let id=UserDefaults.standard.string(forKey:"ezmeSelectedAIModelProfile") ?? UserDefaults.standard.string(forKey:"ezmeCollectionSelectedProfile") ?? CollectionAIModelProfile.starter.id;guard let profile=profiles.first(where:{$0.id==id}) ?? profiles.first,let key=KeyStore.load(account:profile.keyAccount),!key.isEmpty else{rewriteStatus="Add an API key in API configuration to use AI rewriting.";return};let source=search.rewriteText.trimmingCharacters(in:.whitespacesAndNewlines);guard !source.isEmpty else{return};rewriteBusy=true;rewriteStatus="Rewriting as \(rewriteTone.lowercased())…";defer{rewriteBusy=false};let instruction="Rewrite the text in a \(rewriteTone.lowercased()) tone. Preserve the original meaning, names, dates, amounts, links, and facts. Do not invent details or add commentary. Return only the rewritten text.\n\nText:\n\(source)";do{let rewritten=try await SharedAIClient.generate(profile:profile,key:key,prompt:instruction,maxTokens:1400).trimmingCharacters(in:.whitespacesAndNewlines);guard !rewritten.isEmpty else{rewriteStatus="The AI returned an empty rewrite.";return};search.rewriteText=rewritten;rewriteStatus="\(rewriteTone) rewrite ready. Review or edit, then paste."}catch{rewriteStatus="Could not rewrite the text: \(error.localizedDescription)"}}
     private var logoButton:some View { Button { close(); NSApp.activate(ignoringOtherApps:true); DispatchQueue.main.asyncAfter(deadline:.now()+0.08) { NSApp.windows.first(where:{ !($0 is NSPanel) })?.makeKeyAndOrderFront(nil) } } label: { Group { if let icon=keyDoIconImage(){Image(nsImage:icon).resizable().scaledToFit().padding(5).frame(width:42,height:42)}else{Text("K").font(.system(size:22,weight:.heavy,design:.rounded)).foregroundStyle(Butter.cocoa).frame(width:42,height:42)} }.background(Butter.cream,in:RoundedRectangle(cornerRadius:11)) }.buttonStyle(.plain).help("Open the KeyDo app").accessibilityLabel("Open KeyDo") }
-    private func popupBarGlyph(_ symbol:String)->some View{Image(systemName:symbol).font(.system(size:13,weight:.semibold)).foregroundStyle(Butter.cocoa).frame(width:30,height:30).background(Butter.cream,in:RoundedRectangle(cornerRadius:9))}
+    private func popupBarGlyph(_ symbol:String,hot:Bool=false)->some View{Image(systemName:symbol).font(.system(size:13,weight:.semibold)).foregroundStyle(hot ? Color.white:Butter.cocoa).frame(width:30,height:30).background(hot ? Butter.coral:Butter.cream,in:RoundedRectangle(cornerRadius:9))}
     private func popupBarButton(_ symbol:String,_ help:String,action:@escaping()->Void)->some View{Button(action:action){popupBarGlyph(symbol)}.buttonStyle(.plain).help(help)}
     private func requestCapture(){NotificationCenter.default.post(name:.ezmeCaptureRequested,object:nil)}
     private func requestQuickAdd(_ action:String){NotificationCenter.default.post(name:.miniJClosePicker,object:nil,userInfo:["action":action])}
@@ -3311,6 +3310,8 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     private var promptPasteHandler:((String,Int,[String])->Void)?
     private var promptMediaCopyHandler:(([String])->Void)?
     private var queryWork: DispatchWorkItem?
+    private var voiceLayoutObserver:NSObjectProtocol?
+    var isVisible:Bool{panel != nil}
     private var imageCommandWasActivated=false
     private var configuredAreaPercent:Double{UserDefaults.standard.object(forKey:"ezmePickerAreaPercent") as? Double ?? 0.22}
     private var normalSize:NSSize{let screen=NSScreen.screens.first(where:{$0.frame.contains(NSEvent.mouseLocation)}) ?? NSScreen.main;let visible=screen?.visibleFrame ?? NSRect(x:0,y:0,width:1200,height:800);return pickerPopupSize(visible:visible,areaPercent:configuredAreaPercent,aspect:1.55)}
@@ -3346,9 +3347,21 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         if let savedX,let savedY{let x=min(max(visible.minX,CGFloat(savedX)),visible.maxX-p.frame.width);let y=min(max(visible.minY,CGFloat(savedY)),visible.maxY-p.frame.height);p.setFrameOrigin(NSPoint(x:x,y:y))}else{p.setFrameOrigin(NSPoint(x:visible.midX-normalSize.width/2,y:visible.maxY-normalSize.height-20))}
         panel = p
         p.orderFrontRegardless()
+        attachVoice(db:db)
         applyCompact()
     }
-    private func applyCompact(){guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return};let target:CGFloat=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? 92:normalSize.height;let old=panel.frame;guard abs(old.height-target)>1,abs(old.height-92)<2 || abs(old.height-normalSize.height)<2 else{return};panel.setFrame(NSRect(x:old.minX,y:old.maxY-target,width:old.width,height:target),display:true,animate:false)}
+    private func applyCompact(){guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return};let target:CGFloat=(search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !KeyDoVoice.shared.wantsExpandedPopup) ? 92:normalSize.height;let old=panel.frame;guard abs(old.height-target)>1,abs(old.height-92)<2 || abs(old.height-normalSize.height)<2 else{return};panel.setFrame(NSRect(x:old.minX,y:old.maxY-target,width:old.width,height:target),display:true,animate:false)}
+    /// Voice commands drive the same search, selection and Enter as the keyboard.
+    private func attachVoice(db:DB){
+        if voiceLayoutObserver == nil{voiceLayoutObserver=NotificationCenter.default.addObserver(forName:.keydoVoiceLayoutChanged,object:nil,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.applyCompact()}}}
+        var handlers=KeyDoVoice.Handlers()
+        handlers.search={[weak self] text in self?.setQuery(text)}
+        handlers.enter={[weak self] in self?.chooseFirst()}
+        handlers.move={delta in NotificationCenter.default.post(name:.miniJMoveSelection,object:nil,userInfo:["delta":delta])}
+        handlers.close={[weak self] in self?.hide()}
+        handlers.vocabulary={[weak db] in guard let db else{return []};return db.availableClips.prefix(60).flatMap{clip in [clip.name,String(clip.key.drop(while:{$0=="/" || $0=="\\"}))]}.filter{!$0.isEmpty}}
+        KeyDoVoice.shared.attach(.popup,handlers)
+    }
     func setQuery(_ value: String) {
         queryWork?.cancel()
         let work=DispatchWorkItem{[weak self] in
@@ -3457,7 +3470,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     func resetPosition(){guard let panel else{return};let screen=NSScreen.screens.first(where:{$0.frame.contains(NSEvent.mouseLocation)}) ?? NSScreen.main;let visible=screen?.visibleFrame ?? NSRect(x:0,y:0,width:1000,height:800);panel.setFrameOrigin(NSPoint(x:visible.midX-panel.frame.width/2,y:visible.maxY-panel.frame.height-20))}
     func windowDidMove(_ notification:Notification){guard let moved=notification.object as? NSWindow,moved===panel else{return};UserDefaults.standard.set(Double(moved.frame.origin.x),forKey:"ezmePickerOriginX");UserDefaults.standard.set(Double(moved.frame.origin.y),forKey:"ezmePickerOriginY")}
     func chooseFirst() { if search.hasSpotlight { NotificationCenter.default.post(name:.miniJRunSelected,object:nil) } else if let item=search.results.first { selectHandler?(item,false); hide() } }
-    func hide() {MiniJAppDelegate.current?.pickerActive=false;MiniJAppDelegate.current?.imagePromptMode=false; panel?.orderOut(nil); panel = nil; selectHandler=nil;rewritePasteHandler=nil; database=nil; search.imageMode=false;search.rewriteMode=false;search.rewriteText="";search.rewriteRemoveCount=0;search.imageReferencePaths=[];search.imagePromptText="";search.value="";imageCommandWasActivated=false }
+    func hide() {KeyDoVoice.shared.popupClosed();MiniJAppDelegate.current?.pickerActive=false;MiniJAppDelegate.current?.imagePromptMode=false; panel?.orderOut(nil); panel = nil; selectHandler=nil;rewritePasteHandler=nil; database=nil; search.imageMode=false;search.rewriteMode=false;search.rewriteText="";search.rewriteRemoveCount=0;search.imageReferencePaths=[];search.imagePromptText="";search.value="";imageCommandWasActivated=false }
 }
 extension Notification.Name { static let miniJOpenPicker = Notification.Name("MiniJOpenPicker"); static let miniJPickerQuery=Notification.Name("MiniJPickerQuery"); static let miniJChooseFirst=Notification.Name("MiniJChooseFirst"); static let miniJClosePicker=Notification.Name("MiniJClosePicker");static let miniJAutoExpand=Notification.Name("MiniJAutoExpand");static let ezmeTapFailed=Notification.Name("EzMeTapFailed");static let ezmeBuilderGenerateShortcut=Notification.Name("EzMeBuilderGenerateShortcut");static let ezmeBuilderGenerationFinished=Notification.Name("EzMeBuilderGenerationFinished");static let ezmeBuilderIconChanged=Notification.Name("EzMeBuilderIconChanged");static let ezmeImageCommandActivated=Notification.Name("EzMeImageCommandActivated");static let ezmeImagePromptInput=Notification.Name("EzMeImagePromptInput");static let ezmeOpenAPIConfiguration=Notification.Name("EzMeOpenAPIConfiguration");static let ezmeCaptureRequested=Notification.Name("EzMeCaptureRequested"); }
 final class MiniJAppDelegate:NSObject,NSApplicationDelegate {
@@ -3503,6 +3516,7 @@ private func miniJSlashTap(_ proxy:CGEventTapProxy,_ type:CGEventType,_ event:CG
   if !event.flags.intersection([.maskCommand,.maskControl,.maskAlternate]).isEmpty{app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)};return Unmanaged.passUnretained(event)}
   if key == Int64(kVK_Delete) || key == Int64(kVK_ForwardDelete){if app.triggerBuffer.count>1{app.triggerBuffer.removeLast();postPickerQuery(app,query:String(app.triggerBuffer.dropFirst()))}else{app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)}};return Unmanaged.passUnretained(event)}
   if key == Int64(kVK_Escape){app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)};return Unmanaged.passUnretained(event)}
+  if app.triggerBuffer == "\\",UserDefaults.standard.object(forKey:VoiceKeys.doubleBackslash) as? Bool ?? true,event.flags.intersection([.maskShift,.maskCommand,.maskControl,.maskAlternate]).isEmpty{var voiceLength=0;var voiceChars=[UniChar](repeating:0,count:8);event.keyboardGetUnicodeString(maxStringLength:8,actualStringLength:&voiceLength,unicodeString:&voiceChars);let voiceText=voiceLength>0 ? String(utf16CodeUnits:voiceChars,count:voiceLength):"";if key == Int64(kVK_ANSI_Backslash) || voiceText == "\\"{DispatchQueue.main.async{NotificationCenter.default.post(name:.keydoVoiceActivate,object:nil)};return nil}}
   if key == Int64(kVK_Return) || key == Int64(kVK_ANSI_KeypadEnter){finishTrackedTrigger(app,suffix:"\n");return nil}
   if key == Int64(kVK_Tab){finishTrackedTrigger(app,suffix:"\t");return nil}
   if key == Int64(kVK_Space) && app.triggerBuffer.count == 1{app.triggerTracking=false;app.pickerActive=true;app.queryBuffer="";DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJPhraseMode,object:nil)};postPickerQuery(app,query:"");return nil}

@@ -1,7 +1,9 @@
-## Browser: private mode, split view and panel sizes
+## Voice commands in the shortcut popup and the bottom-right assistant
 
-- **Private browsing and Incognito** now bring your saved links and collections from the main browser, so your favourites are there. Tabs, history and site logins stay separate. Tabs in the same mode now share one login session, so signing in on one tab works on the others. Tab icons are cleared when you switch modes.
-- **Private browsing** no longer reads the Keychain every time a tab changes, which could stall the page and the split view.
-- **Split view works in every mode**, with a proper bar: **Linked** (default) opens links and new tabs from the left side on the right side, **Separate** lets each side browse its own website with its own address field on the right. Swap sides, close the split, and pick the right-hand tab from a menu. The right-hand tab is outlined in blue on the tab strip.
-- **Panels of any size:** the tab row, address bar, tools row and split panes keep a fixed height and scroll sideways when the panel is narrow, instead of squeezing or growing tall. The new-tab button stays pinned, and the tab strip scrolls to the tab you select.
-- The start page header fits narrow panels on one line, and the favourite tiles are smaller.
+- **Hands-free shortcuts.** Press `\\` (double backslash) anywhere and the popup opens already listening. Say a shortcut name, then say "enter" to paste it.
+- **Voice commands:** "enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup".
+- **Popup header.** New microphone button and a settings gear on the logo row. A status bar shows what KeyDo hears, with a live level meter and Start / Pause / Stop buttons.
+- **Voice settings.** Keep listening after a shortcut is pasted (off by default), turn the double-backslash trigger on or off, sounds on or off, and a language picker.
+- **Bottom-right assistant.** Same engine and same commands at app level. It shows matching shortcuts as you speak, highlights the selected one, and "enter" opens it. "Open browser" or "go to dashboard" navigates straight away.
+- Paused mode still hears "start listening" and "stop listening" so you can resume by voice.
+- The first use asks for Microphone and Speech Recognition access. Speech is processed by Apple's speech service.
