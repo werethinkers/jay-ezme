@@ -1,9 +1,7 @@
-## One list of live values
+## Browser: private mode, split view and panel sizes
 
-- The Library (Live & dynamic), AppBuilder and WishStudio now share the same live values. Anything that worked in only one place now works in all three.
-- New in shortcuts and AppBuilder templates: `{{day}}`, `{{week}}`, `{{hour}}`, `{{minute}}`, `{{second}}`, `{{now}}`, `{{today}}`, `{{greeting}}`, and steps like `{{date+1}}` (tomorrow), `{{date-1}}`, `{{date+7}}`, `{{weekday+1}}`, `{{month+1}}`, `{{year+1}}`, `{{time+1}}`.
-- WishStudio extras work in templates too: `{{=INR(1234567)}}`, `{{=ORDINAL(21)}}`, `{{=AGE("15/08/1990")}}`, `{{=COUNTDOWN("15/08/1990")}}`, or any WishStudio formula after an equals sign.
-- New in WishStudio: `=Unix`, `=Timestamp`, `=UUID` and `WORLDCLOCK("London")`, which the Library already had.
-- AppBuilder templates no longer reject live values: before, only a short list was accepted.
-- AppBuilder: a new Insert live value menu in the template editor, plus two starter apps, Daily Greeting and Live Values Sheet.
-- Library: the Available live values panel lists every value with a copy button, and 29 example shortcuts (like /tomorrow, /greet, /inr, /london) are added to Live & dynamic once. Existing shortcuts with the same key are left alone.
+- **Private browsing and Incognito** now bring your saved links and collections from the main browser, so your favourites are there. Tabs, history and site logins stay separate. Tabs in the same mode now share one login session, so signing in on one tab works on the others. Tab icons are cleared when you switch modes.
+- **Private browsing** no longer reads the Keychain every time a tab changes, which could stall the page and the split view.
+- **Split view works in every mode**, with a proper bar: **Linked** (default) opens links and new tabs from the left side on the right side, **Separate** lets each side browse its own website with its own address field on the right. Swap sides, close the split, and pick the right-hand tab from a menu. The right-hand tab is outlined in blue on the tab strip.
+- **Panels of any size:** the tab row, address bar, tools row and split panes keep a fixed height and scroll sideways when the panel is narrow, instead of squeezing or growing tall. The new-tab button stays pinned, and the tab strip scrolls to the tab you select.
+- The start page header fits narrow panels on one line, and the favourite tiles are smaller.
