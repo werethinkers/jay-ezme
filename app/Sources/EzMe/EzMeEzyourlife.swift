@@ -804,6 +804,13 @@ struct EzyRunPanelView: View {
     var save: (Clip) -> Void
     @FocusState private var askFocused: Bool
 
+    /// The inputs get as much room as the screen allows, so no option hides below the window.
+    static var formMaxHeight: CGFloat {
+        let screen = NSScreen.screens.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) ?? NSScreen.main
+        let available = screen?.visibleFrame.height ?? 800
+        return max(300, min(available - 330, 760))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
@@ -829,7 +836,7 @@ struct EzyRunPanelView: View {
             if model.phase == .ask {
                 askBody
             } else {
-                ScrollView { EzyFieldsForm(model: model).padding(2) }.frame(maxHeight: 300)
+                ScrollView { EzyFieldsForm(model: model).padding(2) }.frame(maxHeight: Self.formMaxHeight)
                 if !model.filledNote.isEmpty { Text(model.filledNote).font(.system(size: 11, weight: .semibold)).foregroundStyle(EzyColor.muted) }
                 HStack {
                     Button(model.busy ? "Working…" : "Run and paste · \(ezyCredits(model.detail?.credits))") { runAndPaste() }
@@ -934,6 +941,7 @@ struct EzyRunPanelView: View {
             p.hasShadow = true
             p.isMovableByWindowBackground = true
             p.delegate = self
+            NotificationCenter.default.addObserver(self, selector: #selector(panelResized(_:)), name: NSWindow.didResizeNotification, object: p)
             let view = EzyRunPanelView(model: model, close: { [weak self] in self?.hide() }, paste: { [weak self] in self?.pasteResult() },
                                        runAndPaste: { [weak self] in self?.runAndPaste() },
                                        save: { [weak self] clip in self?.saveShortcut?(clip); self?.model.message = "Saved as \(displayTrigger(clip.key))" })
@@ -947,6 +955,17 @@ struct EzyRunPanelView: View {
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
         p.setFrameOrigin(NSPoint(x: visible.midX - 320, y: visible.maxY - 580))
         p.makeKeyAndOrderFront(nil)
+    }
+
+    /// When the form grows, keep the whole window on the screen instead of letting it run off the top.
+    @objc private func panelResized(_ note: Notification) {
+        guard let p = note.object as? NSWindow else { return }
+        let screen = p.screen ?? NSScreen.main
+        let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1200, height: 800)
+        var frame = p.frame
+        if frame.maxY > visible.maxY - 8 { frame.origin.y = visible.maxY - 8 - frame.height }
+        if frame.minY < visible.minY + 8 { frame.origin.y = visible.minY + 8 }
+        if abs(frame.origin.y - p.frame.origin.y) > 0.5 { p.setFrameOrigin(frame.origin) }
     }
 
     func pasteResult() {

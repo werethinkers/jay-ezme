@@ -377,7 +377,7 @@ enum WishSeeds {
             field("title", "Infographic title", "\u{0907}\u{0928}\u{094D}\u{092B}\u{094B}\u{0917}\u{094D}\u{0930}\u{093E}\u{092B}\u{093C}\u{093F}\u{0915} \u{0936}\u{0940}\u{0930}\u{094D}\u{0937}\u{0915}", .text, "Four steps to a better day", "\u{0915}\u{0937}\u{093E}\u{092F} \u{0915}\u{0947} \u{091A}\u{093E}\u{0930} \u{092A}\u{094D}\u{0930}\u{0915}\u{093E}\u{0930}"),
             field("data", "Data", "\u{0921}\u{0947}\u{091F}\u{093E}", .list, "Plan\nFocus\nAct\nReflect", "\u{0915}\u{094D}\u{0930}\u{094B}\u{0927}\n\u{092E}\u{093E}\u{0928}\n\u{092E}\u{093E}\u{092F}\u{093E}\n\u{0932}\u{094B}\u{092D}"),
         ]
-        return [birthday, anniversary, diwali, info]
+        return [birthday, anniversary, WishQuickCard.workAnniversaryApp(), diwali, info]
     }
 
     static func functions() -> [WishFunction] {

@@ -1,9 +1,9 @@
-## Voice commands in the shortcut popup and the bottom-right assistant
+## Taller popup for inputs, and HBD / HWA greeting cards
 
-- **Hands-free shortcuts.** Press `\\` (double backslash) anywhere and the popup opens already listening. Say a shortcut name, then say "enter" to paste it.
-- **Voice commands:** "enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup".
-- **Popup header.** New microphone button and a settings gear on the logo row. A status bar shows what KeyDo hears, with a live level meter and Start / Pause / Stop buttons.
-- **Voice settings.** Keep listening after a shortcut is pasted (off by default), turn the double-backslash trigger on or off, sounds on or off, and a language picker.
-- **Bottom-right assistant.** Same engine and same commands at app level. It shows matching shortcuts as you speak, highlights the selected one, and "enter" opens it. "Open browser" or "go to dashboard" navigates straight away.
-- Paused mode still hears "start listening" and "stop listening" so you can resume by voice.
-- The first use asks for Microphone and Speech Recognition access. Speech is processed by Apple's speech service.
+- **The shortcut popup grows when an app needs inputs.** AppBuilder apps typed in the popup (like `invoice-...`) make the popup taller so the fields, the output choice and the other matches stay visible instead of hiding below. Ezyourlife app forms use up to the full screen height before they scroll, and the window stays on screen as it grows. The popup returns to its normal size when the inputs are gone.
+- **HBD, Happy Birthday card.** Type `hbd-Rahul` in the popup. AppBuilder makes a birthday card image with that name. Type `hbd-` and a media shortcut (a shortcut with a picture attached) and the card uses that picture and the shortcut's name.
+- **HWA, Happy Work Anniversary card.** Same idea: `hwa-Priya` or `hwa-` and a media shortcut.
+- **WishStudio versions with an HTML link.** `hbdweb-Rahul` and `hwaweb-Rahul` build the card as a web page in WishStudio on this Mac (no AI key needed) and paste the link. They also take a media shortcut for the picture. WishStudio now also has a **Work Anniversary** card next to Happy Birthday.
+- All four apps are added to AppBuilder automatically, so the shortcuts work straight away. The image cards need an API key with an OpenAI or Gemini image model in API configuration.
+- Names with spaces: put them in quotes, like `hbd-"Rahul Jain"`.
+- The WishStudio link points to a file on this Mac, so it opens on this Mac only.
