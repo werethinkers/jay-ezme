@@ -85,15 +85,15 @@ enum CelebrationApps {
 
 // MARK: - WishStudio card page
 
-enum WishOccasion: String {
+enum WishQuickOccasion: String {
     case birthday = "wish-birthday"
     case workAnniversary = "wish-anniversary"
 }
 
 enum WishQuickCard {
     /// Which WishStudio card an app makes, or nil for a normal AppBuilder app.
-    static func occasion(forApp app: String) -> WishOccasion? {
-        WishOccasion(rawValue: UserDefaults.standard.string(forKey: "ezmeBuilderEngine." + app) ?? "")
+    static func occasion(forApp app: String) -> WishQuickOccasion? {
+        WishQuickOccasion(rawValue: UserDefaults.standard.string(forKey: "ezmeBuilderEngine." + app) ?? "")
     }
 
     private static func field(_ key: String, _ label: String, _ type: WishFieldType, _ value: String, _ valueHi: String, universal: Bool = false) -> WishField {
@@ -118,7 +118,7 @@ enum WishQuickCard {
     }
 
     /// Builds the card as a web page (index.html plus its picture) and returns the page's address.
-    static func build(occasion: WishOccasion, name: String, photo: String?, in directory: URL) throws -> URL {
+    static func build(occasion: WishQuickOccasion, name: String, photo: String?, in directory: URL) throws -> URL {
         let app: WishApp
         let design: String
         switch occasion {
