@@ -2,7 +2,7 @@
 
 Static marketing site for the KeyDo macOS app (current version in `update/latest.json`). Live at https://ezme.ezyourlife.com
 
-- `index.html`: the whole site (HTML, CSS and a small demo script inline). Fonts load from Google Fonts.
+- `index.html`: the whole site in one file (HTML, CSS and a small demo script inline). Fonts load from Google Fonts.
 - `assets/`: logo, reference document layouts, favicon and social image.
 - `app/`: the Mac app source, build script and release notes. See `app/README.md`.
 - `update/latest.json`: the update feed. GitHub Actions rewrites it on every app release; the Download button and the app's updater both read it.
