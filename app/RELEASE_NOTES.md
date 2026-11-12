@@ -1,7 +1,8 @@
-## HBD and HWA cards now work, with no AI key
+## Prompt Builder: write AI prompts with your collections and media, and send them in one click
 
-- **hbd-Name and hwa-Name make the card on this Mac.** Type `hbd-Hiral` or `hwa-Priya` in the popup and a lavender card is made at once and ready to attach: a small line on top, a cake (or a trophy for HWA), "Happy Birthday" or "Happy Work Anniversary", the name in italics, one warm line and your first name at the bottom. No API key is needed.
-- **A picture shortcut still works.** `hbd-` plus a shortcut that has a picture puts that picture in a round frame in place of the cake and writes the shortcut's name on the card.
-- **hbdweb-Name and hwaweb-Name build the same card as one web page file** with the picture inside it, so the file can be moved or sent on its own. The sparkles twinkle on the page.
-- **Fixed: the four shortcuts were not found.** Opening AppBuilder removed them from your list of apps, and the older "HBD" starter app held the `hbd` prefix and asked for a Contacts record. The cards are now kept and checked at every launch, and the older starter moved to `hbdc` (for example `hbdc-Rahul`).
-- Names with spaces still go in quotes, like `hbd-"Rahul Jain"`.
+- **A new built-in app in AppBuilder, next to Collection Builder and MyDatabase. It can't be deleted.** Say "prompt builder" in the voice search to open it, or pick its card in AppBuilder.
+- **Type or speak.** The Speak button writes your words into the prompt as you talk.
+- **Shortcuts and collections write themselves into the prompt.** Type `/photo` (or just the code of a media shortcut) and the media is attached and shown as a chip under the box. Hover over the chip to see the picture. A text shortcut written as `/code` is replaced by its text. A collection record written as `@alias` is replaced by its name and details. The Collections, Media shortcuts and Text shortcuts menus insert them for you.
+- **A second box shows your prompt live, corrected as you type:** spelling, capital letters, I'm / don't, and every shortcut written out. The fixes are listed under it, and you can switch Auto-correct off. Names and codes from your own data are never changed. "Polish with AI" rewrites the prompt with your API key if you want that too.
+- **ChatGPT, Grok, Claude, Gemini and Perplexity buttons.** One click opens the site in the browser side panel, types the whole prompt, pastes the attached media and presses send. If you are not signed in to a site, sign in in the side panel and press the button again. **Add site** adds any other AI site, and a right-click removes it.
+- Note: the media step uses the clipboard.
