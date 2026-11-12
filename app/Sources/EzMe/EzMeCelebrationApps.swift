@@ -35,35 +35,44 @@ private let anniversaryImagePrompt = "Design a polished, warm Happy Work Anniver
 
 let celebrationPresets: [AppBuilderPreset] = [
     AppBuilderPreset(name: "Birthday Card (HBD)", prefix: "hbd", prompt: birthdayImagePrompt, variables: "Name", sourceCollections: "", outputCollections: "Birthday Cards", template: "Modern",
-                     details: "Joyful and warm. Spell the name exactly as given. Type hbd-Name, or hbd- and a media shortcut to use its picture.", format: "Image"),
+                     details: "Joyful and warm lavender card, made on this Mac with no AI key. Type hbd-Name, or hbd- and a media shortcut to use its picture.", format: "Image", engine: "card-birthday"),
     AppBuilderPreset(name: "Work Anniversary Card (HWA)", prefix: "hwa", prompt: anniversaryImagePrompt, variables: "Name", sourceCollections: "", outputCollections: "Work Anniversary Cards", template: "Modern",
-                     details: "Professional and warm. Spell the name exactly as given. Type hwa-Name, or hwa- and a media shortcut to use its picture.", format: "Image"),
-    AppBuilderPreset(name: "Birthday Web Card (HBD · WishStudio)", prefix: "hbdweb", prompt: "Happy Birthday card page made in WishStudio.", variables: "Name", sourceCollections: "", outputCollections: "Birthday Cards", template: "Modern",
-                     details: "Builds a WishStudio card web page and pastes its link. Type hbdweb-Name, or hbdweb- and a media shortcut to use its picture.", format: "HTML", engine: "wish-birthday"),
-    AppBuilderPreset(name: "Work Anniversary Web Card (HWA · WishStudio)", prefix: "hwaweb", prompt: "Happy Work Anniversary card page made in WishStudio.", variables: "Name", sourceCollections: "", outputCollections: "Work Anniversary Cards", template: "Modern",
-                     details: "Builds a WishStudio card web page and pastes its link. Type hwaweb-Name, or hwaweb- and a media shortcut to use its picture.", format: "HTML", engine: "wish-anniversary"),
+                     details: "Professional and warm card, made on this Mac with no AI key. Type hwa-Name, or hwa- and a media shortcut to use its picture.", format: "Image", engine: "card-anniversary"),
+    AppBuilderPreset(name: "Birthday Web Card (HBD · WishStudio)", prefix: "hbdweb", prompt: "Happy Birthday card web page.", variables: "Name", sourceCollections: "", outputCollections: "Birthday Cards", template: "Modern",
+                     details: "Builds the card as one web page file (picture included). Type hbdweb-Name, or hbdweb- and a media shortcut to use its picture.", format: "HTML", engine: "card-web-birthday"),
+    AppBuilderPreset(name: "Work Anniversary Web Card (HWA · WishStudio)", prefix: "hwaweb", prompt: "Happy Work Anniversary card web page.", variables: "Name", sourceCollections: "", outputCollections: "Work Anniversary Cards", template: "Modern",
+                     details: "Builds the card as one web page file (picture included). Type hwaweb-Name, or hwaweb- and a media shortcut to use its picture.", format: "HTML", engine: "card-web-anniversary"),
 ]
 
 enum CelebrationApps {
-    /// Installs the four apps once, so hbd-Name works without opening AppBuilder first.
+    /// Makes sure the four apps are installed and own their prefixes. Safe to call on every launch.
     /// Returns the collections the apps save into, so the caller can create them.
-    static func seedOnce() -> [String] {
+    ///
+    /// The first run of this version also rewrites the four apps' settings (so older copies get the local
+    /// card engine) and moves the older "HBD" starter app, which held the hbd prefix, to hbdc.
+    static func ensureInstalled() -> [String] {
         let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: "ezmeCelebrationApps.v1") else { return [] }
         var installed = (try? JSONDecoder().decode([String].self, from: Data((defaults.string(forKey: "ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
+        let refresh = !defaults.bool(forKey: "ezmeCelebrationApps.v2")
         var collections: [String] = []
         for preset in celebrationPresets {
-            // Never take over a prefix the person already uses for something else.
-            let taken = installed.contains { name in
-                name.caseInsensitiveCompare(preset.name) != .orderedSame && (defaults.string(forKey: "ezmeBuilderPrefix." + name) ?? "").caseInsensitiveCompare(preset.prefix) == .orderedSame
+            let known = installed.contains { $0.caseInsensitiveCompare(preset.name) == .orderedSame }
+            if refresh {
+                // Another app holding this prefix would answer first, so give it a different one.
+                for other in installed where other.caseInsensitiveCompare(preset.name) != .orderedSame {
+                    let fallback = String(other.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression).prefix(12))
+                    let current = defaults.string(forKey: "ezmeBuilderPrefix." + other) ?? fallback
+                    if current.caseInsensitiveCompare(preset.prefix) == .orderedSame {
+                        defaults.set(preset.prefix + "c", forKey: "ezmeBuilderPrefix." + other)
+                    }
+                }
             }
-            if taken { continue }
-            if !installed.contains(where: { $0.caseInsensitiveCompare(preset.name) == .orderedSame }) { installed.append(preset.name) }
-            write(preset)
+            if !known { installed.append(preset.name) }
+            if refresh || !known || defaults.string(forKey: "ezmeBuilderPrefix." + preset.name) == nil { write(preset) }
             collections.append(preset.outputCollections)
         }
         defaults.set(String(decoding: (try? JSONEncoder().encode(installed)) ?? Data("[]".utf8), as: UTF8.self), forKey: "ezmeCustomBuilderAppsJSON")
-        defaults.set(true, forKey: "ezmeCelebrationApps.v1")
+        defaults.set(true, forKey: "ezmeCelebrationApps.v2")
         return collections
     }
 
