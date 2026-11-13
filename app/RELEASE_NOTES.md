@@ -1,9 +1,6 @@
-## Prompt Builder: # for shortcuts, @ for people, = for functions, and more voice commands
+## Library grid view, Media Resizer tabs, and links in Video Cutter
 
-- **# shortcuts and collections.** Type `#rohit.media` to use a media or text shortcut, or a collection record. A word without a mark is no longer turned into a shortcut by accident.
-- **@ people and apps.** `@priya` writes a person from your collections; `@` plus an app shortcut writes the app's name.
-- **= functions.** `=date`, `=time`, `=day`, `=month`, `=year`, `=tomorrow`, `=yesterday`, `=now`, and sums: `=2+5` becomes 7.
-- **Suggestions as you type.** After `#`, `@` or `=` a row of matching choices appears under the box; click one to finish the word. The three cards at the top start a mark with one click.
-- **Voice commands.** Say "hash rohit dot media", "mention priya", "equals date", "equals two plus five", "comma", "full stop", "undo one word", "undo one sentence", "edit word", "edit prompt rohit" (then say the new words; "end edit" goes back to the end).
-- **"Enter ChatGPT".** Say "enter chatgpt", "enter grok", "enter claude" or "enter gemini" (or any site you added) and the prompt opens in the side panel and is sent.
-- A **Voice commands** button lists all of these.
+- **Grid view in Library > Collections.** Switch between List and Grid above your shortcuts. The grid is a glimpse of each shortcut: pictures are shown, GIFs play, videos loop for their first 10 seconds, documents and sheets show their first page, links show the page's own preview, apps show their icon and text shortcuts show their words. Click a tile to edit it; "Select" works in the grid too.
+- **Filter by content type.** Chips above the shortcuts (All, Text, Images, GIFs, Videos, Music, Docs & sheets, Links, Apps) show how many of each you have and filter both List and Grid.
+- **Media Resizer.** The aspect-ratio choices (Free, Original, 1:1, 4:5, 16:9, 9:16) are now neat one-line buttons instead of squeezed tabs with letters running downward. The Ez Studio tool tabs lost their extra label too.
+- **Video Cutter from a link.** Paste a YouTube, Vimeo or Instagram link, or a direct .mp4 link, press Open link, and the video opens in the cutter to trim and save. Page links need the free helper yt-dlp (`brew install yt-dlp` once); direct file links need nothing. Only cut videos you own or have permission to use.
