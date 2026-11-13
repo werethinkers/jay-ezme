@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 269,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build269/EzMe-3.44-macOS.zip",
-  "sha256": "727f45ae80aa824b8bb2ac36a47d7a76d67f7cb7e4d717eee3c5ed97ce73a3f2",
-  "notes": "## Cleaner Media Resizer list, and the backslash popup behaves again\n\n- **Media Resizer / Crop Image:** the \"Images\" title in the left list no longer breaks into stacked letters. The title and the import button sit on one line, and \"From shortcut\" sits underneath.\n- **One backslash opens only the small search bar.** The larger popup opens once you start typing. If voice was left on from earlier (for example after continuous listening), pressing a single backslash now switches it off instead of opening the big popup with the Start listening bar.\n- **Voice starts only on a double backslash**, as before.",
-  "published": "2026-11-13T08:28:27Z",
+  "build": 271,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build271/EzMe-3.44-macOS.zip",
+  "sha256": "3324d2db8c08bbfaf3a6340cbe0084b69edc2c30494aeedd6acb4bb98a0d640f",
+  "notes": "## One backslash shows only a small search bar\n\n- **A single backslash now opens just a small, slim search bar** (no more wide bar with the mic, Merlin and Select area buttons). The full popup opens when you start typing.\n- **Voice starts only on a quick double backslash** (two presses within about half a second). A backslash typed later no longer starts voice by accident, for example in code or file paths.\n- A single backslash also switches off any voice session left running, so the popup never opens already listening.",
+  "published": "2026-11-13T11:15:43Z",
   "minimumSystemVersion": "14.0"
 }
