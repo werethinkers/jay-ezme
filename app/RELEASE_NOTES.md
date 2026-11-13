@@ -1,7 +1,6 @@
-## Video Cutter: links from YouTube, Vimeo and Instagram now load
+## Flexible browser split screen, and smart names in the Image Resizer
 
-- **No setup needed.** The first time you open a page link, KeyDo downloads the small open-source video helper (yt-dlp, about 35 MB) into its own folder and keeps using it. If you already have yt-dlp from Homebrew, that one is used.
-- **Self-repairing.** If a site fails, KeyDo updates the helper and tries again on its own, since YouTube and Instagram change often.
-- **Sign-in sites.** Instagram, private and age-limited videos want a sign-in. KeyDo then tries again with the sign-in from your Chrome, Safari, Firefox or Edge. (The Mac may ask once to let KeyDo read Chrome's saved sign-in.) If it still fails, the message says which site and what to do.
-- **Progress and clearer messages.** The row under the link box shows each step (setting up, getting the video, updating, trying your sign-in) and the real reason when something fails.
-- Only cut videos you own or have permission to use.
+- **Split screen you can resize.** In the Browser, drag the handle between the two sides to give either one more room (in every mode). Double-click the handle to go back to equal halves. KeyDo remembers your split.
+- **Image Resizer names pictures for you.** When you pick a picture, the shortcut code and the display name are filled in from its file name (`summer-trip_beach.jpg` becomes `summer-trip-beach` and "Summer Trip Beach"). If the file name says little, KeyDo looks at the title or caption stored in the picture, and at the web address it was downloaded from.
+- **Names that are too long or meaningless** (camera numbers like IMG_4021, long codes, "Screen Shot … at 10.22.11 AM") are replaced with `Screenshot-<date>-<time>`, for example `Screenshot-20261113-125530`, so it is always unique.
+- Every picture in a batch gets its own name, and a code that already exists gets -2, -3 and so on. Type your own code or name and KeyDo keeps what you typed. Codes can now be up to 32 characters.
