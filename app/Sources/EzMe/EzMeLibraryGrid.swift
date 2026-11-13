@@ -5,6 +5,7 @@
 // apps show their icon and text shortcuts show their words.
 import AppKit
 import AVFoundation
+import AVKit
 import LinkPresentation
 import QuickLookThumbnailing
 import SwiftUI
@@ -153,8 +154,10 @@ struct LibraryGridCard: View {
     var onToggle: () -> Void
     var onEdit: () -> Void
     @State private var hovering = false
+    @State private var showViewer = false
 
     private var type: LibraryContentType { LibraryContentType.of(clip) }
+    private var canEnlarge: Bool { [.image, .gif, .video, .music].contains(type) && clip.files.contains { FileManager.default.fileExists(atPath: $0) } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -164,6 +167,7 @@ struct LibraryGridCard: View {
                 .clipped()
                 .overlay(alignment: .topLeading) { badge.padding(8) }
                 .overlay(alignment: .topTrailing) { corner.padding(8) }
+                .overlay(alignment: .bottomTrailing) { if canEnlarge && !selecting { enlargeButton.padding(8) } }
             VStack(alignment: .leading, spacing: 3) {
                 Text(displayTrigger(clip.key))
                     .font(.system(.caption, design: .monospaced).weight(.semibold))
@@ -181,6 +185,20 @@ struct LibraryGridCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { hovering = $0 }
         .onTapGesture { if selecting { onToggle() } else { onEdit() } }
+        .sheet(isPresented: $showViewer) { LibraryMediaViewer(clip: clip) }
+    }
+
+    private var enlargeButton: some View {
+        Button { showViewer = true } label: {
+            Image(systemName: type == .video || type == .music ? "play.fill" : "arrow.up.left.and.arrow.down.right")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(Color.black.opacity(0.62)))
+                .overlay(Circle().stroke(Color.white.opacity(0.5), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .help(type == .video ? "Play this video large" : (type == .music ? "Play this audio" : "Show this larger"))
     }
 
     private var badge: some View {
@@ -484,5 +502,72 @@ struct AppIconTile: View {
                 Image(systemName: "app.dashed").font(.system(size: 44)).foregroundStyle(.brown)
             }
         }
+    }
+}
+
+
+// MARK: - Large viewer
+
+/// A big view of one shortcut's pictures, GIFs, videos or audio. A video plays here with its own controls.
+struct LibraryMediaViewer: View {
+    let clip: Clip
+    @Environment(\.dismiss) private var dismiss
+    @State private var index = 0
+
+    private var items: [String] {
+        clip.files.filter {
+            FileManager.default.fileExists(atPath: $0) && [.image, .gif, .video, .music].contains(LibraryContentType.fileType($0))
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Text(clip.name.isEmpty ? displayTrigger(clip.key) : clip.name).font(.headline).lineLimit(1)
+                if items.count > 1 { Text("\(min(index, items.count - 1) + 1) of \(items.count)").font(.caption).foregroundStyle(.secondary) }
+                Spacer()
+                if items.count > 1 {
+                    Button { index = (index - 1 + items.count) % items.count } label: { Image(systemName: "chevron.left") }
+                    Button { index = (index + 1) % items.count } label: { Image(systemName: "chevron.right") }
+                }
+                Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
+            }
+            .padding(12)
+            Divider()
+            Group {
+                if items.isEmpty {
+                    Text("Nothing to show.").foregroundStyle(.secondary)
+                } else {
+                    let path = items[min(index, items.count - 1)]
+                    switch LibraryContentType.fileType(path) {
+                    case .image:
+                        if let image = NSImage(contentsOfFile: path) {
+                            Image(nsImage: image).resizable().scaledToFit().padding(12)
+                        } else { Text("Could not open this picture.").foregroundStyle(.secondary) }
+                    case .gif:
+                        AnimatedGIFView(path: path).padding(12)
+                    default:
+                        LargeMediaPlayer(url: URL(fileURLWithPath: path)).id(path)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color.black.opacity(0.05))
+        }
+        .frame(minWidth: 760, idealWidth: 980, minHeight: 560, idealHeight: 720)
+    }
+}
+
+private struct LargeMediaPlayer: View {
+    let url: URL
+    @State private var player = AVPlayer()
+
+    var body: some View {
+        VideoPlayer(player: player)
+            .onAppear {
+                player.replaceCurrentItem(with: AVPlayerItem(url: url))
+                player.play()
+            }
+            .onDisappear { player.pause() }
     }
 }
