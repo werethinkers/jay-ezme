@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 271,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build271/EzMe-3.44-macOS.zip",
-  "sha256": "3324d2db8c08bbfaf3a6340cbe0084b69edc2c30494aeedd6acb4bb98a0d640f",
-  "notes": "## One backslash shows only a small search bar\n\n- **A single backslash now opens just a small, slim search bar** (no more wide bar with the mic, Merlin and Select area buttons). The full popup opens when you start typing.\n- **Voice starts only on a quick double backslash** (two presses within about half a second). A backslash typed later no longer starts voice by accident, for example in code or file paths.\n- A single backslash also switches off any voice session left running, so the popup never opens already listening.",
-  "published": "2026-11-13T11:15:43Z",
+  "build": 273,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build273/EzMe-3.44-macOS.zip",
+  "sha256": "f3efa38dafc3fe06977a1bf5c68fb9fa3061897d595ce66cea09fccea18b47e9",
+  "notes": "## Small bar with mic and 3-second timer, top-centre popup, faster voice search\n\n- **The small search bar has its mic button back**, next to the close button.\n- **3-second timer on the small bar.** A small 3-2-1 circle counts down and the bar closes. Type, speak or move the pointer over it to keep it open. The full popup keeps its longer wait.\n- **The popup always opens at the top centre of the screen**, small or full size.\n- **Voice and phrase searches show 5 results first.** More load as you scroll, so the popup opens quickly instead of drawing up to 80 shortcuts and media files.\n- **Faster searching.** Matching collection items against your shortcuts no longer re-checks the whole list for every item.",
+  "published": "2026-11-13T11:47:57Z",
   "minimumSystemVersion": "14.0"
 }
