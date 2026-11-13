@@ -1,5 +1,7 @@
-## Create an app in one step, from words or from a sample image
+## Hidden shortcuts need your 6-digit passcode
 
-- **Press + in AppBuilder and say what the app should make**, for example "Send an NDA to a client", "Thank-you card with a name" or "Invoice for a customer". KeyDo fills in the app's name, shortcut, fields and instructions for you. Before, this was two screens with fixed fields that did not fit most apps.
-- **Add a sample image if you have one** (a card, a poster, an invoice, a form). KeyDo follows its layout, colours and style and never copies its text. Image apps now use the sample as the picture to follow every time they make a result.
-- Without an API key, a simple app is made from your words and you can edit it in the app afterwards.
+- **Showing hidden collections now asks for a 6-digit passcode.** This covers the "Show hidden collections" switch in Collections, in My shortcuts and when moving shortcuts, and "Show hidden" and "Incognito · hidden only" in the backslash popup.
+- **The first time, KeyDo asks you to choose the passcode.** It is the same passcode that protects deleting apps. Turning a switch off never asks.
+- After a correct passcode the switches stay allowed for two minutes, so turning on several in a row does not ask again.
+- **The popup no longer remembers "Show hidden" between launches.** It starts hidden every time, so hidden shortcuts cannot show up in the popup without the passcode.
+- Forgot it? In the passcode window choose "Forgot passcode…" and confirm with your Mac password or Touch ID.
