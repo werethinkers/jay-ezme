@@ -1341,7 +1341,7 @@ struct WishHeader: View {
             .shadow(color: Butter.coral.opacity(active ? 0.14 : 0.035), radius: active ? 8 : 3, y: 3)
         }
         .buttonStyle(.plain)
-        .help(item.name)
+        .hoverInfo(title: item.name, detail: item.kind.title, footnote: "Click to open", symbol: "arrow.up.right", edge: .bottom)
     }
 
     private var builderTab: some View {
