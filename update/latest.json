@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 291,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build291/EzMe-3.44-macOS.zip",
-  "sha256": "15a38e51fe72c4add5995feefa9eb6d9dfaf916c83505cd6c78d72b42889448c",
-  "notes": "## Fixed blank greeting cards, and a slimmer fixed Collections header\n\n- **Greeting cards are no longer blank.** Thank You, Wedding Anniversary and the 14 festival apps now draw their card picture directly, the same way the hbd and hwa cards are drawn, instead of taking a picture of a web page. `diwali-Hiral`, `thanks-Hiral`, `thanks-Rohit` and the others come out as a finished PNG with the text, colours and emblem (or the picture from a media shortcut after the dash).\n- The look still comes from WishStudio: change an occasion's default look or save a template there, and the card uses it. Add a look word or a saved template name after the name (`thanks-Hiral-gold`) to use another look for one card.\n- **Collections header:** the title, buttons, search, type filters and selection bar now sit in a slim fixed block at the top. It stays in place while the list or grid scrolls underneath. It is about half the height it was, and the duplicate \"New shortcut\" button is gone.",
-  "published": "2026-11-13T20:27:35Z",
+  "build": 293,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build293/EzMe-3.44-macOS.zip",
+  "sha256": "fb68fe27e7027e3127b92182761ad0101328d6d08d4479939054e20ae7b84123",
+  "notes": "## App commands now paste their result, by typing and by voice\n\n- **Typing:** type an app command such as `\\hbd-Hiral` and press Space. KeyDo makes the card or text and pastes it straight into the app you were typing in, replacing the command. Before, it only showed the result in the popup.\n- **Popup and voice:** with an app command in the popup, press Enter (or say \"enter\") and it makes the result and pastes it. If the result is already made, Enter pastes it.\n- **Voice:** say the command naturally: \"hbd hiral\", \"thanks rohit\", \"diwali dash Shah family\" or \"thanks rohit dot media\". KeyDo turns it into `hbd-hiral`, `thanks-rohit.media` and so on before searching.",
+  "published": "2026-11-13T21:03:40Z",
   "minimumSystemVersion": "14.0"
 }
