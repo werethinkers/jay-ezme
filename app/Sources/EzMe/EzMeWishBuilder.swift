@@ -108,6 +108,17 @@ struct WishBuilderView: View {
 
     // MARK: App list
 
+    @State private var deleteCandidate: WishApp?
+
+    private func deleteWishApp(_ item: WishApp) {
+        guard store.apps.count > 1 else { return }
+        store.apps.removeAll { $0.id == item.id }
+        store.cards[item.id] = nil
+        builder.editingID = store.apps.first?.id ?? ""
+        if model.appID == item.id, let first = store.apps.first { model.loadApp(first.id, saveCurrent: false) }
+        deleteCandidate = nil
+    }
+
     private var appList: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Your wish apps").font(.system(size: 15, weight: .semibold))
@@ -133,6 +144,11 @@ struct WishBuilderView: View {
                             .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(active ? WishTheme.accent : WishTheme.line, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
+                        .contextMenu {
+                            if store.apps.count > 1 {
+                                Button("Delete app\u{2026}", systemImage: "trash", role: .destructive) { deleteCandidate = item }
+                            }
+                        }
                     }
                 }
             }
@@ -144,12 +160,9 @@ struct WishBuilderView: View {
                     Label("New app", systemImage: "plus")
                 }
                 .buttonStyle(.borderedProminent)
-                if let item = current, !item.builtIn {
+                if let item = current, store.apps.count > 1 {
                     Button(role: .destructive) {
-                        store.apps.removeAll { $0.id == item.id }
-                        store.cards[item.id] = nil
-                        builder.editingID = store.apps.first?.id ?? ""
-                        if model.appID == item.id, let first = store.apps.first { model.loadApp(first.id, saveCurrent: false) }
+                        deleteCandidate = item
                     } label: {
                         Image(systemName: "trash")
                     }
@@ -173,6 +186,11 @@ struct WishBuilderView: View {
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 16).fill(Color.white))
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
+        .sheet(isPresented: Binding(get: { deleteCandidate != nil }, set: { if !$0 { deleteCandidate = nil } })) {
+            if let item = deleteCandidate {
+                DeleteAppSheet(appName: item.name, onDelete: { deleteWishApp(item) }, onCancel: { deleteCandidate = nil })
+            }
+        }
     }
 
     // MARK: Step rail
