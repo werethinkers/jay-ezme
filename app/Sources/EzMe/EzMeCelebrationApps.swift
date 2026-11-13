@@ -52,6 +52,7 @@ enum CelebrationApps {
     /// card engine) and moves the older "HBD" starter app, which held the hbd prefix, to hbdc.
     static func ensureInstalled() -> [String] {
         let defaults = UserDefaults.standard
+        WishOccasions.migrateToImageOutput()
         var installed = (try? JSONDecoder().decode([String].self, from: Data((defaults.string(forKey: "ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
         let refresh = !defaults.bool(forKey: "ezmeCelebrationApps.v2")
         var collections: [String] = []

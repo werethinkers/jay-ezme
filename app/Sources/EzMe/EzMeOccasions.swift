@@ -5,6 +5,8 @@
 // Add a template after the name to use another look for that card only:  thanks-Hiral-gold,  diwali-Shah family-night,
 // or the name of a template saved in WishStudio.
 import Foundation
+import AppKit
+import WebKit
 
 struct GreetingOccasion {
     let id: String
@@ -88,7 +90,7 @@ enum WishOccasions {
             AppBuilderPreset(name: item.presetName, prefix: item.prefix, prompt: "\(item.title) card web page.", variables: "Name", sourceCollections: "",
                              outputCollections: "Greeting Cards", template: "Modern",
                              details: "Makes a \(item.title) card as a web page. Type \(item.prefix)-Name, or \(item.prefix)- and a media shortcut to use its picture. Add -gold, -night or a saved template name to pick another look.",
-                             format: "HTML", engine: item.engine)
+                             format: "Image", engine: item.engine)
         }
     }
 
@@ -134,6 +136,18 @@ enum WishOccasions {
         guard !wanted.isEmpty else { return nil }
         let mine = templates.filter { $0.appID == appID }
         return mine.first { normalize($0.name) == wanted } ?? mine.first { normalize($0.name).hasPrefix(wanted) }
+    }
+
+    /// Cards used to default to an HTML page, whose link only works on this Mac. They now default to a picture.
+    /// Runs once: apps still set to HTML are switched to Image. People can change the output back afterwards.
+    static func migrateToImageOutput() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: "ezmeOccasionImageDefaultV1") else { return }
+        for item in all {
+            let key = "ezmeBuilderFormat." + item.presetName
+            if let format = defaults.string(forKey: key), format.caseInsensitiveCompare("HTML") == .orderedSame { defaults.set("Image", forKey: key) }
+        }
+        defaults.set(true, forKey: "ezmeOccasionImageDefaultV1")
     }
 
     // MARK: Building the card
@@ -197,5 +211,81 @@ enum WishOccasions {
         let index = folder.appendingPathComponent("index.html")
         try WishHTML.page(stateJSON: json, interactive: false).write(to: index, atomically: true, encoding: .utf8)
         return (index, note)
+    }
+
+    /// The card as a PNG picture in the Attachments folder, so it can be pasted or attached anywhere.
+    @MainActor static func buildPNG(occasion item: GreetingOccasion, name: String, photo: String?, templateToken: String, in directory: URL) async throws -> (path: String, note: String) {
+        let built = try build(occasion: item, name: name, photo: photo, templateToken: templateToken, in: directory)
+        guard let data = await WishOffscreenRenderer.png(index: built.url, readAccess: built.url.deletingLastPathComponent()) else { throw CardImageError() }
+        let folder = directory.appendingPathComponent("Attachments", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let safe = name.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: "-")
+        let title = item.title.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: "-")
+        let file = folder.appendingPathComponent("\(title)\(safe.isEmpty ? "" : "_" + safe)-\(UUID().uuidString.prefix(4)).png")
+        try data.write(to: file, options: .atomic)
+        return (file.path, built.note)
+    }
+}
+
+struct CardImageError: LocalizedError {
+    var errorDescription: String? { "The card picture could not be made. Try again, or switch this app's output to HTML." }
+}
+
+/// Draws a card page in a hidden web view and returns it as PNG data.
+@MainActor
+final class WishOffscreenRenderer: NSObject, WKNavigationDelegate {
+    private var loaded: CheckedContinuation<Void, Never>?
+
+    static func png(index: URL, readAccess: URL, width: CGFloat = 1080) async -> Data? {
+        await WishOffscreenRenderer().render(index: index, readAccess: readAccess, width: width)
+    }
+
+    private func finishLoading() {
+        loaded?.resume()
+        loaded = nil
+    }
+
+    nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { Task { @MainActor in self.finishLoading() } }
+    nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { Task { @MainActor in self.finishLoading() } }
+    nonisolated func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { Task { @MainActor in self.finishLoading() } }
+
+    private func render(index: URL, readAccess: URL, width: CGFloat) async -> Data? {
+        let size = NSSize(width: 900, height: 1200)
+        let view = WKWebView(frame: NSRect(origin: .zero, size: size), configuration: WKWebViewConfiguration())
+        view.navigationDelegate = self
+        let window = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: size.width, height: size.height), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = view
+        window.orderFrontRegardless()
+        defer { window.orderOut(nil); window.close() }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            loaded = continuation
+            view.loadFileURL(index, allowingReadAccessTo: readAccess)
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                self.finishLoading()
+            }
+        }
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        guard let image = await snapshot(view, width: width) else { return nil }
+        return WishExport.pngData(from: image)
+    }
+
+    private func snapshot(_ web: WKWebView, width: CGFloat) async -> NSImage? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<NSImage?, Never>) in
+            web.evaluateJavaScript("setExport(true)") { _, _ in
+                web.evaluateJavaScript("exportRect()") { value, _ in
+                    let configuration = WKSnapshotConfiguration()
+                    configuration.snapshotWidth = NSNumber(value: Double(width))
+                    if let numbers = value as? [Double], numbers.count == 4 {
+                        configuration.rect = CGRect(x: numbers[0], y: numbers[1], width: numbers[2], height: numbers[3])
+                    }
+                    web.takeSnapshot(with: configuration) { image, _ in
+                        web.evaluateJavaScript("setExport(false)", completionHandler: nil)
+                        continuation.resume(returning: image)
+                    }
+                }
+            }
+        }
     }
 }
