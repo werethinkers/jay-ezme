@@ -55,7 +55,7 @@ enum CelebrationApps {
         var installed = (try? JSONDecoder().decode([String].self, from: Data((defaults.string(forKey: "ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
         let refresh = !defaults.bool(forKey: "ezmeCelebrationApps.v2")
         var collections: [String] = []
-        for preset in celebrationPresets {
+        for preset in celebrationPresets where !AppDeletion.isDeleted(preset.name) {
             let known = installed.contains { $0.caseInsensitiveCompare(preset.name) == .orderedSame }
             if refresh {
                 // Another app holding this prefix would answer first, so give it a different one.

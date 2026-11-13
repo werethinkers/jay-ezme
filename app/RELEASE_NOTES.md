@@ -1,7 +1,6 @@
-## Small bar with mic and 3-second timer, top-centre popup, faster voice search
+## Delete apps, with an optional 6-digit passcode
 
-- **The small search bar has its mic button back**, next to the close button.
-- **3-second timer on the small bar.** A small 3-2-1 circle counts down and the bar closes. Type, speak or move the pointer over it to keep it open. The full popup keeps its longer wait.
-- **The popup always opens at the top centre of the screen**, small or full size.
-- **Voice and phrase searches show 5 results first.** More load as you scroll, so the popup opens quickly instead of drawing up to 80 shortcuts and media files.
-- **Faster searching.** Matching collection items against your shortcuts no longer re-checks the whole list for every item.
+- **AppBuilder:** you can now delete an app you made or added. Use the red bin button at the top, or right-click an app (its tab or its card) and choose "Delete app…". Collection Builder, MyDatabase and Prompt Builder cannot be deleted.
+- **WishStudio:** the bin button next to "New app" (or right-click an app) now deletes any wish app, including the starter ones. The last app cannot be deleted. "Restore starter apps" still brings the starters back.
+- **One passcode for all deleting.** In the delete window, open "Add a 6-digit passcode for deleting apps" to set, change or remove it. When it is set, every delete asks for it. If you forget it, "Forgot? Use Mac login" lets you remove it with your Mac password or Touch ID.
+- A deleted AppBuilder app stays deleted: the built-in card apps (hbd, hwa and so on) are not put back when KeyDo starts. Add the app again from the gallery whenever you want it.
