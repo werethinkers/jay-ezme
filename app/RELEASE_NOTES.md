@@ -1,7 +1,5 @@
-## Hidden shortcuts need your 6-digit passcode
+## Greeting cards now come out as pictures
 
-- **Showing hidden collections now asks for a 6-digit passcode.** This covers the "Show hidden collections" switch in Collections, in My shortcuts and when moving shortcuts, and "Show hidden" and "Incognito · hidden only" in the backslash popup.
-- **The first time, KeyDo asks you to choose the passcode.** It is the same passcode that protects deleting apps. Turning a switch off never asks.
-- After a correct passcode the switches stay allowed for two minutes, so turning on several in a row does not ask again.
-- **The popup no longer remembers "Show hidden" between launches.** It starts hidden every time, so hidden shortcuts cannot show up in the popup without the passcode.
-- Forgot it? In the passcode window choose "Forgot passcode…" and confirm with your Mac password or Touch ID.
+- **Thank You, Wedding Anniversary and the 14 festival card apps now make a PNG picture by default**, not an HTML page. The picture is saved in your attachments and can be pasted or sent anywhere, like the hbd and hwa cards. The old HTML link only opened on your own Mac.
+- Apps that were already installed with HTML are switched to Image once. If you want the web page for one app, change its output to HTML in that app's settings.
+- Everything else is the same: `thanks-Hiral`, `holi-Family`, a media shortcut after the dash, and `-gold` or a saved template name for another look.

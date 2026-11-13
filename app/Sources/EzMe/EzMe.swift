@@ -577,8 +577,8 @@ struct MainView:View {
     statusOverride=CelebrationCard.readyText(name:who)
    } else if let occ=WishOccasions.occasion(forApp:command.app) {
     let typed=command.slotValues.first ?? "";let found=celebrationMedia(typed,clips:db.clips)
-    let built=try WishOccasions.build(occasion:occ,name:found?.name ?? typed,photo:found?.paths.first,templateToken:command.cardTemplate,in:db.dir)
-    output=built.url.absoluteString;if !built.note.isEmpty{statusOverride=built.note}
+    if format == "html" {let built=try WishOccasions.build(occasion:occ,name:found?.name ?? typed,photo:found?.paths.first,templateToken:command.cardTemplate,in:db.dir);output=built.url.absoluteString;if !built.note.isEmpty{statusOverride=built.note}}
+    else {let made=try await WishOccasions.buildPNG(occasion:occ,name:found?.name ?? typed,photo:found?.paths.first,templateToken:command.cardTemplate,in:db.dir);output=made.path;media=[made.path];if !made.note.isEmpty{statusOverride=made.note}}
    } else if let occasion=WishQuickCard.occasion(forApp:command.app) {
     let typed=command.slotValues.first ?? "";let found=celebrationMedia(typed,clips:db.clips)
     let page=try WishQuickCard.build(occasion:occasion,name:found?.name ?? typed,photo:found?.paths.first,in:db.dir)
