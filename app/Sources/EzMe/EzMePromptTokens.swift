@@ -8,7 +8,9 @@
 //
 // By voice (see PromptVoice.helpRows): "hash rohit dot media", "mention priya", "equals date", "equals two plus five",
 // "comma", "undo one word", "undo one sentence", "edit word", "edit prompt rohit", "enter chatgpt".
+import AppKit
 import Foundation
+import SwiftUI
 
 // MARK: - Functions: =date, =2+5
 
@@ -155,7 +157,7 @@ enum PromptSuggestions {
         key.trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
     }
 
-    private static func symbol(for clip: Clip) -> String {
+    static func symbol(for clip: Clip) -> String {
         if let path = clip.files.first {
             let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
             if imageTypes.contains(ext) { return "photo" }
@@ -217,21 +219,141 @@ enum PromptSuggestions {
     }
 }
 
+// MARK: - Words that should have had a # @ or = (numbered suggestions)
+
+struct PromptMarkEntry {
+    var token: String
+    var detail: String
+    var symbol: String
+}
+
+/// Everything that can be written with a mark, for finding plain words that should have one and for hearing
+/// spoken names ("hash rohit media" finds #rohit.media).
+struct PromptMarkIndex {
+    var byWord: [String: PromptMarkEntry] = [:]
+    var bySpoken: [String: PromptMarkEntry] = [:]
+
+    static func alnum(_ text: String) -> String {
+        String(text.lowercased().filter { $0.isLetter || $0.isNumber })
+    }
+
+    private static let personWords = ["people", "person", "contact", "employee", "customer", "client", "candidate", "friend",
+                                      "family", "team", "member", "user", "vendor", "supplier", "lead", "patient", "student"]
+
+    static func build(clips: [Clip], records: [CollectionRecord]) -> PromptMarkIndex {
+        var index = PromptMarkIndex()
+        for clip in clips {
+            let key = PromptSuggestions.trimmedKey(clip.key)
+            guard !key.isEmpty else { continue }
+            let isApp = clip.appBundleIdentifier != nil || clip.webURL != nil
+            let entry = PromptMarkEntry(token: (isApp ? "@" : "#") + key, detail: clip.name, symbol: PromptSuggestions.symbol(for: clip))
+            let lower = key.lowercased()
+            if lower.count >= 3, index.byWord[lower] == nil { index.byWord[lower] = entry }
+            if let dot = lower.firstIndex(of: ".") {
+                let base = String(lower[lower.startIndex..<dot])
+                if base.count >= 3, index.byWord[base] == nil { index.byWord[base] = entry }
+            }
+            let spoken = alnum(key)
+            if !spoken.isEmpty, index.bySpoken[spoken] == nil { index.bySpoken[spoken] = entry }
+        }
+        for record in records.prefix(5000) where !record.alias.isEmpty {
+            let collection = record.collection.lowercased()
+            let isPerson = personWords.contains(where: { collection.contains($0) })
+            let entry = PromptMarkEntry(token: (isPerson ? "@" : "#") + record.alias, detail: record.collection + " · " + record.name,
+                                        symbol: isPerson ? "person.crop.circle" : "tray.full")
+            let lower = record.alias.lowercased()
+            if lower.count >= 3, index.byWord[lower] == nil { index.byWord[lower] = entry }
+            if let first = record.name.split(separator: " ").first.map({ String($0).lowercased() }),
+               first.count >= 3, index.byWord[first] == nil { index.byWord[first] = entry }
+            let spoken = alnum(record.alias)
+            if !spoken.isEmpty, index.bySpoken[spoken] == nil { index.bySpoken[spoken] = entry }
+        }
+        return index
+    }
+}
+
+struct PromptFix: Identifiable, Equatable {
+    var range: NSRange
+    var word: String
+    var key: String
+    var token: String
+    var detail: String
+    var symbol: String
+    var id: String { "\(range.location)-\(token)" }
+}
+
+enum PromptFixes {
+    private static let wordPattern = try? NSRegularExpression(pattern: "[\\p{L}\\p{N}_'’-]+(?:\\.[\\p{L}\\p{N}_-]+)*")
+    private static let functionWords: Set<String> = ["date", "time", "day", "month", "year"]
+    private static let functionLead: Set<String> = ["current", "todays", "today's", "today’s"]
+
+    /// Plain words in the text that match a shortcut, record, app or "today's date", newest first.
+    static func fixes(in text: String, index: PromptMarkIndex, dismissed: Set<String>, limit: Int = 5) -> [PromptFix] {
+        guard let regex = wordPattern, !text.isEmpty else { return [] }
+        let ns = text as NSString
+        let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
+        var result: [PromptFix] = []
+        for (position, match) in matches.enumerated() {
+            let word = ns.substring(with: match.range)
+            let lower = word.lowercased()
+            if dismissed.contains(lower) { continue }
+            if match.range.location > 0 {
+                let before = ns.substring(with: NSRange(location: match.range.location - 1, length: 1))
+                if "#@=/\\".contains(before) { continue }
+            }
+            if functionWords.contains(lower), position > 0 {
+                let previous = matches[position - 1]
+                let previousWord = ns.substring(with: previous.range).lowercased()
+                let gapStart = previous.range.location + previous.range.length
+                let gap = ns.substring(with: NSRange(location: gapStart, length: match.range.location - gapStart))
+                if functionLead.contains(previousWord), gap.allSatisfy({ $0 == " " }) {
+                    let range = NSRange(location: previous.range.location, length: match.range.location + match.range.length - previous.range.location)
+                    result.append(PromptFix(range: range, word: previousWord + " " + lower, key: lower, token: "=" + lower, detail: "Written out as it is today", symbol: "function"))
+                    continue
+                }
+            }
+            if let entry = index.byWord[lower] {
+                result.append(PromptFix(range: match.range, word: word, key: lower, token: entry.token, detail: entry.detail, symbol: entry.symbol))
+            } else if lower.hasSuffix("'s") || lower.hasSuffix("’s") {
+                let stripped = String(lower.dropLast(2))
+                if let entry = index.byWord[stripped] {
+                    let range = NSRange(location: match.range.location, length: match.range.length - 2)
+                    result.append(PromptFix(range: range, word: String(word.dropLast(2)), key: lower, token: entry.token, detail: entry.detail, symbol: entry.symbol))
+                }
+            }
+        }
+        return Array(result.reversed().prefix(limit))
+    }
+
+    static func apply(_ fix: PromptFix, to text: String) -> String {
+        (text as NSString).replacingCharacters(in: fix.range, with: fix.token)
+    }
+
+    static func applyAll(_ fixes: [PromptFix], to text: String) -> String {
+        var result = text
+        for fix in fixes.sorted(by: { $0.range.location > $1.range.location }) { result = apply(fix, to: result) }
+        return result
+    }
+}
+
 // MARK: - Spoken commands
 
 struct PromptVoiceResult {
     var text: String
     var sends: [PromptTarget]
     var notice: String
+    var dismissed: Set<String>
 }
 
 enum PromptVoice {
     /// What each spoken command does, for the help list in the app.
     static let helpRows: [(say: String, result: String)] = [
-        ("hash rohit dot media", "writes #rohit.media"),
-        ("mention priya", "writes @priya"),
+        ("hash rohit dot media", "writes #rohit.media (“hashtag” works too)"),
+        ("mention priya", "writes @priya (“at sign priya” works too)"),
         ("equals date", "writes =date, which becomes today's date"),
         ("equals two plus five", "writes =2+5, which becomes 7"),
+        ("accept suggestion 1", "uses suggestion 1 when a plain word should have had a mark"),
+        ("accept all · dismiss suggestions", "uses every suggestion, or hides them"),
         ("comma · full stop · question mark · new line", "adds that mark"),
         ("undo one word", "deletes the last word"),
         ("undo one sentence", "deletes the last sentence"),
@@ -241,10 +363,26 @@ enum PromptVoice {
         ("enter chatgpt · grok · claude · gemini", "opens that site in the side panel and sends the prompt"),
     ]
 
+    /// Words the speech engine should expect, so it hears the command words and your own names properly.
+    static func contextualHints(targets: [PromptTarget], clips: [Clip], records: [CollectionRecord]) -> [String] {
+        var hints = ["hashtag", "hash", "at sign", "mention", "equals", "equal sign", "comma", "full stop", "question mark", "new line",
+                     "undo one word", "undo one sentence", "edit word", "edit prompt", "end edit",
+                     "accept suggestion", "accept all", "dismiss suggestions", "dot media"]
+        for target in targets { hints.append("enter " + target.name) }
+        for item in PromptFunctions.names { hints.append("equals " + item.name) }
+        for clip in clips.prefix(40) {
+            let key = PromptSuggestions.trimmedKey(clip.key)
+            if !key.isEmpty { hints.append(key.replacingOccurrences(of: ".", with: " dot ")) }
+        }
+        for record in records.prefix(30) where !record.alias.isEmpty { hints.append(record.alias) }
+        return Array(hints.prefix(100))
+    }
+
     private enum Command {
         case comma, fullStop, question, exclaim, newLine, newParagraph
         case undoWord, undoSentence, editWord, editPrompt, endEdit
         case hash, mention, equals, enter
+        case accept, acceptAll, dismiss
     }
 
     private static let phrases: [([String], Command)] = [
@@ -258,13 +396,21 @@ enum PromptVoice {
         (["full", "stop"], .fullStop), (["question", "mark"], .question),
         (["exclamation", "mark"], .exclaim), (["exclamation", "point"], .exclaim),
         (["new", "paragraph"], .newParagraph), (["new", "line"], .newLine),
-        (["at", "sign"], .mention),
-        (["comma"], .comma), (["hashtag"], .hash), (["hash"], .hash),
-        (["mention"], .mention), (["equals"], .equals), (["enter"], .enter),
+        (["accept", "all", "suggestions"], .acceptAll), (["accept", "all"], .acceptAll),
+        (["accept", "suggestions"], .accept), (["accept", "suggestion"], .accept), (["use", "suggestion"], .accept), (["accept"], .accept),
+        (["dismiss", "suggestions"], .dismiss), (["ignore", "suggestions"], .dismiss), (["clear", "suggestions"], .dismiss),
+        (["hash", "tag"], .hash), (["hash", "sign"], .hash), (["pound", "sign"], .hash), (["number", "sign"], .hash),
+        (["hashtag"], .hash), (["hash"], .hash),
+        (["at", "the", "rate"], .mention), (["at", "sign"], .mention), (["at", "symbol"], .mention), (["mention"], .mention),
+        (["equals", "sign"], .equals), (["equal", "sign"], .equals), (["equal", "to"], .equals), (["equals"], .equals), (["equal"], .equals),
+        (["comma"], .comma),
+        (["enter"], .enter), (["inter"], .enter), (["entre"], .enter),
     ]
 
     private static let table = phrases.sorted { $0.0.count > $1.0.count }
     private static let fileSuffixes: Set<String> = ["media", "app", "ai", "web", "gif", "e"]
+    private static let fillers: Set<String> = ["the", "todays", "current", "today"]
+    private static let heardAsNumber: [String: Int] = ["to": 2, "too": 2, "tu": 2, "for": 4, "fore": 4, "won": 1]
 
     private static let units: [String: Int] = [
         "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
@@ -279,19 +425,70 @@ enum PromptVoice {
         String(word.lowercased().filter { $0.isLetter || $0.isNumber })
     }
 
+    // MARK: Sites
+
     /// The speech recogniser often mishears short product names, so each site also answers to its common mishearings.
     static func aliases(for name: String) -> Set<String> {
         let base = norm(name)
         var set: Set<String> = [base]
         switch base {
-        case "chatgpt": set.formUnion(["chatgbt", "chatjpt", "chatgp", "chat"])
-        case "claude": set.formUnion(["cloud", "clod", "clawed", "claud", "clode"])
-        case "grok": set.formUnion(["grock", "groc", "croc", "grokk"])
-        case "gemini": set.formUnion(["jiminy", "gemni", "geminie"])
+        case "chatgpt": set.formUnion(["chatgbt", "chatjpt", "chatgp", "chatcpt", "chatgpd", "chatgbd"])
+        case "claude": set.formUnion(["cloud", "clod", "clawed", "claud", "clode", "claudia"])
+        case "grok": set.formUnion(["grock", "groc", "croc", "grokk", "rock"])
+        case "gemini": set.formUnion(["jiminy", "gemni", "geminie", "gemin"])
+        case "perplexity": set.formUnion(["perplexed", "perplexitee"])
         default: break
         }
         return set
     }
+
+    private static func editDistance(_ a: String, _ b: String) -> Int {
+        let x = Array(a)
+        let y = Array(b)
+        if x.isEmpty { return y.count }
+        if y.isEmpty { return x.count }
+        var previous = Array(0...y.count)
+        for i in 1...x.count {
+            var current = [i] + Array(repeating: 0, count: y.count)
+            for j in 1...y.count {
+                let cost = x[i - 1] == y[j - 1] ? 0 : 1
+                current[j] = min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
+            }
+            previous = current
+        }
+        return previous[y.count]
+    }
+
+    /// The site a spoken name means: exactly, by a known mishearing, or by being one or two letters off.
+    static func bestTarget(_ spoken: String, _ targets: [PromptTarget]) -> PromptTarget? {
+        guard spoken.count >= 3 else { return nil }
+        if let exact = targets.first(where: { aliases(for: $0.name).contains(spoken) }) { return exact }
+        var best: (PromptTarget, Int)?
+        var tie = false
+        for target in targets {
+            let distance = aliases(for: target.name).map { editDistance(spoken, $0) }.min() ?? 99
+            let limit = norm(target.name).count <= 4 ? 1 : 2
+            guard distance <= limit else { continue }
+            if let current = best {
+                if distance < current.1 { best = (target, distance); tie = false } else if distance == current.1 { tie = true }
+            } else {
+                best = (target, distance)
+            }
+        }
+        return tie ? nil : best?.0
+    }
+
+    private static func matchTarget(_ keys: [String], from start: Int, _ targets: [PromptTarget]) -> (PromptTarget, Int)? {
+        var length = min(3, keys.count - start)
+        while length >= 1 {
+            let spoken = keys[start..<(start + length)].joined()
+            if let target = bestTarget(spoken, targets) { return (target, length) }
+            length -= 1
+        }
+        return nil
+    }
+
+    // MARK: Matching phrases
 
     private static func match(_ keys: [String], at index: Int) -> (Command, Int)? {
         for entry in table {
@@ -301,6 +498,21 @@ enum PromptVoice {
             }
         }
         return nil
+    }
+
+    /// A symbol the recogniser wrote out on its own, such as "#" or "=".
+    private static func symbolCommand(_ word: String) -> Command? {
+        switch word {
+        case "#": return .hash
+        case "@": return .mention
+        case "=": return .equals
+        default: return nil
+        }
+    }
+
+    private static func functionName(_ key: String) -> String? {
+        if key == "today" { return "date" }
+        return PromptFunctions.names.contains(where: { $0.name == key }) ? key : nil
     }
 
     // MARK: Text edits
@@ -387,6 +599,14 @@ enum PromptVoice {
         return (result, consumed)
     }
 
+    /// "1", "one" and the usual mishearings ("to", "for") as a suggestion number.
+    private static func spokenIndex(_ keys: [String], at start: Int) -> (Int, Int)? {
+        guard start < keys.count else { return nil }
+        if let found = number(keys, at: start), let value = Int(found.0) { return (value, found.1) }
+        if let value = heardAsNumber[keys[start]] { return (value, 1) }
+        return nil
+    }
+
     private static func mathExpression(_ keys: [String], from start: Int) -> (String, Int)? {
         var expression = ""
         var i = start
@@ -418,21 +638,54 @@ enum PromptVoice {
         return (expression, i - start)
     }
 
+    // MARK: Names after "hash" and "mention"
+
+    private static func digitWord(_ key: String) -> String {
+        if let value = units[key], value < 10 { return String(value) }
+        return key
+    }
+
+    /// The spoken name written with its mark. A name you have is found even when spoken loosely
+    /// ("rohit media" for rohit.media, "thumbs up" for thumbs-up, "photo one" for photo1).
+    private static func spokenToken(marker: String, keys: [String], from next: Int, index: PromptMarkIndex) -> (String, Int)? {
+        guard next < keys.count, !keys[next].isEmpty else { return nil }
+        var length = min(4, keys.count - next)
+        while length >= 1 {
+            let slice = Array(keys[next..<(next + length)]).filter { $0 != "dot" }
+            let plain = slice.joined()
+            let digits = slice.map { digitWord($0) }.joined()
+            if let entry = index.bySpoken[plain] ?? index.bySpoken[digits] { return (entry.token, next + length) }
+            length -= 1
+        }
+        var token = marker + keys[next]
+        var j = next + 1
+        while j + 1 < keys.count, keys[j] == "dot" {
+            token += "." + keys[j + 1]
+            j += 2
+        }
+        if !token.contains("."), j < keys.count, fileSuffixes.contains(keys[j]) {
+            token += "." + keys[j]
+            j += 1
+        }
+        return (token, j)
+    }
+
     // MARK: Putting it together
 
     /// Turns everything said in one listening session into the prompt text. It starts again from `base`
     /// (the text before listening began) on every call, so partial results can be revised freely.
-    static func apply(base: String, spoken: String, targets: [PromptTarget]) -> PromptVoiceResult {
+    static func apply(base: String, spoken: String, targets: [PromptTarget], index: PromptMarkIndex, dismissed: Set<String>) -> PromptVoiceResult {
         let words = spoken.split(whereSeparator: { $0.isWhitespace }).map(String.init)
         let keys = words.map { norm($0) }
         var head = base
         var tail = ""
         var sends: [PromptTarget] = []
         var notice = ""
+        var skipped = dismissed
         var i = 0
 
         while i < words.count {
-            guard let found = match(keys, at: i) else {
+            guard let found = symbolCommand(words[i]).map({ ($0, 1) }) ?? match(keys, at: i) else {
                 append(words[i], to: &head)
                 i += 1
                 continue
@@ -473,27 +726,19 @@ enum PromptVoice {
                     i = next
                 }
             case .hash, .mention:
-                if next < words.count, !keys[next].isEmpty {
-                    var token = (found.0 == .hash ? "#" : "@") + keys[next]
-                    var j = next + 1
-                    while j + 1 < words.count, keys[j] == "dot" {
-                        token += "." + keys[j + 1]
-                        j += 2
-                    }
-                    if !token.contains("."), j < words.count, fileSuffixes.contains(keys[j]) {
-                        token += "." + keys[j]
-                        j += 1
-                    }
-                    append(token, to: &head)
-                    i = j
+                if let result = spokenToken(marker: found.0 == .hash ? "#" : "@", keys: keys, from: next, index: index) {
+                    append(result.0, to: &head)
+                    i = result.1
                 } else {
                     append(words[i], to: &head)
                     i = next
                 }
             case .equals:
-                if next < keys.count, PromptFunctions.names.contains(where: { $0.name == keys[next] }) {
-                    append("=" + keys[next], to: &head)
-                    i = next + 1
+                var j = next
+                while j < keys.count, fillers.contains(keys[j]), functionName(keys[j]) == nil || keys[j] == "today" && j + 1 < keys.count { j += 1 }
+                if j < keys.count, let name = functionName(keys[j]) {
+                    append("=" + name, to: &head)
+                    i = j + 1
                 } else if let sum = mathExpression(keys, from: next) {
                     append("=" + sum.0, to: &head)
                     i = next + sum.1
@@ -502,23 +747,80 @@ enum PromptVoice {
                     i = next
                 }
             case .enter:
-                var matched = false
-                var length = min(3, keys.count - next)
-                while length >= 1 && !matched {
-                    let spokenName = keys[next..<(next + length)].joined()
-                    if let target = targets.first(where: { aliases(for: $0.name).contains(spokenName) }) {
-                        sends.append(target)
-                        i = next + length
-                        matched = true
-                    }
-                    length -= 1
-                }
-                if !matched {
+                if let target = matchTarget(keys, from: next, targets) {
+                    sends.append(target.0)
+                    i = next + target.1
+                } else {
                     append(words[i], to: &head)
                     i = next
                 }
+            case .accept, .acceptAll, .dismiss:
+                var full = head + tail
+                if found.0 == .dismiss {
+                    for fix in PromptFixes.fixes(in: full, index: index, dismissed: skipped, limit: 200) { skipped.insert(fix.key) }
+                    notice = "Suggestions hidden"
+                    i = next
+                } else if found.0 == .acceptAll {
+                    let list = PromptFixes.fixes(in: full, index: index, dismissed: skipped, limit: 200)
+                    full = PromptFixes.applyAll(list, to: full)
+                    head = full
+                    tail = ""
+                    notice = list.isEmpty ? "No suggestions to accept" : "Accepted \(list.count) suggestion\(list.count == 1 ? "" : "s")"
+                    i = next
+                } else {
+                    let spokenNumber = spokenIndex(keys, at: next)
+                    if found.1 == 1 && spokenNumber == nil {
+                        append(words[i], to: &head)
+                        i = next
+                    } else {
+                        let wanted = spokenNumber?.0 ?? 1
+                        let list = PromptFixes.fixes(in: full, index: index, dismissed: skipped)
+                        if wanted >= 1 && wanted <= list.count {
+                            head = PromptFixes.apply(list[wanted - 1], to: full)
+                            tail = ""
+                            notice = "Accepted suggestion \(wanted): \(list[wanted - 1].token)"
+                        } else {
+                            notice = "There is no suggestion \(wanted)"
+                        }
+                        i = next + (spokenNumber?.1 ?? 0)
+                    }
+                }
             }
         }
-        return PromptVoiceResult(text: head + tail, sends: sends, notice: notice)
+        return PromptVoiceResult(text: head + tail, sends: sends, notice: notice, dismissed: skipped)
+    }
+}
+
+// MARK: - The microphone button
+
+/// Listens continuously, so a long prompt, a command and "enter chatgpt" can follow each other without pressing
+/// the button again. `onText` gets everything said since listening started or since the last pause (final = true).
+struct PromptMicButton: View {
+    var onStart: () -> Void
+    var onStop: () -> Void
+    var onText: (String, Bool) -> Void
+    @StateObject private var speech = EzMeSpeechDictation()
+    @State private var showError = false
+
+    var body: some View {
+        Button {
+            if speech.isListening {
+                speech.stop()
+                onStop()
+            } else {
+                onStart()
+                speech.startContinuous(onTranscript: { spoken in onText(spoken, true) }, onPartial: { spoken in onText(spoken, false) })
+            }
+        } label: {
+            Label(speech.isListening ? "Stop listening" : "Speak", systemImage: speech.isListening ? "stop.circle.fill" : "mic.fill")
+                .foregroundStyle(speech.isListening ? .red : .blue)
+        }
+        .buttonStyle(.bordered)
+        .onChange(of: speech.errorMessage) { value in showError = !value.isEmpty }
+        .alert("Voice input", isPresented: $showError) {
+            Button("OK") { speech.clearError() }
+        } message: {
+            Text(speech.errorMessage)
+        }
     }
 }

@@ -286,6 +286,15 @@ struct PromptBuilderView: View {
     @State private var hovered: String?
     @State private var targets = PromptTargets.load()
     @State private var voiceSent = 0
+    @State private var markIndex = PromptMarkIndex()
+    @State private var dismissed = Set<String>()
+    @State private var heard = ""
+    @State private var dictating = false
+    @State private var lastText = ""
+    @State private var programmatic: String?
+    @State private var flashTarget: String?
+    @State private var recomputeTask: Task<Void, Never>?
+    @FocusState private var editorFocused: Bool
     @State private var voiceHint = ""
     @State private var showVoiceHelp = false
     @State private var showAddSite = false
@@ -320,12 +329,14 @@ struct PromptBuilderView: View {
             .frame(maxWidth: 1240, alignment: .leading)
             .padding(26)
         }
-        .onAppear { recompute() }
+        .onAppear { recompute(); lastText = text }
         .task(id: clips.count + records.count) {
             vocabulary = PromptComposer.vocabulary(clips: clips, records: records)
+            markIndex = PromptMarkIndex.build(clips: clips, records: records)
+            EzMeSpeechDictation.contextualHints = PromptVoice.contextualHints(targets: targets, clips: clips, records: records)
             recompute()
         }
-        .onChange(of: text) { _ in recompute() }
+        .onChange(of: text) { value in textChanged(value) }
         .onChange(of: autoCorrect) { _ in recompute() }
         .sheet(isPresented: $showAddSite) { addSiteSheet }
     }
@@ -391,18 +402,34 @@ struct PromptBuilderView: View {
                 .frame(minHeight: 200)
                 .padding(6)
                 .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.25)))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(editorFocused ? Color.accentColor.opacity(0.7) : Color.secondary.opacity(0.25), lineWidth: editorFocused ? 2 : 1))
+                .focused($editorFocused)
             HStack(spacing: 8) {
-                VoiceDictationButton(onTranscript: { spoken in applyVoice(spoken) }, onPartial: { spoken in applyVoice(spoken) }, onStart: { voiceBase = text; voiceSent = 0; voiceHint = "Listening… say “enter chatgpt” to send" })
+                PromptMicButton(
+                    onStart: { voiceBase = text; voiceSent = 0; dictating = false; voiceHint = "Listening… try “hash”, “equals date”, “accept suggestion 1” or “enter chatgpt”" },
+                    onStop: { heard = ""; if voiceHint.hasPrefix("Listening") { voiceHint = "" } },
+                    onText: { spoken, final in heardSpeech(spoken, final: final) }
+                )
+                Button { toggleDictation() } label: {
+                    Label(dictating ? "Stop macOS dictation" : "macOS dictation", systemImage: dictating ? "stop.circle.fill" : "keyboard")
+                        .foregroundStyle(dictating ? .red : .blue)
+                }
+                .buttonStyle(.bordered)
+                .help("Use the Mac's own keyboard dictation. The command words still work.")
+                Spacer()
+                Button("Clear") { text = ""; notice = ""; heard = ""; voiceHint = ""; dismissed = [] }.disabled(text.isEmpty)
+            }
+            HStack(spacing: 4) {
                 Menu("# Collections") { collectionsMenu }
                 Menu("# Media") { shortcutsMenu(mediaClips) }
                 Menu("# Text") { shortcutsMenu(textClips) }
                 Menu("@ Apps") { shortcutsMenu(appClips, marker: "@") }
                 Menu("= Functions") { functionsMenu }
-                Spacer()
-                Button("Clear") { text = ""; notice = "" }.disabled(text.isEmpty)
+                Spacer(minLength: 0)
             }
             .menuStyle(.borderlessButton)
+            if !heard.isEmpty { Label("Heard: \(heard)", systemImage: "ear").font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+            fixPanel
             suggestionStrip
             if !voiceHint.isEmpty { Label(voiceHint, systemImage: "mic.fill").font(.caption).foregroundStyle(.secondary) }
             attachmentChips
@@ -439,23 +466,114 @@ struct PromptBuilderView: View {
         Button("=2+5 · a sum") { insert("=2+5") }
     }
 
-    private func accept(_ item: PromptSuggestion) {
-        guard let token = PromptSuggestions.lastToken(in: text), text.hasSuffix(token) else { return }
-        text = String(text.dropLast(token.count)) + item.insert + " "
+    private var fixes: [PromptFix] { PromptFixes.fixes(in: text, index: markIndex, dismissed: dismissed) }
+
+    @ViewBuilder private var fixPanel: some View {
+        let items = fixes
+        if !items.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Label("Use a shortcut here?", systemImage: "lightbulb.fill").font(.caption.weight(.bold)).foregroundStyle(.orange)
+                    Text("Click one, or say “accept suggestion 1”").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Accept all") { text = PromptFixes.applyAll(PromptFixes.fixes(in: text, index: markIndex, dismissed: dismissed, limit: 200), to: text) }
+                        .controlSize(.small)
+                    Button("Hide") { for fix in PromptFixes.fixes(in: text, index: markIndex, dismissed: dismissed, limit: 200) { dismissed.insert(fix.key) } }
+                        .controlSize(.small)
+                }
+                ForEach(Array(items.enumerated()), id: \.offset) { entry in
+                    HStack(spacing: 8) {
+                        Text("\(entry.offset + 1)").font(.caption.weight(.heavy)).frame(width: 20, height: 20)
+                            .background(Circle().fill(Color.orange.opacity(0.22)))
+                        Image(systemName: entry.element.symbol).font(.caption).foregroundStyle(.secondary)
+                        Text(entry.element.word).font(.caption).strikethrough()
+                        Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
+                        Text(entry.element.token).font(.caption.monospaced().weight(.semibold))
+                        if !entry.element.detail.isEmpty { Text(entry.element.detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                        Spacer()
+                        Button("Accept") { text = PromptFixes.apply(entry.element, to: text) }.controlSize(.small)
+                        Button { dismissed.insert(entry.element.key) } label: { Image(systemName: "xmark") }
+                            .buttonStyle(.plain).foregroundStyle(.secondary).help("Not this one")
+                    }
+                }
+            }
+            .padding(10)
+            .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
+        }
     }
 
-    private func applyVoice(_ spoken: String) {
-        let result = PromptVoice.apply(base: voiceBase, spoken: spoken, targets: targets)
+    // MARK: Voice
+
+    private func heardSpeech(_ spoken: String, final: Bool) {
+        heard = spoken
+        let result = PromptVoice.apply(base: voiceBase, spoken: spoken, targets: targets, index: markIndex, dismissed: dismissed)
+        dismissed.formUnion(result.dismissed)
+        programmatic = result.text
         text = result.text
         if !result.notice.isEmpty { voiceHint = result.notice }
         if result.sends.count > voiceSent, let target = result.sends.last {
             voiceSent = result.sends.count
-            voiceHint = "Sending to \(target.name)…"
-            DispatchQueue.main.async {
-                recompute()
-                send(to: target)
+            sendByVoice(target)
+        }
+        if final {
+            voiceBase = result.text
+            voiceSent = 0
+            heard = ""
+        }
+    }
+
+    private func sendByVoice(_ target: PromptTarget) {
+        voiceHint = "Sending to \(target.name)…"
+        DispatchQueue.main.async {
+            recompute()
+            send(to: target)
+        }
+    }
+
+    /// The Mac's own keyboard dictation types into the box. Command words in what it types are still understood.
+    private func toggleDictation() {
+        dictating.toggle()
+        if dictating {
+            editorFocused = true
+            lastText = text
+            voiceHint = "macOS dictation is on. Speak; “hashtag”, “equals date” and “enter chatgpt” still work. If nothing happens, turn on Dictation in System Settings → Keyboard."
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                _ = NSApp.sendAction(Selector(("startDictation:")), to: nil, from: nil)
+            }
+        } else {
+            _ = NSApp.sendAction(Selector(("stopDictation:")), to: nil, from: nil)
+            voiceHint = ""
+        }
+    }
+
+    private func textChanged(_ value: String) {
+        defer { lastText = value }
+        if value == programmatic { scheduleRecompute(); return }
+        if dictating, value.count >= lastText.count + 2, value.hasPrefix(lastText) {
+            let chunk = String(value.dropFirst(lastText.count))
+            let result = PromptVoice.apply(base: lastText, spoken: chunk, targets: targets, index: markIndex, dismissed: dismissed)
+            if result.text != value || !result.sends.isEmpty {
+                dismissed.formUnion(result.dismissed)
+                programmatic = result.text
+                text = result.text
+                if !result.notice.isEmpty { voiceHint = result.notice }
+                if let target = result.sends.last { sendByVoice(target) }
             }
         }
+        scheduleRecompute()
+    }
+
+    private func scheduleRecompute() {
+        recomputeTask?.cancel()
+        recomputeTask = Task {
+            try? await Task.sleep(nanoseconds: 140_000_000)
+            if !Task.isCancelled { recompute() }
+        }
+    }
+
+    private func accept(_ item: PromptSuggestion) {
+        guard let token = PromptSuggestions.lastToken(in: text), text.hasSuffix(token) else { return }
+        text = String(text.dropLast(token.count)) + item.insert + " "
     }
 
     @ViewBuilder private var collectionsMenu: some View {
@@ -598,6 +716,7 @@ struct PromptBuilderView: View {
         let key = KeyStore.load(account: profile.keyAccount) ?? ""
         guard !key.isEmpty else { notice = "Add an API key in API configuration to polish with AI."; return }
         let source = composition.text
+        let snapshot = text
         aiBusy = true
         notice = ""
         Task { @MainActor in
@@ -605,7 +724,7 @@ struct PromptBuilderView: View {
                 let instruction = "Rewrite the text below as one clear, well-structured prompt for an AI assistant. Keep every name, number, date and bracketed attachment label such as [Image: Name] exactly as written. Do not add facts or ask questions. Return only the prompt.\n\n" + source
                 let result = try await SharedAIClient.generate(profile: profile, key: key, prompt: instruction, maxTokens: 2000)
                 let clean = result.trimmingCharacters(in: .whitespacesAndNewlines)
-                if clean.isEmpty { notice = "The AI returned nothing. Your own words are kept." } else { aiText = clean }
+                if clean.isEmpty { notice = "The AI returned nothing. Your own words are kept." } else if snapshot != text { notice = "You changed the prompt while the AI was working, so its version was not used." } else { aiText = clean }
             } catch {
                 notice = "Could not polish: \(error.localizedDescription)"
             }
@@ -621,10 +740,12 @@ struct PromptBuilderView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], alignment: .leading, spacing: 10) {
                 ForEach(targets) { target in
                     Button { send(to: target) } label: {
-                        Label(target.name, systemImage: "paperplane.fill").frame(maxWidth: .infinity)
+                        Label(flashTarget == target.name ? "Sending…" : target.name, systemImage: flashTarget == target.name ? "checkmark.circle.fill" : "paperplane.fill").frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.purple)
+                    .tint(flashTarget == target.name ? .green : .purple)
+                    .scaleEffect(flashTarget == target.name ? 1.06 : 1)
+                    .animation(.easeInOut(duration: 0.2), value: flashTarget)
                     .disabled(!canSend)
                     .contextMenu {
                         if !target.builtIn {
@@ -643,7 +764,11 @@ struct PromptBuilderView: View {
     private func send(to target: PromptTarget) {
         let files = composition.attachments.flatMap { $0.paths }
         NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: finalPrompt, files: files))
-        notice = "Opening \(target.name) in the side panel…"
+        notice = finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty
+            ? "Opening \(target.name). The prompt is empty, so there is nothing to send yet."
+            : "Opening \(target.name) in the side panel and sending your prompt…"
+        flashTarget = target.name
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if flashTarget == target.name { flashTarget = nil } }
     }
 
     private var addSiteSheet: some View {
