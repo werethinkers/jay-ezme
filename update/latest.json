@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 251,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build251/EzMe-3.44-macOS.zip",
-  "sha256": "00ce38184c66a2058ed80a6f277ebde5124ebef64e65db6a8f945d3ff1e40d64",
-  "notes": "## Prompt Builder: write AI prompts with your collections and media, and send them in one click\n\n- **A new built-in app in AppBuilder, next to Collection Builder and MyDatabase. It can't be deleted.** Say \"prompt builder\" in the voice search to open it, or pick its card in AppBuilder.\n- **Type or speak.** The Speak button writes your words into the prompt as you talk.\n- **Shortcuts and collections write themselves into the prompt.** Type `/photo` (or just the code of a media shortcut) and the media is attached and shown as a chip under the box. Hover over the chip to see the picture. A text shortcut written as `/code` is replaced by its text. A collection record written as `@alias` is replaced by its name and details. The Collections, Media shortcuts and Text shortcuts menus insert them for you.\n- **A second box shows your prompt live, corrected as you type:** spelling, capital letters, I'm / don't, and every shortcut written out. The fixes are listed under it, and you can switch Auto-correct off. Names and codes from your own data are never changed. \"Polish with AI\" rewrites the prompt with your API key if you want that too.\n- **ChatGPT, Grok, Claude, Gemini and Perplexity buttons.** One click opens the site in the browser side panel, types the whole prompt, pastes the attached media and presses send. If you are not signed in to a site, sign in in the side panel and press the button again. **Add site** adds any other AI site, and a right-click removes it.\n- Note: the media step uses the clipboard.",
-  "published": "2026-11-12T19:08:00Z",
+  "build": 253,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build253/EzMe-3.44-macOS.zip",
+  "sha256": "4cc567844e10c6caa9dc8e077452193abdf232067bc2dd345c477480684283e2",
+  "notes": "## The popup closes itself when you leave it idle\n\n- **Open the backslash popup and do nothing?** After 10 seconds, with nothing typed and nothing said, a small 3-2-1 count shows on the right side of the popup and then it closes.\n- **Typing, speaking, moving the pointer over the popup, scrolling or dragging it keeps it open** and starts the wait again. A popup with text in it, or one doing voice, image or rewrite work, is never closed this way.",
+  "published": "2026-11-13T02:31:50Z",
   "minimumSystemVersion": "14.0"
 }
