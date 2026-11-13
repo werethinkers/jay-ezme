@@ -169,7 +169,7 @@ enum PromptSuggestions {
         return "text.quote"
     }
 
-    static func suggestions(for token: String, clips: [Clip], records: [CollectionRecord]) -> [PromptSuggestion] {
+    static func suggestions(for token: String, clips: [Clip], records: [CollectionRecord], apps: [PromptAppEntry] = []) -> [PromptSuggestion] {
         guard let marker = token.first else { return [] }
         let query = String(token.dropFirst()).lowercased()
 
@@ -206,10 +206,9 @@ enum PromptSuggestions {
                 guard let r = rank(record.alias) ?? rank(record.name) else { continue }
                 found.append((r, PromptSuggestion(title: "@" + record.alias, detail: record.collection + " · " + record.name, insert: "@" + record.alias, symbol: "person.crop.circle")))
             }
-            for clip in clips where clip.appBundleIdentifier != nil || clip.webURL != nil {
-                let key = trimmedKey(clip.key)
-                guard !key.isEmpty, let r = rank(key) ?? rank(clip.name) else { continue }
-                found.append((r, PromptSuggestion(title: "@" + key, detail: clip.name, insert: "@" + key, symbol: symbol(for: clip))))
+            for app in apps {
+                guard let r = rank(app.compact) ?? rank(app.name) else { continue }
+                found.append((r, PromptSuggestion(title: "@" + app.compact, detail: app.source + " app", insert: "@" + app.compact, symbol: "square.grid.2x2")))
             }
         default:
             break
@@ -227,6 +226,38 @@ struct PromptMarkEntry {
     var symbol: String
 }
 
+/// An app made in KeyDo: an AppBuilder app, a WishStudio app or an Ezyourlife app. (Not apps installed on the Mac.)
+struct PromptAppEntry: Equatable {
+    var name: String
+    var source: String
+
+    /// "Happy Birthday" is written @HappyBirthday.
+    var compact: String { name.filter { $0.isLetter || $0.isNumber } }
+}
+
+enum PromptAppCatalog {
+    /// Reads the three places apps live. `wishDirectory` is the folder with wishstudio.json.
+    @MainActor static func load(builderApps: [String], wishDirectory: URL?) -> [PromptAppEntry] {
+        var result: [PromptAppEntry] = []
+        var seen = Set<String>()
+        func add(_ name: String, _ source: String) {
+            let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = clean.lowercased() + "|" + source
+            guard !clean.isEmpty, seen.insert(key).inserted else { return }
+            result.append(PromptAppEntry(name: clean, source: source))
+        }
+        for name in builderApps { add(name, "AppBuilder") }
+        if let directory = wishDirectory,
+           let data = try? Data(contentsOf: directory.appendingPathComponent("wishstudio.json")),
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let apps = object["apps"] as? [[String: Any]] {
+            for app in apps { if let name = app["name"] as? String { add(name, "WishStudio") } }
+        }
+        for app in Ezyourlife.shared.catalogue where app.runnable { add(app.name, "Ezyourlife") }
+        return result.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+}
+
 /// Everything that can be written with a mark, for finding plain words that should have one and for hearing
 /// spoken names ("hash rohit media" finds #rohit.media).
 struct PromptMarkIndex {
@@ -240,13 +271,20 @@ struct PromptMarkIndex {
     private static let personWords = ["people", "person", "contact", "employee", "customer", "client", "candidate", "friend",
                                       "family", "team", "member", "user", "vendor", "supplier", "lead", "patient", "student"]
 
-    static func build(clips: [Clip], records: [CollectionRecord]) -> PromptMarkIndex {
+    static func build(clips: [Clip], records: [CollectionRecord], apps: [PromptAppEntry]) -> PromptMarkIndex {
         var index = PromptMarkIndex()
+        for app in apps {
+            let compact = app.compact
+            guard compact.count >= 3 else { continue }
+            let entry = PromptMarkEntry(token: "@" + compact, detail: app.source + " app", symbol: "square.grid.2x2")
+            let lower = compact.lowercased()
+            if index.byWord[lower] == nil { index.byWord[lower] = entry }
+            if index.bySpoken[lower] == nil { index.bySpoken[lower] = entry }
+        }
         for clip in clips {
             let key = PromptSuggestions.trimmedKey(clip.key)
             guard !key.isEmpty else { continue }
-            let isApp = clip.appBundleIdentifier != nil || clip.webURL != nil
-            let entry = PromptMarkEntry(token: (isApp ? "@" : "#") + key, detail: clip.name, symbol: PromptSuggestions.symbol(for: clip))
+            let entry = PromptMarkEntry(token: "#" + key, detail: clip.name, symbol: PromptSuggestions.symbol(for: clip))
             let lower = key.lowercased()
             if lower.count >= 3, index.byWord[lower] == nil { index.byWord[lower] = entry }
             if let dot = lower.firstIndex(of: ".") {
@@ -293,7 +331,9 @@ enum PromptFixes {
         let ns = text as NSString
         let matches = regex.matches(in: text, range: NSRange(location: 0, length: ns.length))
         var result: [PromptFix] = []
+        var skipNext = false
         for (position, match) in matches.enumerated() {
+            if skipNext { skipNext = false; continue }
             let word = ns.substring(with: match.range)
             let lower = word.lowercased()
             if dismissed.contains(lower) { continue }
@@ -309,6 +349,19 @@ enum PromptFixes {
                 if functionLead.contains(previousWord), gap.allSatisfy({ $0 == " " }) {
                     let range = NSRange(location: previous.range.location, length: match.range.location + match.range.length - previous.range.location)
                     result.append(PromptFix(range: range, word: previousWord + " " + lower, key: lower, token: "=" + lower, detail: "Written out as it is today", symbol: "function"))
+                    continue
+                }
+            }
+            if position + 1 < matches.count {
+                let following = matches[position + 1]
+                let gapStart = match.range.location + match.range.length
+                let gap = ns.substring(with: NSRange(location: gapStart, length: following.range.location - gapStart))
+                let secondWord = ns.substring(with: following.range)
+                let joined = PromptMarkIndex.alnum(word) + PromptMarkIndex.alnum(secondWord)
+                if gap == " ", let entry = index.bySpoken[joined], !dismissed.contains(secondWord.lowercased()) {
+                    let range = NSRange(location: match.range.location, length: following.range.location + following.range.length - match.range.location)
+                    result.append(PromptFix(range: range, word: word + " " + secondWord, key: lower, token: entry.token, detail: entry.detail, symbol: entry.symbol))
+                    skipNext = true
                     continue
                 }
             }
@@ -352,8 +405,7 @@ enum PromptVoice {
         ("mention priya", "writes @priya (“at sign priya” works too)"),
         ("equals date", "writes =date, which becomes today's date"),
         ("equals two plus five", "writes =2+5, which becomes 7"),
-        ("accept suggestion 1", "uses suggestion 1 when a plain word should have had a mark"),
-        ("accept all · dismiss suggestions", "uses every suggestion, or hides them"),
+        ("(a name you have, said plainly)", "gets its # or @ on its own; tap ✕ on the chip to undo"),
         ("comma · full stop · question mark · new line", "adds that mark"),
         ("undo one word", "deletes the last word"),
         ("undo one sentence", "deletes the last sentence"),
