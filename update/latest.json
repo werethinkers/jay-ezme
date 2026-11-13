@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 253,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build253/EzMe-3.44-macOS.zip",
-  "sha256": "4cc567844e10c6caa9dc8e077452193abdf232067bc2dd345c477480684283e2",
-  "notes": "## The popup closes itself when you leave it idle\n\n- **Open the backslash popup and do nothing?** After 10 seconds, with nothing typed and nothing said, a small 3-2-1 count shows on the right side of the popup and then it closes.\n- **Typing, speaking, moving the pointer over the popup, scrolling or dragging it keeps it open** and starts the wait again. A popup with text in it, or one doing voice, image or rewrite work, is never closed this way.",
-  "published": "2026-11-13T02:31:50Z",
+  "build": 255,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build255/EzMe-3.44-macOS.zip",
+  "sha256": "174f1484952f61299a984e43924c3adbdd2f13a004820c53c5062f11bbbcb56d",
+  "notes": "## Cleaner cards and tabs: pictures, GIFs and videos stay in view\n\n- **No more text over the cover.** Hovering an app card in AppBuilder, Ezyourlife apps or WishStudio no longer lays its name and description over the picture, GIF or video, so the cover plays and shows clearly.\n- **The details now open in a small popup beside the card or tab:** the name, what it does and what it costs. It appears after a short pause, so it does not flash when you only move across the cards, and it goes away when you move off.\n- **Tabs in AppBuilder and WishStudio** show the same popup below them, in place of the plain system tooltip that repeated the words already on the tab.",
+  "published": "2026-11-13T03:46:18Z",
   "minimumSystemVersion": "14.0"
 }
