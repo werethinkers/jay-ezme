@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 285,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build285/EzMe-3.44-macOS.zip",
-  "sha256": "70c3a8c9b1797688d6be80b8faed59c054cc2e968d6acc4f8eeb4f42fe0aa21d",
-  "notes": "## Hidden shortcuts need your 6-digit passcode\n\n- **Showing hidden collections now asks for a 6-digit passcode.** This covers the \"Show hidden collections\" switch in Collections, in My shortcuts and when moving shortcuts, and \"Show hidden\" and \"Incognito \u00b7 hidden only\" in the backslash popup.\n- **The first time, KeyDo asks you to choose the passcode.** It is the same passcode that protects deleting apps. Turning a switch off never asks.\n- After a correct passcode the switches stay allowed for two minutes, so turning on several in a row does not ask again.\n- **The popup no longer remembers \"Show hidden\" between launches.** It starts hidden every time, so hidden shortcuts cannot show up in the popup without the passcode.\n- Forgot it? In the passcode window choose \"Forgot passcode\u2026\" and confirm with your Mac password or Touch ID.",
-  "published": "2026-11-13T17:59:27Z",
+  "build": 287,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build287/EzMe-3.44-macOS.zip",
+  "sha256": "e8e667d1fa86bd3ae199826eb97440c183fbbb2bc3c9326ebd9f1b01187132b9",
+  "notes": "## Greeting cards now come out as pictures\n\n- **Thank You, Wedding Anniversary and the 14 festival card apps now make a PNG picture by default**, not an HTML page. The picture is saved in your attachments and can be pasted or sent anywhere, like the hbd and hwa cards. The old HTML link only opened on your own Mac.\n- Apps that were already installed with HTML are switched to Image once. If you want the web page for one app, change its output to HTML in that app's settings.\n- Everything else is the same: `thanks-Hiral`, `holi-Family`, a media shortcut after the dash, and `-gold` or a saved template name for another look.",
+  "published": "2026-11-13T18:49:55Z",
   "minimumSystemVersion": "14.0"
 }
