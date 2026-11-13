@@ -1,5 +1,5 @@
-## Cleaner Media Resizer list, and the backslash popup behaves again
+## One backslash shows only a small search bar
 
-- **Media Resizer / Crop Image:** the "Images" title in the left list no longer breaks into stacked letters. The title and the import button sit on one line, and "From shortcut" sits underneath.
-- **One backslash opens only the small search bar.** The larger popup opens once you start typing. If voice was left on from earlier (for example after continuous listening), pressing a single backslash now switches it off instead of opening the big popup with the Start listening bar.
-- **Voice starts only on a double backslash**, as before.
+- **A single backslash now opens just a small, slim search bar** (no more wide bar with the mic, Merlin and Select area buttons). The full popup opens when you start typing.
+- **Voice starts only on a quick double backslash** (two presses within about half a second). A backslash typed later no longer starts voice by accident, for example in code or file paths.
+- A single backslash also switches off any voice session left running, so the popup never opens already listening.
