@@ -149,7 +149,7 @@ enum PromptComposer {
         return result
     }
 
-    static func compose(_ raw: String, clips: [Clip], records: [CollectionRecord], vocabulary: Set<String>, autocorrect: Bool) -> PromptComposition {
+    static func compose(_ raw: String, clips: [Clip], records: [CollectionRecord], apps: [PromptAppEntry] = [], vocabulary: Set<String>, autocorrect: Bool) -> PromptComposition {
         let leadSet = CharacterSet(charactersIn: "(\"'“‘[")
         let trailSet = CharacterSet(charactersIn: ",.;:!?)\"'”’]")
         var output = ""
@@ -186,7 +186,7 @@ enum PromptComposer {
                 }
             }
 
-            if let replacement = resolve(core, clips: clips, records: records, attachments: &attachments) {
+            if let replacement = resolve(core, clips: clips, records: records, apps: apps, attachments: &attachments) {
                 output += lead + replacement + trail
                 startOfSentence = endsSentence
                 continue
@@ -244,12 +244,15 @@ enum PromptComposer {
 
     /// #shortcut, #record, @person or app, /shortcut and \\shortcut, written out. Nil for an ordinary word.
     /// A word without one of these marks is never touched, so ordinary words cannot turn into shortcuts by accident.
-    private static func resolve(_ core: String, clips: [Clip], records: [CollectionRecord], attachments: inout [PromptAttachment]) -> String? {
+    private static func resolve(_ core: String, clips: [Clip], records: [CollectionRecord], apps: [PromptAppEntry], attachments: inout [PromptAttachment]) -> String? {
         guard core.count >= 2, let marker = core.first, "/\\@#".contains(marker) else { return nil }
         let name = String(core.dropFirst()).lowercased()
         guard !name.isEmpty else { return nil }
 
-        if marker == "@", let person = recordText(name, records: records, attachments: &attachments) { return person }
+        if marker == "@" {
+            if let person = recordText(name, records: records, attachments: &attachments) { return person }
+            if let app = apps.first(where: { $0.compact.lowercased() == name }) { return "[App: \(app.name)]" }
+        }
         if let clip = matchClip(name, clips) {
             let label = clip.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? name : clip.name.trimmingCharacters(in: .whitespacesAndNewlines)
             let isApp = clip.appBundleIdentifier != nil || clip.webURL != nil
@@ -271,9 +274,18 @@ enum PromptComposer {
 
 // MARK: - The app
 
+struct PromptAutoMark: Identifiable, Equatable {
+    var word: String
+    var token: String
+    var key: String
+    var id: String { token + "|" + word }
+}
+
 struct PromptBuilderView: View {
     let clips: [Clip]
     let records: [CollectionRecord]
+    var builderApps: [String] = []
+    var dataDirectory: URL? = nil
 
     @AppStorage("keydoPromptBuilderText") private var text = ""
     @AppStorage("keydoPromptAutoCorrect") private var autoCorrect = true
@@ -287,6 +299,10 @@ struct PromptBuilderView: View {
     @State private var targets = PromptTargets.load()
     @State private var voiceSent = 0
     @State private var markIndex = PromptMarkIndex()
+    @State private var apps = [PromptAppEntry]()
+    @State private var autoMarks = [PromptAutoMark]()
+    @State private var mediaList = [Clip]()
+    @State private var plainList = [Clip]()
     @State private var dismissed = Set<String>()
     @State private var heard = ""
     @State private var dictating = false
@@ -304,16 +320,10 @@ struct PromptBuilderView: View {
     private var finalPrompt: String { aiText ?? composition.text }
     private var canSend: Bool { !finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !composition.attachments.isEmpty }
 
-    private var collectionNames: [String] {
-        Array(Set(records.filter { !$0.alias.isEmpty }.map { $0.collection })).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-    }
     private var suggestions: [PromptSuggestion] {
         guard let token = PromptSuggestions.lastToken(in: text) else { return [] }
-        return PromptSuggestions.suggestions(for: token, clips: clips, records: records)
+        return PromptSuggestions.suggestions(for: token, clips: clips, records: records, apps: apps)
     }
-    private var appClips: [Clip] { clips.filter { $0.appBundleIdentifier != nil || $0.webURL != nil } }
-    private var mediaClips: [Clip] { clips.filter { !PromptComposer.existingFiles($0).isEmpty } }
-    private var textClips: [Clip] { clips.filter { PromptComposer.existingFiles($0).isEmpty && !$0.text.isEmpty && $0.appBundleIdentifier == nil && $0.webURL == nil } }
 
     var body: some View {
         ScrollView {
@@ -330,9 +340,14 @@ struct PromptBuilderView: View {
             .padding(26)
         }
         .onAppear { recompute(); lastText = text }
-        .task(id: clips.count + records.count) {
+        .task(id: clips.count + records.count + builderApps.count) {
             vocabulary = PromptComposer.vocabulary(clips: clips, records: records)
-            markIndex = PromptMarkIndex.build(clips: clips, records: records)
+            let catalog = await MainActor.run { PromptAppCatalog.load(builderApps: builderApps, wishDirectory: dataDirectory) }
+            apps = catalog
+            markIndex = PromptMarkIndex.build(clips: clips, records: records, apps: catalog)
+            mediaList = clips.filter { !PromptComposer.existingFiles($0).isEmpty }
+            let mediaIDs = Set(mediaList.map { $0.id })
+            plainList = clips.filter { !mediaIDs.contains($0.id) }
             EzMeSpeechDictation.contextualHints = PromptVoice.contextualHints(targets: targets, clips: clips, records: records)
             recompute()
         }
@@ -421,15 +436,14 @@ struct PromptBuilderView: View {
             }
             HStack(spacing: 4) {
                 Menu("# Collections") { collectionsMenu }
-                Menu("# Media") { shortcutsMenu(mediaClips) }
-                Menu("# Text") { shortcutsMenu(textClips) }
-                Menu("@ Apps") { shortcutsMenu(appClips, marker: "@") }
+                Menu("# Media") { mediaMenu }
+                Menu("@ Apps") { appsMenu }
                 Menu("= Functions") { functionsMenu }
                 Spacer(minLength: 0)
             }
             .menuStyle(.borderlessButton)
             if !heard.isEmpty { Label("Heard: \(heard)", systemImage: "ear").font(.caption).foregroundStyle(.secondary).lineLimit(2) }
-            fixPanel
+            markStrip
             suggestionStrip
             if !voiceHint.isEmpty { Label(voiceHint, systemImage: "mic.fill").font(.caption).foregroundStyle(.secondary) }
             attachmentChips
@@ -466,40 +480,54 @@ struct PromptBuilderView: View {
         Button("=2+5 · a sum") { insert("=2+5") }
     }
 
-    private var fixes: [PromptFix] { PromptFixes.fixes(in: text, index: markIndex, dismissed: dismissed) }
+    private var shownMarks: [PromptAutoMark] { autoMarks.filter { text.contains($0.token) } }
 
-    @ViewBuilder private var fixPanel: some View {
-        let items = fixes
+    @ViewBuilder private var markStrip: some View {
+        let items = shownMarks
         if !items.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Label("Use a shortcut here?", systemImage: "lightbulb.fill").font(.caption.weight(.bold)).foregroundStyle(.orange)
-                    Text("Click one, or say “accept suggestion 1”").font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Accept all") { text = PromptFixes.applyAll(PromptFixes.fixes(in: text, index: markIndex, dismissed: dismissed, limit: 200), to: text) }
-                        .controlSize(.small)
-                    Button("Hide") { for fix in PromptFixes.fixes(in: text, index: markIndex, dismissed: dismissed, limit: 200) { dismissed.insert(fix.key) } }
-                        .controlSize(.small)
-                }
-                ForEach(Array(items.enumerated()), id: \.offset) { entry in
-                    HStack(spacing: 8) {
-                        Text("\(entry.offset + 1)").font(.caption.weight(.heavy)).frame(width: 20, height: 20)
-                            .background(Circle().fill(Color.orange.opacity(0.22)))
-                        Image(systemName: entry.element.symbol).font(.caption).foregroundStyle(.secondary)
-                        Text(entry.element.word).font(.caption).strikethrough()
-                        Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
-                        Text(entry.element.token).font(.caption.monospaced().weight(.semibold))
-                        if !entry.element.detail.isEmpty { Text(entry.element.detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
-                        Spacer()
-                        Button("Accept") { text = PromptFixes.apply(entry.element, to: text) }.controlSize(.small)
-                        Button { dismissed.insert(entry.element.key) } label: { Image(systemName: "xmark") }
-                            .buttonStyle(.plain).foregroundStyle(.secondary).help("Not this one")
+            VStack(alignment: .leading, spacing: 5) {
+                Label("Marked for you · tap ✕ to undo", systemImage: "sparkles").font(.caption.weight(.bold)).foregroundStyle(.orange)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 6)], alignment: .leading, spacing: 6) {
+                    ForEach(items) { item in
+                        HStack(spacing: 6) {
+                            Text(item.word).font(.caption).strikethrough().lineLimit(1)
+                            Image(systemName: "arrow.right").font(.caption2).foregroundStyle(.secondary)
+                            Text(item.token).font(.caption.monospaced().weight(.semibold)).lineLimit(1)
+                            Button { reject(item) } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) }
+                                .buttonStyle(.plain).help("Not this one: put back \(item.word)")
+                        }
+                        .padding(.horizontal, 9).padding(.vertical, 4)
+                        .background(Color.orange.opacity(0.12), in: Capsule())
                     }
                 }
             }
-            .padding(10)
-            .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
         }
+    }
+
+    private func reject(_ mark: PromptAutoMark) {
+        dismissed.insert(mark.key)
+        autoMarks.removeAll { $0.id == mark.id }
+        let restored = text.replacingOccurrences(of: mark.token, with: mark.word)
+        programmatic = restored
+        text = restored
+    }
+
+    /// Plain words that match a shortcut, collection record, person or app get their # or @ on their own.
+    /// The word still being typed or heard is left alone until it is finished.
+    private func autoMarked(_ source: String, final: Bool) -> String {
+        let list = PromptFixes.fixes(in: source, index: markIndex, dismissed: dismissed, limit: 200)
+        var chosen = list
+        if !final {
+            let end = (source as NSString).length
+            chosen = list.filter { $0.range.location + $0.range.length < end }
+        }
+        guard !chosen.isEmpty else { return source }
+        for fix in chosen {
+            let item = PromptAutoMark(word: fix.word, token: fix.token, key: fix.key)
+            if !autoMarks.contains(where: { $0.id == item.id }) { autoMarks.append(item) }
+        }
+        if autoMarks.count > 8 { autoMarks.removeFirst(autoMarks.count - 8) }
+        return PromptFixes.applyAll(chosen, to: source)
     }
 
     // MARK: Voice
@@ -508,15 +536,16 @@ struct PromptBuilderView: View {
         heard = spoken
         let result = PromptVoice.apply(base: voiceBase, spoken: spoken, targets: targets, index: markIndex, dismissed: dismissed)
         dismissed.formUnion(result.dismissed)
-        programmatic = result.text
-        text = result.text
+        let marked = autoMarked(result.text, final: final)
+        programmatic = marked
+        text = marked
         if !result.notice.isEmpty { voiceHint = result.notice }
         if result.sends.count > voiceSent, let target = result.sends.last {
             voiceSent = result.sends.count
             sendByVoice(target)
         }
         if final {
-            voiceBase = result.text
+            voiceBase = marked
             voiceSent = 0
             heard = ""
         }
@@ -524,10 +553,13 @@ struct PromptBuilderView: View {
 
     private func sendByVoice(_ target: PromptTarget) {
         voiceHint = "Sending to \(target.name)…"
-        DispatchQueue.main.async {
-            recompute()
-            send(to: target)
+        // Finish marking the last word first, so a shortcut said just before "enter chatgpt" is attached too.
+        let ready = autoMarked(text, final: true)
+        if ready != text {
+            programmatic = ready
+            text = ready
         }
+        send(to: target, raw: ready)
     }
 
     /// The Mac's own keyboard dictation types into the box. Command words in what it types are still understood.
@@ -549,17 +581,25 @@ struct PromptBuilderView: View {
     private func textChanged(_ value: String) {
         defer { lastText = value }
         if value == programmatic { scheduleRecompute(); return }
+        var current = value
+        var target: PromptTarget?
         if dictating, value.count >= lastText.count + 2, value.hasPrefix(lastText) {
             let chunk = String(value.dropFirst(lastText.count))
             let result = PromptVoice.apply(base: lastText, spoken: chunk, targets: targets, index: markIndex, dismissed: dismissed)
-            if result.text != value || !result.sends.isEmpty {
-                dismissed.formUnion(result.dismissed)
-                programmatic = result.text
-                text = result.text
-                if !result.notice.isEmpty { voiceHint = result.notice }
-                if let target = result.sends.last { sendByVoice(target) }
-            }
+            dismissed.formUnion(result.dismissed)
+            current = result.text
+            target = result.sends.last
+            if !result.notice.isEmpty { voiceHint = result.notice }
         }
+        // Typing or dictating at the end: finished words that match a shortcut get their mark.
+        if current.count > lastText.count, current.count - lastText.count <= 80, current.hasPrefix(lastText) {
+            current = autoMarked(current, final: false)
+        }
+        if current != value {
+            programmatic = current
+            text = current
+        }
+        if let target = target { sendByVoice(target) }
         scheduleRecompute()
     }
 
@@ -576,27 +616,76 @@ struct PromptBuilderView: View {
         text = String(text.dropLast(token.count)) + item.insert + " "
     }
 
+    private func byKey(_ a: Clip, _ b: Clip) -> Bool {
+        PromptSuggestions.trimmedKey(a.key).localizedStandardCompare(PromptSuggestions.trimmedKey(b.key)) == .orderedAscending
+    }
+
+    private func shortcutButton(_ clip: Clip) -> some View {
+        let key = PromptSuggestions.trimmedKey(clip.key)
+        return Button("\(clip.name.isEmpty ? key : clip.name) · \(key)") { insert("#" + key) }
+    }
+
+    /// Every collection, A to Z. The first three entries are the shortcuts made most recently.
+    /// Media shortcuts are not here: they are in the # Media menu.
     @ViewBuilder private var collectionsMenu: some View {
-        if collectionNames.isEmpty {
-            Text("No collection records yet")
+        let recent = Array(plainList.prefix(3))
+        let names = groupNames
+        if plainList.isEmpty && names.isEmpty {
+            Text("Nothing here yet")
         } else {
-            ForEach(collectionNames, id: \.self) { name in
-                Menu(name) {
-                    ForEach(records.filter { $0.collection == name && !$0.alias.isEmpty }.prefix(80)) { record in
-                        Button(record.name.isEmpty ? record.alias : "\(record.name) · \(record.alias)") { insert("#" + record.alias) }
-                    }
+            if !recent.isEmpty {
+                Section("Recent") {
+                    ForEach(recent) { clip in shortcutButton(clip) }
                 }
+            }
+            ForEach(names, id: \.self) { name in
+                Menu(name) { groupItems(name) }
             }
         }
     }
 
-    @ViewBuilder private func shortcutsMenu(_ items: [Clip], marker: String = "#") -> some View {
-        if items.isEmpty {
-            Text("Nothing here yet")
+    private var groupNames: [String] {
+        var names = Set<String>()
+        for clip in plainList { for group in clip.allGroups { names.insert(group) } }
+        for record in records where !record.alias.isEmpty { names.insert(record.collection) }
+        return names.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    @ViewBuilder private func groupItems(_ name: String) -> some View {
+        let shortcuts = Array(plainList.filter { clip in clip.allGroups.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) }.sorted(by: byKey).prefix(80))
+        let people = Array(records.filter { $0.collection == name && !$0.alias.isEmpty }.sorted { $0.alias.localizedStandardCompare($1.alias) == .orderedAscending }.prefix(80))
+        ForEach(shortcuts) { clip in shortcutButton(clip) }
+        if !shortcuts.isEmpty && !people.isEmpty { Divider() }
+        ForEach(people) { record in
+            Button(record.name.isEmpty ? record.alias : "\(record.name) · \(record.alias)") { insert("#" + record.alias) }
+        }
+    }
+
+    @ViewBuilder private var mediaMenu: some View {
+        if mediaList.isEmpty {
+            Text("No media shortcuts yet")
         } else {
-            ForEach(items.prefix(120)) { clip in
-                Button("\(clip.name.isEmpty ? clip.key : clip.name) · \(clip.key)") {
-                    insert(marker + clip.key.trimmingCharacters(in: CharacterSet(charactersIn: "/\\")))
+            Section("Recent") {
+                ForEach(Array(mediaList.prefix(3))) { clip in shortcutButton(clip) }
+            }
+            Divider()
+            ForEach(Array(mediaList.sorted(by: byKey).prefix(150))) { clip in shortcutButton(clip) }
+        }
+    }
+
+    /// Apps made in KeyDo: AppBuilder, WishStudio and Ezyourlife apps.
+    @ViewBuilder private var appsMenu: some View {
+        if apps.isEmpty {
+            Text("No apps yet")
+        } else {
+            ForEach(["AppBuilder", "WishStudio", "Ezyourlife"], id: \.self) { source in
+                let items = Array(apps.filter { $0.source == source }.prefix(150))
+                if !items.isEmpty {
+                    Menu(source) {
+                        ForEach(items, id: \.name) { app in
+                            Button(app.name) { insert("@" + app.compact) }
+                        }
+                    }
                 }
             }
         }
@@ -699,7 +788,7 @@ struct PromptBuilderView: View {
     }
 
     private func recompute() {
-        composition = PromptComposer.compose(text, clips: clips, records: records, vocabulary: vocabulary, autocorrect: autoCorrect)
+        composition = PromptComposer.compose(text, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
         aiText = nil
     }
 
@@ -761,12 +850,17 @@ struct PromptBuilderView: View {
         }
     }
 
-    private func send(to target: PromptTarget) {
-        let files = composition.attachments.flatMap { $0.paths }
-        NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: finalPrompt, files: files))
-        notice = finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty
+    private func send(to target: PromptTarget, raw: String? = nil) {
+        // Work out the prompt and the media fresh from the text, so nothing is stale or missed.
+        let source = raw ?? text
+        let fresh = PromptComposer.compose(source, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
+        let prompt = (raw == nil ? aiText : nil) ?? fresh.text
+        let files = fresh.attachments.flatMap { $0.paths }
+        NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: prompt, files: files))
+        let attached = fresh.attachments.count
+        notice = prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty
             ? "Opening \(target.name). The prompt is empty, so there is nothing to send yet."
-            : "Opening \(target.name) in the side panel and sending your prompt…"
+            : "Opening \(target.name) in the side panel and sending your prompt" + (attached > 0 ? " with \(attached) attached media…" : "…")
         flashTarget = target.name
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if flashTarget == target.name { flashTarget = nil } }
     }
