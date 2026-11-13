@@ -1,6 +1,5 @@
-## Up to 20 media files, bigger grid previews, taller Video Cutter, and talk-to-create apps
+## Fixed blank greeting cards, and a slimmer fixed Collections header
 
-- **Collections:** you can now add up to 20 media files at once (shortcuts from files) and attach up to 20 files to one shortcut. It was 10.
-- **Grid view:** images, GIFs, videos and audio have a small button on the tile. A video shows a play button and plays large with its own controls. Images and GIFs open large. If a shortcut has several files, use the arrows to move through them.
-- **Video Cutter:** the video area is about twice as tall, so Instagram, YouTube and Vimeo links are easier to see and trim.
-- **AppBuilder, talk to create an app:** press + and then "Talk to create". Keep talking about what the app should do and say "create" when you are done. Then KeyDo asks for each detail one box at a time, by voice or typing (say next, back, or make it). "Make it" creates the first result.
+- **Greeting cards are no longer blank.** Thank You, Wedding Anniversary and the 14 festival apps now draw their card picture directly, the same way the hbd and hwa cards are drawn, instead of taking a picture of a web page. `diwali-Hiral`, `thanks-Hiral`, `thanks-Rohit` and the others come out as a finished PNG with the text, colours and emblem (or the picture from a media shortcut after the dash).
+- The look still comes from WishStudio: change an occasion's default look or save a template there, and the card uses it. Add a look word or a saved template name after the name (`thanks-Hiral-gold`) to use another look for one card.
+- **Collections header:** the title, buttons, search, type filters and selection bar now sit in a slim fixed block at the top. It stays in place while the list or grid scrolls underneath. It is about half the height it was, and the duplicate "New shortcut" button is gone.

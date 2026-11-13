@@ -152,8 +152,8 @@ enum WishOccasions {
 
     // MARK: Building the card
 
-    /// Builds the card page (index.html and its picture) and returns its address, with a note when the template was not found.
-    static func build(occasion item: GreetingOccasion, name: String, photo: String?, templateToken: String, in directory: URL) throws -> (url: URL, note: String) {
+    /// The app, card text, colours and look for one occasion card, after any saved template or look word is applied.
+    static func resolve(occasion item: GreetingOccasion, name: String, templateToken: String, in directory: URL) -> (app: WishApp, card: WishCard, designID: String, note: String) {
         let stored = WishStoreReader.read(directory: directory)
         let seeded = WishSeeds.apps().first { $0.name == (item.reuses ?? item.appName) }
         let app = stored.apps.first { $0.name == (item.reuses ?? item.appName) } ?? seeded ?? makeApp(item)
@@ -188,6 +188,15 @@ enum WishOccasions {
             card.values["name"] = who
             card.valuesHi["name"] = who
         }
+        return (app, card, designID, note)
+    }
+
+    /// Builds the card page (index.html and its picture) and returns its address, with a note when the template was not found.
+    static func build(occasion item: GreetingOccasion, name: String, photo: String?, templateToken: String, in directory: URL) throws -> (url: URL, note: String) {
+        let resolved = resolve(occasion: item, name: name, templateToken: templateToken, in: directory)
+        let app = resolved.app, designID = resolved.designID, note = resolved.note
+        var card = resolved.card
+        let who = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let stamp = DateFormatter()
         stamp.dateFormat = "yyyy-MM-dd HHmmss"
         let safeName = who.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: "-")
@@ -215,8 +224,17 @@ enum WishOccasions {
 
     /// The card as a PNG picture in the Attachments folder, so it can be pasted or attached anywhere.
     @MainActor static func buildPNG(occasion item: GreetingOccasion, name: String, photo: String?, templateToken: String, in directory: URL) async throws -> (path: String, note: String) {
-        let built = try build(occasion: item, name: name, photo: photo, templateToken: templateToken, in: directory)
-        guard let data = await WishOffscreenRenderer.png(index: built.url, readAccess: built.url.deletingLastPathComponent()) else { throw CardImageError() }
+        let resolved = resolve(occasion: item, name: name, templateToken: templateToken, in: directory)
+        var card = resolved.card
+        var context = WishContext()
+        context.locale = card.language.locale
+        for key in ["eyebrow", "title", "name", "message", "from"] {
+            let rendered = WishFormula.render(card.value(for: key), context: context)
+            if card.language == .hindi { card.valuesHi[key] = rendered } else { card.values[key] = rendered }
+        }
+        let design = WishDesigns.design(id: card.designID, kind: .greeting)
+        guard let data = OccasionCardDrawer.pngData(card: card, design: design, photo: photo) else { throw CardImageError() }
+        let built = (note: resolved.note, ())
         let folder = directory.appendingPathComponent("Attachments", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let safe = name.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: "-")
