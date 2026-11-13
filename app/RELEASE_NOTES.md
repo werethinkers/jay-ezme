@@ -1,7 +1,5 @@
-## New greeting cards: Thank You, Wedding Anniversary and 14 Indian festivals
+## Create an app in one step, from words or from a sample image
 
-- **16 new card apps**, made like hbd and hwa. Type the code, a dash and a name, for example `thanks-Hiral`, `wed-Priya & Rahul` or `holi-Family`. After the dash you can also use a media shortcut and its picture goes on the card.
-- **Codes:** thanks, wed, diwali, holi, eid, xmas, rakhi, ganesh, navratri, durga, dussehra, sankranti, pongal, onam, baisakhi, janmashtami.
-- **Every card is also a WishStudio app**, so you can change its words there. In WishStudio, open the Templates tab and press "Make the current look the default": typed cards of that app use that look from then on.
-- **Pick another look for one card** by adding a dash and a look name: `thanks-Hiral-gold`, `diwali-Shah family-night`. Looks you can name: lavender, blush, mint, sky, gold, peach, rose, sage, midnight, coral, ink, saffron. A template you saved in WishStudio works by its name too.
-- Cards are saved in a new "Greeting Cards" collection. Delete any card app you do not need from AppBuilder or WishStudio; it stays deleted. "Restore starter apps" in WishStudio brings the festival apps back.
+- **Press + in AppBuilder and say what the app should make**, for example "Send an NDA to a client", "Thank-you card with a name" or "Invoice for a customer". KeyDo fills in the app's name, shortcut, fields and instructions for you. Before, this was two screens with fixed fields that did not fit most apps.
+- **Add a sample image if you have one** (a card, a poster, an invoice, a form). KeyDo follows its layout, colours and style and never copies its text. Image apps now use the sample as the picture to follow every time they make a result.
+- Without an API key, a simple app is made from your words and you can edit it in the app afterwards.
