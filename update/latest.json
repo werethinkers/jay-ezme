@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 273,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build273/EzMe-3.44-macOS.zip",
-  "sha256": "f3efa38dafc3fe06977a1bf5c68fb9fa3061897d595ce66cea09fccea18b47e9",
-  "notes": "## Small bar with mic and 3-second timer, top-centre popup, faster voice search\n\n- **The small search bar has its mic button back**, next to the close button.\n- **3-second timer on the small bar.** A small 3-2-1 circle counts down and the bar closes. Type, speak or move the pointer over it to keep it open. The full popup keeps its longer wait.\n- **The popup always opens at the top centre of the screen**, small or full size.\n- **Voice and phrase searches show 5 results first.** More load as you scroll, so the popup opens quickly instead of drawing up to 80 shortcuts and media files.\n- **Faster searching.** Matching collection items against your shortcuts no longer re-checks the whole list for every item.",
-  "published": "2026-11-13T11:47:57Z",
+  "build": 275,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build275/EzMe-3.44-macOS.zip",
+  "sha256": "8f1c97d39df4b4ccfcb527690f403077202cee1cbbc1a9b1ce400c68436305f7",
+  "notes": "## Delete apps, with an optional 6-digit passcode\n\n- **AppBuilder:** you can now delete an app you made or added. Use the red bin button at the top, or right-click an app (its tab or its card) and choose \"Delete app\u2026\". Collection Builder, MyDatabase and Prompt Builder cannot be deleted.\n- **WishStudio:** the bin button next to \"New app\" (or right-click an app) now deletes any wish app, including the starter ones. The last app cannot be deleted. \"Restore starter apps\" still brings the starters back.\n- **One passcode for all deleting.** In the delete window, open \"Add a 6-digit passcode for deleting apps\" to set, change or remove it. When it is set, every delete asks for it. If you forget it, \"Forgot? Use Mac login\" lets you remove it with your Mac password or Touch ID.\n- A deleted AppBuilder app stays deleted: the built-in card apps (hbd, hwa and so on) are not put back when KeyDo starts. Add the app again from the gallery whenever you want it.",
+  "published": "2026-11-13T12:23:06Z",
   "minimumSystemVersion": "14.0"
 }
