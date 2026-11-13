@@ -399,6 +399,15 @@ private struct WishSnapshot: Codable {
     var templates: [WishTemplate]?
 }
 
+/// Reads the saved WishStudio apps and templates without opening the studio (used when a card app builds a card).
+enum WishStoreReader {
+    static func read(directory: URL) -> (apps: [WishApp], templates: [WishTemplate]) {
+        guard let data = try? Data(contentsOf: directory.appendingPathComponent("wishstudio.json")),
+              let snapshot = try? JSONDecoder().decode(WishSnapshot.self, from: data) else { return ([], []) }
+        return (snapshot.apps, snapshot.templates ?? [])
+    }
+}
+
 @MainActor
 final class WishStore: ObservableObject {
     @Published var apps: [WishApp] = [] { didSet { scheduleSave() } }
@@ -430,6 +439,22 @@ final class WishStore: ObservableObject {
             functions = WishSeeds.functions()
             lastAppID = apps.first?.id ?? ""
         }
+        addOccasionApps()
+    }
+
+    /// Adds the Thank You and festival apps that are missing, except the ones the person deleted.
+    func addOccasionApps(force: Bool = false) {
+        var removed = Set(UserDefaults.standard.stringArray(forKey: "ezmeDeletedWishApps") ?? [])
+        if force {
+            removed = []
+            UserDefaults.standard.removeObject(forKey: "ezmeDeletedWishApps")
+        }
+        var added = apps
+        for item in WishOccasions.all where item.reuses == nil {
+            if added.contains(where: { $0.name == item.appName }) || removed.contains(item.appName) { continue }
+            added.append(WishOccasions.makeApp(item))
+        }
+        if added.count != apps.count { apps = added }
     }
 
     /// The first release called the starter apps Birthday, Anniversary and Diwali.
@@ -510,6 +535,7 @@ final class WishStore: ObservableObject {
         for starter in starters where !apps.contains(where: { $0.name == starter.name && $0.builtIn }) {
             apps.append(starter)
         }
+        addOccasionApps(force: true)
     }
 
     /// The context functions are evaluated in: global functions plus this card's fields, in order.

@@ -575,6 +575,10 @@ struct MainView:View {
      guard let png=CelebrationCard.pngData(kind:card.kind,name:who,sender:CelebrationCard.senderFirstName(),photo:found?.paths.first)else{NotificationCenter.default.post(name:.ezmeBuilderGenerationFinished,object:nil,userInfo:["status":"The card picture could not be made.","key":command.key]);return};let file=directory.appendingPathComponent(stem+".png");try png.write(to:file,options:.atomic);media=[file.path];output=file.path
     }
     statusOverride=CelebrationCard.readyText(name:who)
+   } else if let occ=WishOccasions.occasion(forApp:command.app) {
+    let typed=command.slotValues.first ?? "";let found=celebrationMedia(typed,clips:db.clips)
+    let built=try WishOccasions.build(occasion:occ,name:found?.name ?? typed,photo:found?.paths.first,templateToken:command.cardTemplate,in:db.dir)
+    output=built.url.absoluteString;if !built.note.isEmpty{statusOverride=built.note}
    } else if let occasion=WishQuickCard.occasion(forApp:command.app) {
     let typed=command.slotValues.first ?? "";let found=celebrationMedia(typed,clips:db.clips)
     let page=try WishQuickCard.build(occasion:occasion,name:found?.name ?? typed,photo:found?.paths.first,in:db.dir)
@@ -2861,7 +2865,7 @@ struct CollectionManagerSheet:View{
  func suffix(_ name:String)->String{switch name.lowercased(){case "applications":".app";case "ai engines":".ai";case "websites & urls":".web";case "media files":".media";default:""}}
  func icon(_ name:String)->String{switch name{case "Applications":"app.dashed";case "AI Engines":"sparkles";case "Websites & URLs":"globe";case "Media files":"paperclip";default:"folder"}}
 }
-struct CustomBuilderCommand{var app:String;var prefix:String;var fields:[String];var values:[String];var collections:[String];var collectionValues:[String];var slotKinds:[String];var slotNames:[String];var slotValues:[String];var outputCollections:[String];var prompt:String;var richTextData:Data?;var details:String;var assetPath:String;var template:String;var format:String;var fontSize:Double;var bold:Bool;var italic:Bool;var underline:Bool;var fontColor:String;var key:String;var isComplete:Bool{slotValues.count==slotKinds.count && slotValues.allSatisfy{!$0.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty}}
+struct CustomBuilderCommand{var cardTemplate:String="";var app:String;var prefix:String;var fields:[String];var values:[String];var collections:[String];var collectionValues:[String];var slotKinds:[String];var slotNames:[String];var slotValues:[String];var outputCollections:[String];var prompt:String;var richTextData:Data?;var details:String;var assetPath:String;var template:String;var format:String;var fontSize:Double;var bold:Bool;var italic:Bool;var underline:Bool;var fontColor:String;var key:String;var isComplete:Bool{slotValues.count==slotKinds.count && slotValues.allSatisfy{!$0.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty}}
 }
 func quoteBuilderValue(_ value:String)->String{value.contains("-") || value.contains(" ") ? "\""+value.replacingOccurrences(of:"\"",with:"\\\"")+"\"":value}
 func splitBuilderCommand(_ value:String)->[String]{var parts=[String](),current="",quoted=false,escaped=false;for char in value{if escaped{current.append(char);escaped=false;continue};if char=="\\" && quoted{escaped=true;continue};if char=="\""{quoted.toggle();continue};if char=="-" && !quoted{parts.append(current);current=""}else{current.append(char)}};parts.append(current);return parts}
@@ -2951,6 +2955,7 @@ func customBuilderCommand(_ raw:String,clips:[Clip]=[],records:[CollectionRecord
   if blocks.isEmpty{kinds=Array(repeating:"collection",count:groups.count)+Array(repeating:"variable",count:fields.count);slotNames=groups+fields}
   else{for block in blocks{if block.hasPrefix("Collection: "){let group=String(block.dropFirst("Collection: ".count));if groups.contains(where:{$0.caseInsensitiveCompare(group) == .orderedSame}){kinds.append("collection");slotNames.append(group)}}else if block.hasPrefix("Variable: "){let field=String(block.dropFirst("Variable: ".count));if fields.contains(where:{$0.caseInsensitiveCompare(field) == .orderedSame}){kinds.append("variable");slotNames.append(field)}}}}
   var parts=tail.isEmpty ? []:splitBuilderCommand(tail);var format=UserDefaults.standard.string(forKey:"ezmeBuilderFormat."+app) ?? "PDF"
+  var cardTemplate="";if parts.count>kinds.count,(UserDefaults.standard.string(forKey:"ezmeBuilderEngine."+app) ?? "").hasPrefix("wish-occ-"),let extra=parts.last{cardTemplate=extra;parts.removeLast()}
   if parts.count>kinds.count,let requested=parts.last.flatMap(builderOutputFormat){format=requested;parts.removeLast()}
   var slots=Array(repeating:"",count:kinds.count)
   func consume(_ slot:Int,_ part:Int)->Bool{
@@ -2981,7 +2986,7 @@ func customBuilderCommand(_ raw:String,clips:[Clip]=[],records:[CollectionRecord
   let underline=UserDefaults.standard.object(forKey:"ezmeBuilderDefaultUnderline."+app) as? Bool ?? UserDefaults.standard.bool(forKey:"ezmeBuilderUnderline."+app)
   let fontColor=UserDefaults.standard.string(forKey:"ezmeBuilderDefaultFontColor."+app) ?? UserDefaults.standard.string(forKey:"ezmeBuilderFontColor."+app) ?? "Ink"
   let outputCollections=(UserDefaults.standard.string(forKey:"ezmeBuilderOutputCollections."+app) ?? app).split(separator:",").map{$0.trimmingCharacters(in:.whitespacesAndNewlines)}
-  return CustomBuilderCommand(app:app,prefix:prefix,fields:fields,values:values,collections:groups,collectionValues:colValues,slotKinds:kinds,slotNames:slotNames,slotValues:slots,outputCollections:outputCollections,prompt:prompt,richTextData:UserDefaults.standard.data(forKey:"ezmeBuilderDefaultRTF."+app) ?? UserDefaults.standard.data(forKey:"ezmeBuilderTemplateRTF."+app),details:details,assetPath:assetPath,template:template,format:format,fontSize:fontSize==0 ? 11:fontSize,bold:bold,italic:italic,underline:underline,fontColor:fontColor,key:canonical)
+  var made=CustomBuilderCommand(app:app,prefix:prefix,fields:fields,values:values,collections:groups,collectionValues:colValues,slotKinds:kinds,slotNames:slotNames,slotValues:slots,outputCollections:outputCollections,prompt:prompt,richTextData:UserDefaults.standard.data(forKey:"ezmeBuilderDefaultRTF."+app) ?? UserDefaults.standard.data(forKey:"ezmeBuilderTemplateRTF."+app),details:details,assetPath:assetPath,template:template,format:format,fontSize:fontSize==0 ? 11:fontSize,bold:bold,italic:italic,underline:underline,fontColor:fontColor,key:canonical);made.cardTemplate=cardTemplate;return made
  }
  return nil
 }

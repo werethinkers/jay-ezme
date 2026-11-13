@@ -42,7 +42,7 @@ let celebrationPresets: [AppBuilderPreset] = [
                      details: "Builds the card as one web page file (picture included). Type hbdweb-Name, or hbdweb- and a media shortcut to use its picture.", format: "HTML", engine: "card-web-birthday"),
     AppBuilderPreset(name: "Work Anniversary Web Card (HWA · WishStudio)", prefix: "hwaweb", prompt: "Happy Work Anniversary card web page.", variables: "Name", sourceCollections: "", outputCollections: "Work Anniversary Cards", template: "Modern",
                      details: "Builds the card as one web page file (picture included). Type hwaweb-Name, or hwaweb- and a media shortcut to use its picture.", format: "HTML", engine: "card-web-anniversary"),
-]
+] + WishOccasions.presets
 
 enum CelebrationApps {
     /// Makes sure the four apps are installed and own their prefixes. Safe to call on every launch.

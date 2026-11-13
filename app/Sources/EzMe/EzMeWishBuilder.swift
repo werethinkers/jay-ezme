@@ -112,6 +112,9 @@ struct WishBuilderView: View {
 
     private func deleteWishApp(_ item: WishApp) {
         guard store.apps.count > 1 else { return }
+        var gone = Set(UserDefaults.standard.stringArray(forKey: "ezmeDeletedWishApps") ?? [])
+        gone.insert(item.name)
+        UserDefaults.standard.set(Array(gone), forKey: "ezmeDeletedWishApps")
         store.apps.removeAll { $0.id == item.id }
         store.cards[item.id] = nil
         builder.editingID = store.apps.first?.id ?? ""
