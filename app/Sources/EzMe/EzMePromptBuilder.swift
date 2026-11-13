@@ -1,9 +1,10 @@
 // Prompt Builder: a built-in AppBuilder app (like Collection Builder and MyDatabase) that can't be deleted.
 //
 // Type or speak a prompt. Shortcut codes in it are resolved as you go:
-//   /photo or \photo   a shortcut: a media shortcut becomes an attachment, a text shortcut expands to its text
-//   photo              a bare media shortcut code also works
-//   @rahul or /rahul   a collection record: its name and details are written into the prompt
+//   #photo.media       a shortcut or collection record: media becomes an attachment, text expands to its text
+//   @rahul             a person (collection record) or an app shortcut
+//   =date  =2+5        a function, written out (see EzMePromptTokens.swift; spoken commands are there too)
+//   /photo or \photo   the older marks still work; a word without a mark is never turned into a shortcut
 // The second box shows the prompt live with spelling and capital-letter fixes and the shortcuts written out.
 // The buttons (ChatGPT, Grok, Claude, Gemini and any site added later) open the site in the browser side
 // panel, type the prompt, attach the media and press send.
@@ -171,6 +172,20 @@ enum PromptComposer {
             while let last = core.unicodeScalars.last, trailSet.contains(last) { trail = String(last) + trail; core.unicodeScalars.removeLast() }
             let endsSentence = trail.contains(".") || trail.contains("!") || trail.contains("?")
 
+            if core.hasPrefix("=") {
+                var value = PromptFunctions.evaluate(core)
+                var rest = trail
+                if value == nil, trail.hasPrefix(")"), let whole = PromptFunctions.evaluate(core + ")") {
+                    value = whole
+                    rest = String(trail.dropFirst())
+                }
+                if let value = value {
+                    output += lead + value + rest
+                    startOfSentence = endsSentence
+                    continue
+                }
+            }
+
             if let replacement = resolve(core, clips: clips, records: records, attachments: &attachments) {
                 output += lead + replacement + trail
                 startOfSentence = endsSentence
@@ -209,37 +224,48 @@ enum PromptComposer {
         return PromptComposition(text: output.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments, fixes: Array(fixes.prefix(12)))
     }
 
-    /// A shortcut code or record alias, written out. Nil for an ordinary word.
+    private static func matchClip(_ name: String, _ clips: [Clip]) -> Clip? {
+        if let exact = clips.first(where: { cleanKey($0.key) == name }) { return exact }
+        return clips.first(where: { cleanKey($0.key).hasPrefix(name + ".") })
+    }
+
+    private static func recordText(_ name: String, records: [CollectionRecord], attachments: inout [PromptAttachment]) -> String? {
+        guard let record = records.first(where: { $0.alias.lowercased() == name }) else { return nil }
+        let details = record.values.sorted { $0.key < $1.key }.filter { !$0.value.isEmpty }.map { "\($0.key): \($0.value)" }.joined(separator: "; ")
+        let title = record.name.isEmpty ? record.alias : record.name
+        for path in record.files where FileManager.default.fileExists(atPath: path) {
+            let id = record.id + path
+            if !attachments.contains(where: { $0.id == id }) {
+                attachments.append(PromptAttachment(id: id, name: title, kind: kind(of: path), paths: [path]))
+            }
+        }
+        return details.isEmpty ? title : "\(title) (\(details))"
+    }
+
+    /// #shortcut, #record, @person or app, /shortcut and \\shortcut, written out. Nil for an ordinary word.
+    /// A word without one of these marks is never touched, so ordinary words cannot turn into shortcuts by accident.
     private static func resolve(_ core: String, clips: [Clip], records: [CollectionRecord], attachments: inout [PromptAttachment]) -> String? {
-        guard core.count >= 2 else { return nil }
-        let hasMarker = core.hasPrefix("/") || core.hasPrefix("\\") || core.hasPrefix("@")
-        let name = (hasMarker ? String(core.dropFirst()) : core).lowercased()
+        guard core.count >= 2, let marker = core.first, "/\\@#".contains(marker) else { return nil }
+        let name = String(core.dropFirst()).lowercased()
         guard !name.isEmpty else { return nil }
 
-        if let clip = clips.first(where: { cleanKey($0.key) == name }) {
+        if marker == "@", let person = recordText(name, records: records, attachments: &attachments) { return person }
+        if let clip = matchClip(name, clips) {
+            let label = clip.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? name : clip.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isApp = clip.appBundleIdentifier != nil || clip.webURL != nil
+            if marker == "@", isApp { return label }
             let files = existingFiles(clip)
             if !files.isEmpty {
-                let label = clip.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? name : clip.name.trimmingCharacters(in: .whitespacesAndNewlines)
                 let first = kind(of: files[0])
                 if !attachments.contains(where: { $0.id == clip.id.uuidString }) {
                     attachments.append(PromptAttachment(id: clip.id.uuidString, name: label, kind: first, paths: files))
                 }
                 return "[\(first): \(label)]"
             }
-            if hasMarker, !clip.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return clip.text }
+            if !clip.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return clip.text }
+            if isApp { return label }
         }
-        if hasMarker, let record = records.first(where: { $0.alias.lowercased() == name }) {
-            let details = record.values.sorted { $0.key < $1.key }.filter { !$0.value.isEmpty }.map { "\($0.key): \($0.value)" }.joined(separator: "; ")
-            let title = record.name.isEmpty ? record.alias : record.name
-            for path in record.files where FileManager.default.fileExists(atPath: path) {
-                let id = record.id + path
-                if !attachments.contains(where: { $0.id == id }) {
-                    attachments.append(PromptAttachment(id: id, name: title, kind: kind(of: path), paths: [path]))
-                }
-            }
-            return details.isEmpty ? title : "\(title) (\(details))"
-        }
-        return nil
+        return recordText(name, records: records, attachments: &attachments)
     }
 }
 
@@ -259,6 +285,9 @@ struct PromptBuilderView: View {
     @State private var voiceBase = ""
     @State private var hovered: String?
     @State private var targets = PromptTargets.load()
+    @State private var voiceSent = 0
+    @State private var voiceHint = ""
+    @State private var showVoiceHelp = false
     @State private var showAddSite = false
     @State private var newSiteName = ""
     @State private var newSiteURL = ""
@@ -269,6 +298,11 @@ struct PromptBuilderView: View {
     private var collectionNames: [String] {
         Array(Set(records.filter { !$0.alias.isEmpty }.map { $0.collection })).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
+    private var suggestions: [PromptSuggestion] {
+        guard let token = PromptSuggestions.lastToken(in: text) else { return [] }
+        return PromptSuggestions.suggestions(for: token, clips: clips, records: records)
+    }
+    private var appClips: [Clip] { clips.filter { $0.appBundleIdentifier != nil || $0.webURL != nil } }
     private var mediaClips: [Clip] { clips.filter { !PromptComposer.existingFiles($0).isEmpty } }
     private var textClips: [Clip] { clips.filter { PromptComposer.existingFiles($0).isEmpty && !$0.text.isEmpty && $0.appBundleIdentifier == nil && $0.webURL == nil } }
 
@@ -299,9 +333,52 @@ struct PromptBuilderView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Prompt Builder").font(.system(size: 28, weight: .bold, design: .rounded))
-            Text("Type or speak a prompt. Use /shortcut for media and text shortcuts and @alias for collection records. Then send it to an AI site in the side panel.")
+            Text("Type or speak a prompt, then send it to an AI site in the side panel.")
                 .font(.subheadline).foregroundStyle(.secondary)
+            tokenGuide.padding(.top, 6)
         }
+    }
+
+    private var tokenGuide: some View {
+        HStack(spacing: 10) {
+            guideCard("#", "Shortcuts and collections", "#rohit.media", .purple)
+            guideCard("@", "People and apps", "@priya", .blue)
+            guideCard("=", "Functions", "=date  =2+5", .orange)
+            Button { showVoiceHelp.toggle() } label: { Label("Voice commands", systemImage: "waveform") }
+                .buttonStyle(.bordered)
+                .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
+        }
+    }
+
+    private func guideCard(_ mark: String, _ title: String, _ example: String, _ tint: Color) -> some View {
+        Button { startToken(mark) } label: {
+            HStack(spacing: 8) {
+                Text(mark).font(.system(size: 18, weight: .heavy, design: .rounded)).foregroundStyle(tint)
+                    .frame(width: 30, height: 30).background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title).font(.caption.weight(.semibold))
+                    Text(example).font(.caption2.monospaced()).foregroundStyle(.secondary)
+                }
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(tint.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+        .help("Click to start typing \(mark)")
+    }
+
+    private var voiceHelp: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Say these while listening").font(.headline)
+            ForEach(Array(PromptVoice.helpRows.enumerated()), id: \.offset) { entry in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("“\(entry.element.say)”").font(.callout.weight(.semibold))
+                    Text(entry.element.result).font(.callout).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 460, alignment: .leading)
     }
 
     // MARK: Typing
@@ -316,17 +393,69 @@ struct PromptBuilderView: View {
                 .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.25)))
             HStack(spacing: 8) {
-                VoiceDictationButton(onTranscript: { spoken in text = joined(voiceBase, spoken) }, onPartial: { spoken in text = joined(voiceBase, spoken) }, onStart: { voiceBase = text })
-                Menu("Collections") { collectionsMenu }
-                Menu("Media shortcuts") { shortcutsMenu(mediaClips) }
-                Menu("Text shortcuts") { shortcutsMenu(textClips) }
+                VoiceDictationButton(onTranscript: { spoken in applyVoice(spoken) }, onPartial: { spoken in applyVoice(spoken) }, onStart: { voiceBase = text; voiceSent = 0; voiceHint = "Listening… say “enter chatgpt” to send" })
+                Menu("# Collections") { collectionsMenu }
+                Menu("# Media") { shortcutsMenu(mediaClips) }
+                Menu("# Text") { shortcutsMenu(textClips) }
+                Menu("@ Apps") { shortcutsMenu(appClips, marker: "@") }
+                Menu("= Functions") { functionsMenu }
                 Spacer()
                 Button("Clear") { text = ""; notice = "" }.disabled(text.isEmpty)
             }
             .menuStyle(.borderlessButton)
+            suggestionStrip
+            if !voiceHint.isEmpty { Label(voiceHint, systemImage: "mic.fill").font(.caption).foregroundStyle(.secondary) }
             attachmentChips
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder private var suggestionStrip: some View {
+        let items = suggestions
+        if !items.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(items) { item in
+                        Button { accept(item) } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: item.symbol).font(.caption)
+                                Text(item.title).font(.caption.weight(.semibold))
+                                if !item.detail.isEmpty { Text(item.detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1) }
+                            }
+                            .padding(.horizontal, 9).padding(.vertical, 5)
+                            .background(Color.accentColor.opacity(0.12), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var functionsMenu: some View {
+        ForEach(Array(PromptFunctions.names.enumerated()), id: \.offset) { entry in
+            Button("=\(entry.element.name) · \(entry.element.detail)") { insert("=" + entry.element.name) }
+        }
+        Button("=2+5 · a sum") { insert("=2+5") }
+    }
+
+    private func accept(_ item: PromptSuggestion) {
+        guard let token = PromptSuggestions.lastToken(in: text), text.hasSuffix(token) else { return }
+        text = String(text.dropLast(token.count)) + item.insert + " "
+    }
+
+    private func applyVoice(_ spoken: String) {
+        let result = PromptVoice.apply(base: voiceBase, spoken: spoken, targets: targets)
+        text = result.text
+        if !result.notice.isEmpty { voiceHint = result.notice }
+        if result.sends.count > voiceSent, let target = result.sends.last {
+            voiceSent = result.sends.count
+            voiceHint = "Sending to \(target.name)…"
+            DispatchQueue.main.async {
+                recompute()
+                send(to: target)
+            }
+        }
     }
 
     @ViewBuilder private var collectionsMenu: some View {
@@ -336,20 +465,20 @@ struct PromptBuilderView: View {
             ForEach(collectionNames, id: \.self) { name in
                 Menu(name) {
                     ForEach(records.filter { $0.collection == name && !$0.alias.isEmpty }.prefix(80)) { record in
-                        Button(record.name.isEmpty ? record.alias : "\(record.name) · \(record.alias)") { insert("@" + record.alias) }
+                        Button(record.name.isEmpty ? record.alias : "\(record.name) · \(record.alias)") { insert("#" + record.alias) }
                     }
                 }
             }
         }
     }
 
-    @ViewBuilder private func shortcutsMenu(_ items: [Clip]) -> some View {
+    @ViewBuilder private func shortcutsMenu(_ items: [Clip], marker: String = "#") -> some View {
         if items.isEmpty {
             Text("Nothing here yet")
         } else {
             ForEach(items.prefix(120)) { clip in
                 Button("\(clip.name.isEmpty ? clip.key : clip.name) · \(clip.key)") {
-                    insert("/" + clip.key.trimmingCharacters(in: CharacterSet(charactersIn: "/\\")))
+                    insert(marker + clip.key.trimmingCharacters(in: CharacterSet(charactersIn: "/\\")))
                 }
             }
         }
@@ -359,6 +488,11 @@ struct PromptBuilderView: View {
         let piece = spoken.trimmingCharacters(in: .whitespacesAndNewlines)
         if piece.isEmpty { return base }
         return base + (base.isEmpty || base.hasSuffix(" ") || base.hasSuffix("\n") ? "" : " ") + piece
+    }
+
+    /// Writes just the mark (no space after it), so the suggestions for it appear right away.
+    private func startToken(_ mark: String) {
+        text += (text.isEmpty || text.hasSuffix(" ") || text.hasSuffix("\n") ? "" : " ") + mark
     }
 
     private func insert(_ token: String) {
