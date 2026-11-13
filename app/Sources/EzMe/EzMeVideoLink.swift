@@ -1,40 +1,48 @@
 // Video Cutter: open a video from a link.
 //
 // A direct link to a video file (.mp4, .mov, .m4v, .webm) is downloaded as it is. A page link (YouTube, Vimeo,
-// Instagram and most other video sites) is fetched with the free helper yt-dlp when it is installed on the Mac
-// (brew install yt-dlp). The video is saved next to the other Ez Studio media, then opens in the cutter.
+// Instagram and most other video sites) is fetched with the free open-source helper yt-dlp. KeyDo downloads that
+// helper once into its own folder, keeps it up to date when a site changes, and, for sites that want a sign-in
+// (Instagram, private videos), tries again with the sign-in from your browser. The video is saved next to the other
+// Ez Studio media, then opens in the cutter.
 import AppKit
 import SwiftUI
 
 enum VideoLinkError: LocalizedError {
     case invalid
-    case toolMissing
+    case helperUnavailable(String)
     case failed(String)
 
     var errorDescription: String? {
         switch self {
         case .invalid:
             return "That does not look like a web link. Paste the full address of the video."
-        case .toolMissing:
-            return "Page links (YouTube, Vimeo, Instagram…) need the free helper yt-dlp. Install it once in Terminal with “brew install yt-dlp”, then try again. Direct .mp4 or .mov links work without it."
+        case .helperUnavailable(let reason):
+            return "KeyDo could not set up the video helper (\(reason)). Check your internet connection and try again. Direct .mp4 or .mov links work without it."
         case .failed(let message):
             return message
         }
     }
 }
 
-enum VideoLinkFetcher {
-    private static let directTypes: Set<String> = ["mp4", "mov", "m4v", "webm"]
+private final class DataBox: @unchecked Sendable { var data = Data() }
 
-    static func fetch(_ text: String, into directory: URL) async throws -> URL {
+enum VideoLinkFetcher {
+    typealias Status = @Sendable (String) -> Void
+
+    private static let directTypes: Set<String> = ["mp4", "mov", "m4v", "webm"]
+    private static let helperDownload = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos"
+
+    static func fetch(_ text: String, into directory: URL, status: @escaping Status) async throws -> URL {
         var raw = text.trimmingCharacters(in: .whitespacesAndNewlines)
         if !raw.lowercased().hasPrefix("http") { raw = "https://" + raw }
         guard let url = URL(string: raw), let host = url.host, host.contains(".") else { throw VideoLinkError.invalid }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         if directTypes.contains(url.pathExtension.lowercased()) {
+            status("Downloading the video…")
             return try await download(url, into: directory)
         }
-        return try await viaHelper(url, into: directory)
+        return try await viaHelper(url, into: directory, status: status)
     }
 
     private static func download(_ url: URL, into directory: URL) async throws -> URL {
@@ -47,20 +55,53 @@ enum VideoLinkFetcher {
         return destination
     }
 
-    private static func helperPath() -> String? {
-        let candidates = ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp", NSHomeDirectory() + "/.local/bin/yt-dlp", "/usr/bin/yt-dlp"]
-        return candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) })
+    // MARK: The helper
+
+    private static var managedHelper: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return base.appendingPathComponent("KeyDo", isDirectory: true).appendingPathComponent("Helpers", isDirectory: true).appendingPathComponent("yt-dlp")
     }
 
-    private static func viaHelper(_ url: URL, into directory: URL) async throws -> URL {
-        guard let tool = helperPath() else { throw VideoLinkError.toolMissing }
-        let name = "link-\(UUID().uuidString)"
-        let template = directory.appendingPathComponent(name + ".%(ext)s").path
-        return try await Task.detached(priority: .userInitiated) { () throws -> URL in
+    /// A yt-dlp the person already has, or the copy KeyDo keeps for itself (downloaded on first use).
+    private static func helperPath(status: Status) async throws -> String {
+        for path in ["/opt/homebrew/bin/yt-dlp", "/usr/local/bin/yt-dlp", NSHomeDirectory() + "/.local/bin/yt-dlp"] where FileManager.default.isExecutableFile(atPath: path) {
+            return path
+        }
+        let own = managedHelper
+        if FileManager.default.isExecutableFile(atPath: own.path) { return own.path }
+        status("Setting up the video helper (one time, about 35 MB)…")
+        guard let source = URL(string: helperDownload) else { throw VideoLinkError.helperUnavailable("bad address") }
+        do {
+            let (temp, response) = try await URLSession.shared.download(from: source)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw VideoLinkError.helperUnavailable("download answered \(http.statusCode)")
+            }
+            let size = (try? FileManager.default.attributesOfItem(atPath: temp.path)[.size] as? NSNumber)?.intValue ?? 0
+            guard size > 5_000_000 else { throw VideoLinkError.helperUnavailable("the download was incomplete") }
+            try FileManager.default.createDirectory(at: own.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if FileManager.default.fileExists(atPath: own.path) { try FileManager.default.removeItem(at: own) }
+            try FileManager.default.moveItem(at: temp, to: own)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: own.path)
+            _ = try? await run(["/usr/bin/xattr", "-c", own.path], timeout: 15)
+        } catch let error as VideoLinkError {
+            throw error
+        } catch {
+            throw VideoLinkError.helperUnavailable(error.localizedDescription)
+        }
+        return own.path
+    }
+
+    private struct Output {
+        var status: Int32
+        var out: String
+        var err: String
+    }
+
+    private static func run(_ command: [String], timeout: TimeInterval) async throws -> Output {
+        try await Task.detached(priority: .userInitiated) { () throws -> Output in
             let process = Process()
-            process.executableURL = URL(fileURLWithPath: tool)
-            process.arguments = ["--quiet", "--no-warnings", "--no-playlist", "-f", "best[ext=mp4]/best",
-                                 "-o", template, "--print", "after_move:filepath", url.absoluteString]
+            process.executableURL = URL(fileURLWithPath: command[0])
+            process.arguments = Array(command.dropFirst())
             var environment = ProcessInfo.processInfo.environment
             environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
             process.environment = environment
@@ -69,20 +110,76 @@ enum VideoLinkFetcher {
             process.standardOutput = output
             process.standardError = errors
             try process.run()
+            let watchdog = DispatchWorkItem { if process.isRunning { process.terminate() } }
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: watchdog)
+            let errBox = DataBox()
+            let errReader = Thread { errBox.data = errors.fileHandleForReading.readDataToEndOfFile() }
+            errReader.start()
             let outData = output.fileHandleForReading.readDataToEndOfFile()
-            let errData = errors.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
-            guard process.terminationStatus == 0 else {
-                let text = String(data: errData, encoding: .utf8) ?? ""
-                let line = text.split(whereSeparator: { $0.isNewline }).last.map(String.init) ?? "The site did not give the video."
-                throw VideoLinkError.failed("Could not get that video. \(String(line.prefix(220)))")
-            }
-            let printed = String(data: outData, encoding: .utf8)?.split(whereSeparator: { $0.isNewline }).last.map(String.init)
-            if let printed = printed, FileManager.default.fileExists(atPath: printed) { return URL(fileURLWithPath: printed) }
-            let files = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
-            if let found = files.first(where: { $0.hasPrefix(name) }) { return directory.appendingPathComponent(found) }
-            throw VideoLinkError.failed("The download finished, but the video file was not found.")
+            watchdog.cancel()
+            while !errReader.isFinished { usleep(20_000) }
+            return Output(status: process.terminationStatus,
+                          out: String(data: outData, encoding: .utf8) ?? "",
+                          err: String(data: errBox.data, encoding: .utf8) ?? "")
         }.value
+    }
+
+    private static func attempt(_ tool: String, _ url: URL, _ directory: URL, extra: [String]) async throws -> URL {
+        let name = "link-\(UUID().uuidString)"
+        let template = directory.appendingPathComponent(name + ".%(ext)s").path
+        let base = [tool, "--quiet", "--no-warnings", "--no-playlist", "--no-mtime",
+                    "-f", "best[ext=mp4][protocol^=http]/best[ext=mp4]/best",
+                    "-o", template, "--print", "after_move:filepath"]
+        let result = try await run(base + extra + [url.absoluteString], timeout: 900)
+        guard result.status == 0 else {
+            let lines = result.err.split(whereSeparator: { $0.isNewline }).map(String.init)
+            let line = lines.last(where: { $0.contains("ERROR") }) ?? lines.last ?? "The site did not give the video."
+            throw VideoLinkError.failed(String(line.prefix(260)))
+        }
+        if let printed = result.out.split(whereSeparator: { $0.isNewline }).last.map(String.init),
+           FileManager.default.fileExists(atPath: printed) {
+            return URL(fileURLWithPath: printed)
+        }
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        if let found = files.first(where: { $0.hasPrefix(name) }) { return directory.appendingPathComponent(found) }
+        throw VideoLinkError.failed("The download finished, but the video file was not found.")
+    }
+
+    private static func needsSignIn(_ message: String) -> Bool {
+        let lower = message.lowercased()
+        return ["login", "log in", "sign in", "cookies", "private", "rate-limit", "rate limit", "not available", "empty media", "confirm you", "bot"].contains(where: { lower.contains($0) })
+    }
+
+    private static func viaHelper(_ url: URL, into directory: URL, status: Status) async throws -> URL {
+        let tool = try await helperPath(status: status)
+        status("Getting the video… long videos take a moment.")
+        var failure = "The site did not give the video."
+        do { return try await attempt(tool, url, directory, extra: []) } catch let error as VideoLinkError {
+            failure = error.localizedDescription
+        }
+
+        // Sites change often: update the helper once and try again.
+        status("Updating the video helper and trying again…")
+        _ = try? await run([tool, "-U"], timeout: 120)
+        do { return try await attempt(tool, url, directory, extra: []) } catch let error as VideoLinkError {
+            failure = error.localizedDescription
+        }
+
+        // Instagram, private and age-limited videos want a sign-in: borrow the one from the browser.
+        if needsSignIn(failure) {
+            for browser in ["chrome", "safari", "firefox", "edge"] {
+                status("This site wants a sign-in. Trying with your \(browser.capitalized) sign-in…")
+                do { return try await attempt(tool, url, directory, extra: ["--cookies-from-browser", browser]) } catch let error as VideoLinkError {
+                    let message = error.localizedDescription
+                    if !message.lowercased().contains("cookie") && !message.lowercased().contains("keyring") && !message.lowercased().contains("could not find") {
+                        failure = message
+                    }
+                }
+            }
+            throw VideoLinkError.failed("\(failure) Sign in to that site in Chrome or Safari, then try again.")
+        }
+        throw VideoLinkError.failed(failure)
     }
 }
 
@@ -118,12 +215,14 @@ struct VideoLinkBar: View {
     private func fetch() {
         guard canFetch else { return }
         busy = true
-        note = "Getting the video… long videos take a moment."
+        note = "Starting…"
         let text = link
         let folder = directory
         Task {
             do {
-                let url = try await VideoLinkFetcher.fetch(text, into: folder)
+                let url = try await VideoLinkFetcher.fetch(text, into: folder) { message in
+                    Task { @MainActor in note = message }
+                }
                 busy = false
                 note = ""
                 link = ""
