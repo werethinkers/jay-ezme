@@ -459,6 +459,14 @@ final class WishStudioModel: ObservableObject {
         status = "Template \u{201C}\(template.name)\u{201D} applied."
     }
 
+    /// The look on screen becomes the one new cards of this app start with, and the one typed shortcuts use.
+    func makeCurrentDesignDefault() {
+        var updated = app
+        updated.designID = card.designID
+        store.updateApp(updated)
+        status = "\u{201C}\(WishDesigns.design(id: card.designID, kind: app.kind).name)\u{201D} is now the default look for \(app.name)."
+    }
+
     func deleteTemplate(_ template: WishTemplate) {
         store.templates.removeAll { $0.id == template.id }
     }
@@ -2073,6 +2081,21 @@ struct WishTemplatesTab: View {
                     .font(.system(size: 12))
                     .foregroundStyle(WishTheme.muted)
             }
+            VStack(alignment: .leading, spacing: 8) {
+                wishCaption("Default look")
+                Text("Cards made by typing a shortcut for \(model.app.name) use the default look. Add a dash and a look name after the name to use another one for that card only, like \(WishOccasions.all.first(where: { $0.appName == model.app.name || $0.reuses == model.app.name })?.prefix ?? "thanks")-Hiral-gold, or the name of a template you saved below.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(WishTheme.muted)
+                Button {
+                    model.makeCurrentDesignDefault()
+                } label: {
+                    Label("Make the current look the default", systemImage: "checkmark.seal")
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.accentSoft))
+
             VStack(alignment: .leading, spacing: 8) {
                 wishCaption("Save this look")
                 TextField("Template name, like Soft pink family", text: $name).textFieldStyle(.roundedBorder)
