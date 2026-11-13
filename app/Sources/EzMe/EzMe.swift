@@ -3016,6 +3016,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     return NSSize(width:width,height:min(width/aspect,visible.height))
 }
 
+private let keydoCompactPopupSize=CGSize(width:460,height:62)
 @MainActor struct FloatingPickerView: View {
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("ezmePickerAreaPercent") private var popupAreaPercent=0.22
@@ -3052,7 +3053,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         else if search.promptMode { promptCommandView }
         else { standardPickerView }
         }
-        .padding(search.imageMode ? 12:14).frame(width: regularPopupSize.width, height: compactMode ? 92:regularPopupSize.height+search.extraHeight, alignment:.top)
+        .padding(search.imageMode ? 12:14).frame(width: compactMode ? keydoCompactPopupSize.width:regularPopupSize.width, height: compactMode ? keydoCompactPopupSize.height:regularPopupSize.height+search.extraHeight, alignment:.top)
         .background(LinearGradient(colors:[Butter.cream,Butter.cream,Color(red:0.99,green:0.94,blue:0.99)],startPoint:.topLeading,endPoint:.bottomTrailing).opacity(1-popupTransparency), in: RoundedRectangle(cornerRadius: 17))
         .overlay(RoundedRectangle(cornerRadius: 17).stroke(Butter.coral.opacity(0.86),lineWidth:2.8)).shadow(color: .black.opacity(0.24), radius: 24, y: 12).preferredColorScheme(.light)
         .onAppear{if (!search.showHiddenCollections && db.isCollectionHidden(search.collection)) || !db.collections.contains(where:{$0.caseInsensitiveCompare(search.collection) == .orderedSame}) && search.collection != "All collections"{search.collection="All collections"};search.restart(db:db,collection:search.collection)}
@@ -3071,9 +3072,8 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     private var compactMode:Bool{pickerQuery.isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode && !voice.wantsExpandedPopup}
     @ViewBuilder private var standardPickerView:some View { if compactMode { compactPickerView } else { expandedPickerView } }
     private var compactPickerView:some View {
-        HStack(spacing:10){
-            searchBar
-            Button{voice.start(.popup)}label:{Image(systemName:"mic.fill").font(.system(size:14,weight:.semibold)).foregroundStyle(Butter.coral).frame(width:30,height:30).background(Butter.coral.opacity(0.12),in:Circle())}.buttonStyle(.plain).help("Start voice commands. You can also press \\ twice")
+        HStack(spacing:8){
+            HStack(spacing:7){Image(systemName:"sparkle.magnifyingglass").foregroundStyle(Butter.coral);Text("Type a shortcut…").font(.system(size:14,weight:.medium)).foregroundStyle(Color.secondary).lineLimit(1).frame(maxWidth:.infinity,alignment:.leading)}.padding(.horizontal,12).padding(.vertical,8).background(Butter.cream,in:Capsule()).overlay(Capsule().stroke(Butter.coral.opacity(0.35),lineWidth:1.3))
             Button(action:close){Image(systemName:"xmark.circle.fill").font(.system(size:18)).foregroundStyle(Butter.cocoa.opacity(0.45))}.buttonStyle(.plain).help("Close popup")
         }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)
     }
@@ -3398,7 +3398,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         attachVoice(db:db)
         applyCompact()
     }
-    private func applyCompact(){guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return};let target:CGFloat=(search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !KeyDoVoice.shared.wantsExpandedPopup) ? 92:normalSize.height;let old=panel.frame;guard abs(old.height-target)>1,abs(old.height-92)<2 || abs(old.height-normalSize.height)<2 else{return};panel.setFrame(NSRect(x:old.minX,y:old.maxY-target,width:old.width,height:target),display:true,animate:false)}
+    private func applyCompact(){guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return};let compact=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !KeyDoVoice.shared.wantsExpandedPopup;let target=compact ? keydoCompactPopupSize:CGSize(width:normalSize.width,height:normalSize.height);let old=panel.frame;let isCompactNow=abs(old.height-keydoCompactPopupSize.height)<2 && abs(old.width-keydoCompactPopupSize.width)<2;let isNormalNow=abs(old.height-normalSize.height)<2;guard abs(old.height-target.height)>1 || abs(old.width-target.width)>1,isCompactNow || isNormalNow else{return};let visible=(panel.screen ?? NSScreen.main)?.visibleFrame ?? NSRect(x:0,y:0,width:1200,height:800);let x=min(max(visible.minX,old.midX-target.width/2),max(visible.minX,visible.maxX-target.width));panel.setFrame(NSRect(x:x,y:old.maxY-target.height,width:target.width,height:target.height),display:true,animate:false)}
     /// A shortcut that asks for inputs makes the popup taller, so no option hides below it. The top edge stays where it is.
     private func applyExtraHeight(_ extra:CGFloat){
         guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return}
@@ -3575,6 +3575,7 @@ final class MiniJAppDelegate:NSObject,NSApplicationDelegate {
  func installSlashTap(){guard slashTap==nil else{return};let mask=CGEventMask(1)<<CGEventType.keyDown.rawValue;guard let tap=CGEvent.tapCreate(tap:.cgSessionEventTap,place:.headInsertEventTap,options:.defaultTap,eventsOfInterest:mask,callback:miniJSlashTap,userInfo:Unmanaged.passUnretained(self).toOpaque())else{if !tapFailureReported{tapFailureReported=true;DispatchQueue.main.async{NotificationCenter.default.post(name:.ezmeTapFailed,object:nil)}};if permissionTimer==nil{permissionTimer=Timer.scheduledTimer(withTimeInterval:2,repeats:true){[weak self] timer in guard let self else{return};if self.slashTap != nil{timer.invalidate();self.permissionTimer=nil}else{self.installSlashTap()}}};return};permissionTimer?.invalidate();permissionTimer=nil;tapFailureReported=false;slashTap=tap;slashSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,tap,0);if let source=slashSource{CFRunLoopAddSource(CFRunLoopGetMain(),source,.commonModes)};CGEvent.tapEnable(tap:tap,enable:true)}
  @objc func appActivated(_ note:Notification){guard let app=note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,app.bundleIdentifier != Bundle.main.bundleIdentifier else{return};lastExternalApp=app}
 }
+private var miniJTriggerStamp:CFAbsoluteTime=0
 private func miniJSlashTap(_ proxy:CGEventTapProxy,_ type:CGEventType,_ event:CGEvent,_ userInfo:UnsafeMutableRawPointer?)->Unmanaged<CGEvent>? {
  guard let p=userInfo else{return Unmanaged.passUnretained(event)}
  let app=Unmanaged<MiniJAppDelegate>.fromOpaque(p).takeUnretainedValue()
@@ -3609,7 +3610,7 @@ private func miniJSlashTap(_ proxy:CGEventTapProxy,_ type:CGEventType,_ event:CG
   if !event.flags.intersection([.maskCommand,.maskControl,.maskAlternate]).isEmpty{app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)};return Unmanaged.passUnretained(event)}
   if key == Int64(kVK_Delete) || key == Int64(kVK_ForwardDelete){if app.triggerBuffer.count>1{app.triggerBuffer.removeLast();postPickerQuery(app,query:String(app.triggerBuffer.dropFirst()))}else{app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)}};return Unmanaged.passUnretained(event)}
   if key == Int64(kVK_Escape){app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)};return Unmanaged.passUnretained(event)}
-  if app.triggerBuffer == "\\",UserDefaults.standard.object(forKey:VoiceKeys.doubleBackslash) as? Bool ?? true,event.flags.intersection([.maskShift,.maskCommand,.maskControl,.maskAlternate]).isEmpty{var voiceLength=0;var voiceChars=[UniChar](repeating:0,count:8);event.keyboardGetUnicodeString(maxStringLength:8,actualStringLength:&voiceLength,unicodeString:&voiceChars);let voiceText=voiceLength>0 ? String(utf16CodeUnits:voiceChars,count:voiceLength):"";if key == Int64(kVK_ANSI_Backslash) || voiceText == "\\"{DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJOpenPicker,object:nil,userInfo:["voice":true])};return nil}}
+  if app.triggerBuffer == "\\",CFAbsoluteTimeGetCurrent()-miniJTriggerStamp<0.7,UserDefaults.standard.object(forKey:VoiceKeys.doubleBackslash) as? Bool ?? true,event.flags.intersection([.maskShift,.maskCommand,.maskControl,.maskAlternate]).isEmpty{var voiceLength=0;var voiceChars=[UniChar](repeating:0,count:8);event.keyboardGetUnicodeString(maxStringLength:8,actualStringLength:&voiceLength,unicodeString:&voiceChars);let voiceText=voiceLength>0 ? String(utf16CodeUnits:voiceChars,count:voiceLength):"";if key == Int64(kVK_ANSI_Backslash) || voiceText == "\\"{DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJOpenPicker,object:nil,userInfo:["voice":true])};return nil}}
   if key == Int64(kVK_Return) || key == Int64(kVK_ANSI_KeypadEnter){finishTrackedTrigger(app,suffix:"\n");return nil}
   if key == Int64(kVK_Tab){finishTrackedTrigger(app,suffix:"\t");return nil}
   if key == Int64(kVK_Space) && app.triggerBuffer.count == 1{app.triggerTracking=false;app.pickerActive=true;app.queryBuffer="";DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJPhraseMode,object:nil)};postPickerQuery(app,query:"");return nil}
@@ -3619,7 +3620,7 @@ private func miniJSlashTap(_ proxy:CGEventTapProxy,_ type:CGEventType,_ event:CG
  }
  var triggerLength=0;var triggerChars=[UniChar](repeating:0,count:8);event.keyboardGetUnicodeString(maxStringLength:8,actualStringLength:&triggerLength,unicodeString:&triggerChars);let actualTrigger=triggerLength>0 ? String(utf16CodeUnits:triggerChars,count:triggerLength):"";let isSlashKey=Int64(kVK_ANSI_Backslash)==key || Int64(kVK_ANSI_Slash)==key || actualTrigger=="\\" || actualTrigger=="/";guard isSlashKey else{return Unmanaged.passUnretained(event)}
  guard event.flags.intersection([.maskCommand,.maskControl,.maskAlternate]).isEmpty else{return Unmanaged.passUnretained(event)}
- app.queryBuffer="";app.triggerTracking=true;app.triggerBuffer=actualTrigger.isEmpty ? "\\":actualTrigger
+ app.queryBuffer="";app.triggerTracking=true;miniJTriggerStamp=CFAbsoluteTimeGetCurrent();app.triggerBuffer=actualTrigger.isEmpty ? "\\":actualTrigger
  DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJOpenPicker,object:app,userInfo:["slashTriggered":true]);postPickerQuery(app,query:"")}
  return Unmanaged.passUnretained(event)
 }
