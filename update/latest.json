@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 278,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build278/EzMe-3.44-macOS.zip",
-  "sha256": "0bdfbd109d1849753d5b5601bd25fc2baa96b0ae77fc801bb4a1119f844e8761",
-  "notes": "## \\reply: write a business reply from a copied message\n\n- **Copy a message** (an email, a chat, a review, an enquiry), then type **\\reply** and press Space. KeyDo writes the reply and pastes it in place of the command. It needs an API key, like \\r.\n- **Pick a style** by adding it after the command: `\\reply-short`, `\\reply-warm`, `\\reply-firm`, `\\reply-sales`, `\\reply-support`, `\\reply-sorry`, `\\reply-no` (polite decline), `\\reply-followup`, `\\reply-thanks`. Plain `\\reply` is a professional reply.\n- The reply answers every question in the message, uses only facts from it, and puts missing details in [square brackets] for you to fill in. It is written in the same language as the message.",
-  "published": "2026-11-13T12:48:26Z",
+  "build": 283,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build283/EzMe-3.44-macOS.zip",
+  "sha256": "193157d14322dbe7f7865b2baefcb489792d00c3737d6af37b8d8f3957eb508f",
+  "notes": "## Create an app in one step, from words or from a sample image\n\n- **Press + in AppBuilder and say what the app should make**, for example \"Send an NDA to a client\", \"Thank-you card with a name\" or \"Invoice for a customer\". KeyDo fills in the app's name, shortcut, fields and instructions for you. Before, this was two screens with fixed fields that did not fit most apps.\n- **Add a sample image if you have one** (a card, a poster, an invoice, a form). KeyDo follows its layout, colours and style and never copies its text. Image apps now use the sample as the picture to follow every time they make a result.\n- Without an API key, a simple app is made from your words and you can edit it in the app afterwards.",
+  "published": "2026-11-13T13:18:23Z",
   "minimumSystemVersion": "14.0"
 }
