@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 289,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build289/EzMe-3.44-macOS.zip",
-  "sha256": "ca9f1a69a69c460e46b99e3ffddcc3ee76cb4effb222fbd3223f2c9ce64e3742",
-  "notes": "## Up to 20 media files, bigger grid previews, taller Video Cutter, and talk-to-create apps\n\n- **Collections:** you can now add up to 20 media files at once (shortcuts from files) and attach up to 20 files to one shortcut. It was 10.\n- **Grid view:** images, GIFs, videos and audio have a small button on the tile. A video shows a play button and plays large with its own controls. Images and GIFs open large. If a shortcut has several files, use the arrows to move through them.\n- **Video Cutter:** the video area is about twice as tall, so Instagram, YouTube and Vimeo links are easier to see and trim.\n- **AppBuilder, talk to create an app:** press + and then \"Talk to create\". Keep talking about what the app should do and say \"create\" when you are done. Then KeyDo asks for each detail one box at a time, by voice or typing (say next, back, or make it). \"Make it\" creates the first result.",
-  "published": "2026-11-13T19:52:02Z",
+  "build": 291,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build291/EzMe-3.44-macOS.zip",
+  "sha256": "15a38e51fe72c4add5995feefa9eb6d9dfaf916c83505cd6c78d72b42889448c",
+  "notes": "## Fixed blank greeting cards, and a slimmer fixed Collections header\n\n- **Greeting cards are no longer blank.** Thank You, Wedding Anniversary and the 14 festival apps now draw their card picture directly, the same way the hbd and hwa cards are drawn, instead of taking a picture of a web page. `diwali-Hiral`, `thanks-Hiral`, `thanks-Rohit` and the others come out as a finished PNG with the text, colours and emblem (or the picture from a media shortcut after the dash).\n- The look still comes from WishStudio: change an occasion's default look or save a template there, and the card uses it. Add a look word or a saved template name after the name (`thanks-Hiral-gold`) to use another look for one card.\n- **Collections header:** the title, buttons, search, type filters and selection bar now sit in a slim fixed block at the top. It stays in place while the list or grid scrolls underneath. It is about half the height it was, and the duplicate \"New shortcut\" button is gone.",
+  "published": "2026-11-13T20:27:35Z",
   "minimumSystemVersion": "14.0"
 }
