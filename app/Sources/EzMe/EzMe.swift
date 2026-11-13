@@ -3074,6 +3074,8 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
     private var compactPickerView:some View {
         HStack(spacing:8){
             HStack(spacing:7){Image(systemName:"sparkle.magnifyingglass").foregroundStyle(Butter.coral);Text("Type a shortcut…").font(.system(size:14,weight:.medium)).foregroundStyle(Color.secondary).lineLimit(1).frame(maxWidth:.infinity,alignment:.leading)}.padding(.horizontal,12).padding(.vertical,8).background(Butter.cream,in:Capsule()).overlay(Capsule().stroke(Butter.coral.opacity(0.35),lineWidth:1.3))
+            if let left=search.idleCountdown{IdleCountdownBadge(seconds:left,compact:true)}
+            Button{voice.start(.popup)}label:{Image(systemName:"mic.fill").font(.system(size:14,weight:.semibold)).foregroundStyle(Butter.coral).frame(width:30,height:30).background(Butter.coral.opacity(0.12),in:Circle())}.buttonStyle(.plain).help("Start voice commands. You can also press \\ twice")
             Button(action:close){Image(systemName:"xmark.circle.fill").font(.system(size:18)).foregroundStyle(Butter.cocoa.opacity(0.45))}.buttonStyle(.plain).help("Close popup")
         }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.center)
     }
@@ -3322,7 +3324,7 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
  @Published var rewriteText=""
  @Published var rewriteRemoveCount=0
  @Published var extraHeight:CGFloat=0
- @Published var idleCountdown:Int?=nil
+ @Published var idleCountdown:Int?=nil;@Published var compactBar=false
  @Published var promptMode=false
  @Published var promptText=""
  @Published var promptSummary=""
@@ -3333,11 +3335,12 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
  @Published var collection=UserDefaults.standard.string(forKey:"ezmePickerCollection") ?? "All collections" {didSet{UserDefaults.standard.set(collection,forKey:"ezmePickerCollection")}}
  @Published private(set) var results=[Clip]();@Published private(set) var isLoading=false;@Published private(set) var isExhausted=false
  private var scanIndex=0;private var generation=0;private var worker:Task<Void,Never>?
- func restart(db:DB,collection:String){generation+=1;worker?.cancel();isLoading=false;results=[];scanIndex=0;isExhausted=false;if MathExpression.looksLikeExpression(value){if let result=MathExpression.evaluate(value){let formatted=MathExpression.formatted(result);results=[Clip(key:"= \(formatted)",name:"Calculation result",text:formatted,group:"Calculator",isMathResult:true)]};isExhausted=true;return};let phrase=value.trimmingCharacters(in:.whitespacesAndNewlines);if !phrase.isEmpty && parseBatchTrigger(phrase)==nil{rankedSearch(db:db,query:parseStyledTrigger(phrase).base);return};loadMore(db:db)}
+ func restart(db:DB,collection:String){generation+=1;worker?.cancel();isLoading=false;results=[];rankedAll=[];rankedMode=false;scanIndex=0;isExhausted=false;if MathExpression.looksLikeExpression(value){if let result=MathExpression.evaluate(value){let formatted=MathExpression.formatted(result);results=[Clip(key:"= \(formatted)",name:"Calculation result",text:formatted,group:"Calculator",isMathResult:true)]};isExhausted=true;return};let phrase=value.trimmingCharacters(in:.whitespacesAndNewlines);if !phrase.isEmpty && parseBatchTrigger(phrase)==nil{rankedSearch(db:db,query:parseStyledTrigger(phrase).base);return};loadMore(db:db)}
  /// Phrase search: score every shortcut and collection item, best first ("80s picture" finds \80spic).
- private func rankedSearch(db:DB,query:String){generation+=1;let job=generation;isLoading=true;worker=Task{var pool=[Clip]();pool.reserveCapacity(db.clips.count+db.collectionRecords.count);for (index,clip) in db.clips.enumerated(){if passesFilters(clip,db:db){pool.append(clip)};if index%400==399{await Task.yield();if Task.isCancelled || job != generation{return}}};for (index,record) in db.collectionRecords.enumerated(){let body=record.values.sorted{$0.key<$1.key}.map{"\($0.key): \($0.value)"}.joined(separator:"\n");let clip=Clip(key:"/"+record.alias,name:record.name,text:record.name+(body.isEmpty ? "":"\n"+body),group:record.collection,files:record.files,directMediaPaste:record.values.isEmpty && !record.files.isEmpty);if !db.clips.contains(where:{$0.key.caseInsensitiveCompare(clip.key) == .orderedSame}) && passesFilters(clip,db:db){pool.append(clip)};if index%400==399{await Task.yield();if Task.isCancelled || job != generation{return}}};let ranked=EzMeWords.rank(pool,query:query,limit:80);guard job==generation else{return};results=ranked+Ezyourlife.shared.pickerClips(query:query);isExhausted=true;isLoading=false}}
+ private func rankedSearch(db:DB,query:String){generation+=1;let job=generation;isLoading=true;worker=Task{var pool=[Clip]();pool.reserveCapacity(db.clips.count+db.collectionRecords.count);for (index,clip) in db.clips.enumerated(){if passesFilters(clip,db:db){pool.append(clip)};if index%400==399{await Task.yield();if Task.isCancelled || job != generation{return}}};let existingKeys=Set(db.clips.map{$0.key.lowercased()});for (index,record) in db.collectionRecords.enumerated(){let body=record.values.sorted{$0.key<$1.key}.map{"\($0.key): \($0.value)"}.joined(separator:"\n");let clip=Clip(key:"/"+record.alias,name:record.name,text:record.name+(body.isEmpty ? "":"\n"+body),group:record.collection,files:record.files,directMediaPaste:record.values.isEmpty && !record.files.isEmpty);if !existingKeys.contains(clip.key.lowercased()) && passesFilters(clip,db:db){pool.append(clip)};if index%400==399{await Task.yield();if Task.isCancelled || job != generation{return}}};let ranked=EzMeWords.rank(pool,query:query,limit:80);guard job==generation else{return};rankedAll=ranked+Ezyourlife.shared.pickerClips(query:query);rankedMode=true;results=Array(rankedAll.prefix(5));isExhausted=rankedAll.count<=5;isLoading=false}}
+ private var rankedAll=[Clip]();private var rankedMode=false
  private func passesFilters(_ clip:Clip,db:DB)->Bool{let isHidden=clip.allGroups.contains(where:{db.isCollectionHidden($0)});let matchesCategory=category == "All categories" || clip.allGroups.contains{group in collectionCategory(group,definition:db.collectionDefinitions.first(where:{$0.name.caseInsensitiveCompare(group) == .orderedSame})).caseInsensitiveCompare(category) == .orderedSame};return (showHiddenOnly ? isHidden:(showHiddenCollections || !clip.allGroups.allSatisfy{db.isCollectionHidden($0)})) && (collection=="All collections" || clip.allGroups.contains(where:{$0.caseInsensitiveCompare(collection) == .orderedSame})) && matchesCategory}
- func loadMore(db:DB){guard !isLoading && !isExhausted else{return};generation+=1;let job=generation;let target=results.count+5;isLoading=true;worker=Task{while !Task.isCancelled && job==generation && results.count<target && scanIndex<db.clips.count+db.collectionRecords.count{let end=min(scanIndex+5,db.clips.count+db.collectionRecords.count);for index in scanIndex..<end{let clip:Clip;if index<db.clips.count{clip=db.clips[index]}else{let record=db.collectionRecords[index-db.clips.count];let body=record.values.sorted{$0.key<$1.key}.map{"\($0.key): \($0.value)"}.joined(separator:"\n");clip=Clip(key:"/"+record.alias,name:record.name,text:record.name+(body.isEmpty ? "":"\n"+body),group:record.collection,files:record.files,directMediaPaste:record.values.isEmpty && !record.files.isEmpty);if db.clips.contains(where:{$0.key.caseInsensitiveCompare(clip.key) == .orderedSame && $0.allGroups.contains(where:{$0.caseInsensitiveCompare(record.collection) == .orderedSame})}){continue}};let isHidden=clip.allGroups.contains(where:{db.isCollectionHidden($0)});let matchesCategory=category == "All categories" || clip.allGroups.contains{group in collectionCategory(group,definition:db.collectionDefinitions.first(where:{$0.name.caseInsensitiveCompare(group) == .orderedSame})).caseInsensitiveCompare(category) == .orderedSame};guard (showHiddenOnly ? isHidden:(showHiddenCollections || !clip.allGroups.allSatisfy{db.isCollectionHidden($0)})),collection=="All collections" || clip.allGroups.contains(where:{$0.caseInsensitiveCompare(collection) == .orderedSame}),matchesCategory,matches(clip)else{continue};results.append(clip);if results.count>=target{break}};scanIndex=end;await Task.yield()};if job==generation{isExhausted=scanIndex>=db.clips.count+db.collectionRecords.count;isLoading=false}}}
+ func loadMore(db:DB){guard !isLoading && !isExhausted else{return};if rankedMode{let next=min(results.count+5,rankedAll.count);results=Array(rankedAll.prefix(next));isExhausted=next>=rankedAll.count;return};generation+=1;let job=generation;let target=results.count+5;isLoading=true;worker=Task{while !Task.isCancelled && job==generation && results.count<target && scanIndex<db.clips.count+db.collectionRecords.count{let end=min(scanIndex+5,db.clips.count+db.collectionRecords.count);for index in scanIndex..<end{let clip:Clip;if index<db.clips.count{clip=db.clips[index]}else{let record=db.collectionRecords[index-db.clips.count];let body=record.values.sorted{$0.key<$1.key}.map{"\($0.key): \($0.value)"}.joined(separator:"\n");clip=Clip(key:"/"+record.alias,name:record.name,text:record.name+(body.isEmpty ? "":"\n"+body),group:record.collection,files:record.files,directMediaPaste:record.values.isEmpty && !record.files.isEmpty);if db.clips.contains(where:{$0.key.caseInsensitiveCompare(clip.key) == .orderedSame && $0.allGroups.contains(where:{$0.caseInsensitiveCompare(record.collection) == .orderedSame})}){continue}};let isHidden=clip.allGroups.contains(where:{db.isCollectionHidden($0)});let matchesCategory=category == "All categories" || clip.allGroups.contains{group in collectionCategory(group,definition:db.collectionDefinitions.first(where:{$0.name.caseInsensitiveCompare(group) == .orderedSame})).caseInsensitiveCompare(category) == .orderedSame};guard (showHiddenOnly ? isHidden:(showHiddenCollections || !clip.allGroups.allSatisfy{db.isCollectionHidden($0)})),collection=="All collections" || clip.allGroups.contains(where:{$0.caseInsensitiveCompare(collection) == .orderedSame}),matchesCategory,matches(clip)else{continue};results.append(clip);if results.count>=target{break}};scanIndex=end;await Task.yield()};if job==generation{isExhausted=scanIndex>=db.clips.count+db.collectionRecords.count;isLoading=false}}}
  private func matches(_ clip:Clip)->Bool{let raw=value.trimmingCharacters(in:.whitespacesAndNewlines);guard !raw.isEmpty else{return true};if let batch=parseBatchTrigger(raw){func canonical(_ key:String)->String{var value=key.lowercased();if value.hasPrefix("/") || value.hasPrefix("\\"){value=String(value.dropFirst())};for suffix in [".media",".app",".ai",".web",".gif",".e"] where value.hasSuffix(suffix){value=String(value.dropLast(suffix.count));break};return value};let clipKey=canonical(clip.key);return batch.keys.contains{canonical($0)==clipKey}};let query=parseStyledTrigger(raw).base;return clip.key.localizedCaseInsensitiveContains(query) || clip.name.localizedCaseInsensitiveContains(query) || clip.text.localizedCaseInsensitiveContains(query)}
 }
 @MainActor final class EzMeKeyablePickerWindow:NSPanel { override var canBecomeKey:Bool{true} }
@@ -3389,16 +3392,14 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 800)
-        let savedX=UserDefaults.standard.object(forKey:"ezmePickerOriginX") as? Double
-        let savedY=UserDefaults.standard.object(forKey:"ezmePickerOriginY") as? Double
-        if let savedX,let savedY{let x=min(max(visible.minX,CGFloat(savedX)),visible.maxX-p.frame.width);let y=min(max(visible.minY,CGFloat(savedY)),visible.maxY-p.frame.height);p.setFrameOrigin(NSPoint(x:x,y:y))}else{p.setFrameOrigin(NSPoint(x:visible.midX-normalSize.width/2,y:visible.maxY-normalSize.height-20))}
+        p.setFrameOrigin(NSPoint(x:visible.midX-normalSize.width/2,y:visible.maxY-normalSize.height-20))
         panel = p
         p.orderFrontRegardless()
         startIdleWatch()
         attachVoice(db:db)
         applyCompact()
     }
-    private func applyCompact(){guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return};let compact=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !KeyDoVoice.shared.wantsExpandedPopup;let target=compact ? keydoCompactPopupSize:CGSize(width:normalSize.width,height:normalSize.height);let old=panel.frame;let isCompactNow=abs(old.height-keydoCompactPopupSize.height)<2 && abs(old.width-keydoCompactPopupSize.width)<2;let isNormalNow=abs(old.height-normalSize.height)<2;guard abs(old.height-target.height)>1 || abs(old.width-target.width)>1,isCompactNow || isNormalNow else{return};let visible=(panel.screen ?? NSScreen.main)?.visibleFrame ?? NSRect(x:0,y:0,width:1200,height:800);let x=min(max(visible.minX,old.midX-target.width/2),max(visible.minX,visible.maxX-target.width));panel.setFrame(NSRect(x:x,y:old.maxY-target.height,width:target.width,height:target.height),display:true,animate:false)}
+    private func applyCompact(){guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return};let compact=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !KeyDoVoice.shared.wantsExpandedPopup;let target=compact ? keydoCompactPopupSize:CGSize(width:normalSize.width,height:normalSize.height);let old=panel.frame;let isCompactNow=abs(old.height-keydoCompactPopupSize.height)<2 && abs(old.width-keydoCompactPopupSize.width)<2;let isNormalNow=abs(old.height-normalSize.height)<2;guard abs(old.height-target.height)>1 || abs(old.width-target.width)>1,isCompactNow || isNormalNow else{return};let visible=(panel.screen ?? NSScreen.main)?.visibleFrame ?? NSRect(x:0,y:0,width:1200,height:800);panel.setFrame(NSRect(x:visible.midX-target.width/2,y:visible.maxY-target.height-20,width:target.width,height:target.height),display:true,animate:false)}
     /// A shortcut that asks for inputs makes the popup taller, so no option hides below it. The top edge stays where it is.
     private func applyExtraHeight(_ extra:CGFloat){
         guard let panel,!search.imageMode,!search.rewriteMode,!search.promptMode else{return}
@@ -3556,10 +3557,13 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
         let voice=KeyDoVoice.shared
         let parts:[String]=[search.value,"\(search.imageMode)","\(search.rewriteMode)","\(search.promptMode)",search.imagePromptText,search.promptText,search.rewriteText,voice.partial,voice.phrase,voice.feedback,"\(voice.popupSettingsOpen)",search.collection,search.category,"\(search.showHiddenCollections)","\(search.showHiddenOnly)","\(Int(panel.frame.origin.x)),\(Int(panel.frame.origin.y))"]
         let signature=parts.joined(separator:"§")
+        let compactNow=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode && !voice.wantsExpandedPopup && voice.phrase.isEmpty && voice.partial.isEmpty
+        if search.compactBar != compactNow{search.compactBar=compactNow}
         if signature != idleSignature{idleSignature=signature;idleSince=Date();search.idleCountdown=nil;return}
         let blank=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode && voice.phrase.isEmpty && voice.partial.isEmpty && !voice.popupSettingsOpen
         guard blank else{search.idleCountdown=nil;return}
         let idle=Date().timeIntervalSince(idleSince)
+        if compactNow{if idle>=3{hide();return};let left=max(1,3-Int(idle));if search.idleCountdown != left{search.idleCountdown=left};return}
         if idle>=13{hide();return}
         if idle>=10{let left=max(1,3-Int(idle-10));if search.idleCountdown != left{search.idleCountdown=left}}
     }
@@ -3634,13 +3638,19 @@ struct IdleCountdownHost<Content:View>:View{
     init(search:PickerSearch,@ViewBuilder content:()->Content){self.search=search;self.content=content()}
     var body:some View{
         content.overlay(alignment:.trailing){
-            if let left=search.idleCountdown{IdleCountdownBadge(seconds:left).padding(.trailing,10).transition(.scale.combined(with:.opacity))}
+            if !search.compactBar,let left=search.idleCountdown{IdleCountdownBadge(seconds:left).padding(.trailing,10).transition(.scale.combined(with:.opacity))}
         }.animation(.easeInOut(duration:0.2),value:search.idleCountdown)
     }
 }
 struct IdleCountdownBadge:View{
     let seconds:Int
+    var compact:Bool=false
     var body:some View{
+        if compact{
+            ZStack{Circle().fill(Color.orange.opacity(0.18));Circle().stroke(Color.orange.opacity(0.7),lineWidth:2);Text("\(seconds)").font(.system(size:14,weight:.bold,design:.rounded)).foregroundStyle(Color.orange)}.frame(width:28,height:28).help("Closing. Type or speak to stay.")
+        }else{full}
+    }
+    private var full:some View{
         VStack(spacing:4){
             ZStack{
                 Circle().fill(Color.orange.opacity(0.18))
