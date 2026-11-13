@@ -3298,6 +3298,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
  @Published var rewriteText=""
  @Published var rewriteRemoveCount=0
  @Published var extraHeight:CGFloat=0
+ @Published var idleCountdown:Int?=nil
  @Published var promptMode=false
  @Published var promptText=""
  @Published var promptSummary=""
@@ -3329,6 +3330,10 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     private var queryWork: DispatchWorkItem?
     private var voiceLayoutObserver:NSObjectProtocol?
     private var extraHeightObserver:NSObjectProtocol?
+    private var idleTimer:Timer?
+    private var idleMonitor:Any?
+    private var idleSince=Date()
+    private var idleSignature=""
     var isVisible:Bool{panel != nil}
     private var imageCommandWasActivated=false
     private var configuredAreaPercent:Double{UserDefaults.standard.object(forKey:"ezmePickerAreaPercent") as? Double ?? 0.22}
@@ -3356,7 +3361,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         p.backgroundColor = .clear
         p.hasShadow = true
         p.delegate=self
-        p.contentView = NSHostingView(rootView: FloatingPickerView(db: db, search: search, select: onSelect, manage: onManage, edit:onEdit, delete:onDelete, close: { self.hide() },backToShortcuts:{self.search.imageMode=false;self.search.rewriteMode=false;self.search.promptMode=false;self.search.imageReferencePaths=[];self.search.promptReferencePaths=[];self.search.value="";self.imageCommandWasActivated=false;self.resizeForImageMode(false)},resetPosition:{self.resetPosition()},focusImagePrompt:{self.focusImagePrompt()},pasteRewrite:{text,count in self.rewritePasteHandler?(text,count)},pastePrompt:{text,count,paths in self.promptPasteHandler?(text,count,paths)},copyPrompt:{text,paths in onPromptCopy(text,paths)},copyPromptMedia:{paths in self.promptMediaCopyHandler?(paths)},resizePopup:{_ in self.resizeForImageMode(self.search.imageMode)}))
+        p.contentView = NSHostingView(rootView: IdleCountdownHost(search: search){ FloatingPickerView(db: db, search: search, select: onSelect, manage: onManage, edit:onEdit, delete:onDelete, close: { self.hide() },backToShortcuts:{self.search.imageMode=false;self.search.rewriteMode=false;self.search.promptMode=false;self.search.imageReferencePaths=[];self.search.promptReferencePaths=[];self.search.value="";self.imageCommandWasActivated=false;self.resizeForImageMode(false)},resetPosition:{self.resetPosition()},focusImagePrompt:{self.focusImagePrompt()},pasteRewrite:{text,count in self.rewritePasteHandler?(text,count)},pastePrompt:{text,count,paths in self.promptPasteHandler?(text,count,paths)},copyPrompt:{text,paths in onPromptCopy(text,paths)},copyPromptMedia:{paths in self.promptMediaCopyHandler?(paths)},resizePopup:{_ in self.resizeForImageMode(self.search.imageMode)}) })
         let mouse = NSEvent.mouseLocation
         let screen = NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main
         let visible = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1000, height: 800)
@@ -3365,6 +3370,7 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
         if let savedX,let savedY{let x=min(max(visible.minX,CGFloat(savedX)),visible.maxX-p.frame.width);let y=min(max(visible.minY,CGFloat(savedY)),visible.maxY-p.frame.height);p.setFrameOrigin(NSPoint(x:x,y:y))}else{p.setFrameOrigin(NSPoint(x:visible.midX-normalSize.width/2,y:visible.maxY-normalSize.height-20))}
         panel = p
         p.orderFrontRegardless()
+        startIdleWatch()
         attachVoice(db:db)
         applyCompact()
     }
@@ -3509,7 +3515,31 @@ private func pickerPopupSize(visible:NSRect,areaPercent:Double,aspect:CGFloat=1.
     func resetPosition(){guard let panel else{return};let screen=NSScreen.screens.first(where:{$0.frame.contains(NSEvent.mouseLocation)}) ?? NSScreen.main;let visible=screen?.visibleFrame ?? NSRect(x:0,y:0,width:1000,height:800);panel.setFrameOrigin(NSPoint(x:visible.midX-panel.frame.width/2,y:visible.maxY-panel.frame.height-20))}
     func windowDidMove(_ notification:Notification){guard let moved=notification.object as? NSWindow,moved===panel else{return};UserDefaults.standard.set(Double(moved.frame.origin.x),forKey:"ezmePickerOriginX");UserDefaults.standard.set(Double(moved.frame.origin.y),forKey:"ezmePickerOriginY")}
     func chooseFirst() { if search.hasSpotlight { NotificationCenter.default.post(name:.miniJRunSelected,object:nil) } else if let item=search.results.first { selectHandler?(item,false); hide() } }
-    func hide() {KeyDoVoice.shared.popupClosed();MiniJAppDelegate.current?.pickerActive=false;MiniJAppDelegate.current?.imagePromptMode=false; panel?.orderOut(nil); panel = nil; selectHandler=nil;rewritePasteHandler=nil; database=nil; search.imageMode=false;search.rewriteMode=false;search.rewriteText="";search.rewriteRemoveCount=0;search.imageReferencePaths=[];search.imagePromptText="";search.value="";imageCommandWasActivated=false }
+    /// With nothing typed and nothing said, the popup waits 10 seconds, shows a 3-2-1 count on its right side, then closes.
+    /// Typing, speaking, moving the pointer over it or dragging it starts the wait again.
+    private func startIdleWatch(){
+        idleTimer?.invalidate()
+        if let monitor=idleMonitor{NSEvent.removeMonitor(monitor)}
+        idleSince=Date();idleSignature="";search.idleCountdown=nil
+        idleMonitor=NSEvent.addLocalMonitorForEvents(matching:[.keyDown,.leftMouseDown,.rightMouseDown,.scrollWheel,.mouseMoved,.leftMouseDragged]){[weak self] event in
+            if let self,let window=event.window,window===self.panel{self.idleSince=Date();self.search.idleCountdown=nil}
+            return event
+        }
+        idleTimer=Timer.scheduledTimer(withTimeInterval:0.25,repeats:true){[weak self] _ in Task{@MainActor in self?.idleTick()}}
+    }
+    private func idleTick(){
+        guard let panel else{return}
+        let voice=KeyDoVoice.shared
+        let parts:[String]=[search.value,"\(search.imageMode)","\(search.rewriteMode)","\(search.promptMode)",search.imagePromptText,search.promptText,search.rewriteText,voice.partial,voice.phrase,voice.feedback,"\(voice.popupSettingsOpen)",search.collection,search.category,"\(search.showHiddenCollections)","\(search.showHiddenOnly)","\(Int(panel.frame.origin.x)),\(Int(panel.frame.origin.y))"]
+        let signature=parts.joined(separator:"§")
+        if signature != idleSignature{idleSignature=signature;idleSince=Date();search.idleCountdown=nil;return}
+        let blank=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode && voice.phrase.isEmpty && voice.partial.isEmpty && !voice.popupSettingsOpen
+        guard blank else{search.idleCountdown=nil;return}
+        let idle=Date().timeIntervalSince(idleSince)
+        if idle>=13{hide();return}
+        if idle>=10{let left=max(1,3-Int(idle-10));if search.idleCountdown != left{search.idleCountdown=left}}
+    }
+    func hide() {idleTimer?.invalidate();idleTimer=nil;if let monitor=idleMonitor{NSEvent.removeMonitor(monitor);idleMonitor=nil};search.idleCountdown=nil;KeyDoVoice.shared.popupClosed();MiniJAppDelegate.current?.pickerActive=false;MiniJAppDelegate.current?.imagePromptMode=false; panel?.orderOut(nil); panel = nil; selectHandler=nil;rewritePasteHandler=nil; database=nil; search.imageMode=false;search.rewriteMode=false;search.rewriteText="";search.rewriteRemoveCount=0;search.imageReferencePaths=[];search.imagePromptText="";search.value="";imageCommandWasActivated=false }
 }
 extension Notification.Name { static let keydoPopupExtraHeight=Notification.Name("KeyDoPopupExtraHeight"); static let miniJOpenPicker = Notification.Name("MiniJOpenPicker"); static let miniJPickerQuery=Notification.Name("MiniJPickerQuery"); static let miniJChooseFirst=Notification.Name("MiniJChooseFirst"); static let miniJClosePicker=Notification.Name("MiniJClosePicker");static let miniJAutoExpand=Notification.Name("MiniJAutoExpand");static let ezmeTapFailed=Notification.Name("EzMeTapFailed");static let ezmeBuilderGenerateShortcut=Notification.Name("EzMeBuilderGenerateShortcut");static let ezmeBuilderGenerationFinished=Notification.Name("EzMeBuilderGenerationFinished");static let ezmeBuilderIconChanged=Notification.Name("EzMeBuilderIconChanged");static let ezmeImageCommandActivated=Notification.Name("EzMeImageCommandActivated");static let ezmeImagePromptInput=Notification.Name("EzMeImagePromptInput");static let ezmeOpenAPIConfiguration=Notification.Name("EzMeOpenAPIConfiguration");static let ezmeCaptureRequested=Notification.Name("EzMeCaptureRequested"); }
 final class MiniJAppDelegate:NSObject,NSApplicationDelegate {
@@ -3571,3 +3601,32 @@ private func miniJSlashTap(_ proxy:CGEventTapProxy,_ type:CGEventType,_ event:CG
 }
 private func finishTrackedTrigger(_ app:MiniJAppDelegate,suffix:String){let trigger=app.triggerBuffer;app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJAutoExpand,object:app,userInfo:["trigger":trigger,"suffix":suffix,"length":trigger.utf16.count])}}
 private func postPickerQuery(_ app:MiniJAppDelegate,query explicit:String?=nil){let query=explicit ?? app.queryBuffer;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJPickerQuery,object:app,userInfo:["query":query])}}
+
+/// Wraps the popup so the closing count shows on its right side.
+struct IdleCountdownHost<Content:View>:View{
+    @ObservedObject var search:PickerSearch
+    let content:Content
+    init(search:PickerSearch,@ViewBuilder content:()->Content){self.search=search;self.content=content()}
+    var body:some View{
+        content.overlay(alignment:.trailing){
+            if let left=search.idleCountdown{IdleCountdownBadge(seconds:left).padding(.trailing,10).transition(.scale.combined(with:.opacity))}
+        }.animation(.easeInOut(duration:0.2),value:search.idleCountdown)
+    }
+}
+struct IdleCountdownBadge:View{
+    let seconds:Int
+    var body:some View{
+        VStack(spacing:4){
+            ZStack{
+                Circle().fill(Color.orange.opacity(0.18))
+                Circle().stroke(Color.orange.opacity(0.7),lineWidth:3)
+                Text("\(seconds)").font(.system(size:22,weight:.bold,design:.rounded)).foregroundStyle(Color.orange)
+            }.frame(width:46,height:46)
+            Text("Closing").font(.system(size:9,weight:.bold)).foregroundStyle(.secondary)
+            Text("Type or speak to stay").font(.system(size:8)).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(width:54)
+        }
+        .padding(8)
+        .background(.regularMaterial,in:RoundedRectangle(cornerRadius:12))
+        .shadow(color:.black.opacity(0.12),radius:6,y:2)
+    }
+}
