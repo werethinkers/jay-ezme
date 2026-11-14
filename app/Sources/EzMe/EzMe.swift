@@ -3096,9 +3096,9 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
         .onChange(of:db.hiddenCollections){_ in if !search.showHiddenCollections && db.isCollectionHidden(search.collection){search.collection="All collections"};search.restart(db:db,collection:search.collection)}
         .onChange(of:db.clips.count){_ in search.restart(db:db,collection:search.collection)}
         .onReceive(Timer.publish(every:1,on:.main,in:.common).autoconnect()){_ in if isGeneratingBuilder{builderElapsed+=1}}
-        .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerateShortcut)){_ in isGeneratingBuilder=true;builderElapsed=0;builderStatus="";generatedBuilderClip=nil}
+        .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerateShortcut)){_ in search.builderBusySince=Date();isGeneratingBuilder=true;builderElapsed=0;builderStatus="";generatedBuilderClip=nil}
         .onReceive(NotificationCenter.default.publisher(for:.keydoBuilderEnter)){_ in if let clip=generatedBuilderClip{select(clip,clip.directMediaPaste == true && !clip.files.isEmpty)}else if !isGeneratingBuilder,let command=customBuilderCommand(search.value,clips:db.clips,records:db.collectionRecords),command.isComplete{pasteWhenBuilderReady=true;builderElapsed=0;builderStatus="";generatedBuilderClip=nil;NotificationCenter.default.post(name:.ezmeBuilderGenerateShortcut,object:nil,userInfo:["trigger":search.value])}else if isGeneratingBuilder{pasteWhenBuilderReady=true}}
-        .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerationFinished)){note in isGeneratingBuilder=false;builderStatus=note.userInfo?["status"] as? String ?? "Generated.";let key=note.userInfo?["key"] as? String ?? "";generatedBuilderClip=db.clips.first(where:{$0.key.caseInsensitiveCompare(normalizedTrigger("/"+key)) == .orderedSame});if pasteWhenBuilderReady{pasteWhenBuilderReady=false;if let clip=generatedBuilderClip{select(clip,clip.directMediaPaste == true && !clip.files.isEmpty)}}}
+        .onReceive(NotificationCenter.default.publisher(for:.ezmeBuilderGenerationFinished)){note in search.builderBusySince=nil;isGeneratingBuilder=false;builderStatus=note.userInfo?["status"] as? String ?? "Generated.";let key=note.userInfo?["key"] as? String ?? "";generatedBuilderClip=db.clips.first(where:{$0.key.caseInsensitiveCompare(normalizedTrigger("/"+key)) == .orderedSame});if pasteWhenBuilderReady{pasteWhenBuilderReady=false;if let clip=generatedBuilderClip{select(clip,clip.directMediaPaste == true && !clip.files.isEmpty)}}}
     }
     private var pickerQuery:String{search.value.trimmingCharacters(in:.whitespacesAndNewlines)}
     private var compactMode:Bool{pickerQuery.isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode && !voice.wantsExpandedPopup}
@@ -3356,7 +3356,7 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
  @Published var rewriteText=""
  @Published var rewriteRemoveCount=0
  @Published var extraHeight:CGFloat=0
- @Published var idleCountdown:Int?=nil;@Published var compactBar=false
+ @Published var idleCountdown:Int?=nil;@Published var compactBar=false;var builderBusySince:Date?=nil
  @Published var promptMode=false
  @Published var promptText=""
  @Published var promptSummary=""
@@ -3469,7 +3469,7 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
     private func scheduleVoiceAutoRun(_ query:String,db:DB){
         voiceAutoRun?.cancel()
         let names=(try? JSONDecoder().decode([String].self,from:Data((UserDefaults.standard.string(forKey:"ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
-        guard BuilderPhrases.rewrite(query,apps:names) != nil,let command=customBuilderCommand(query,clips:db.clips,records:db.collectionRecords),command.isComplete else{return}
+        guard BuilderPhrases.rewrite(query,apps:names) != nil,let command=customBuilderCommand(query,clips:db.clips,records:db.collectionRecords),command.isComplete,BuilderPhrases.runsByItself(command.app) else{return}
         let work=DispatchWorkItem{NotificationCenter.default.post(name:.keydoBuilderEnter,object:nil)}
         voiceAutoRun=work
         DispatchQueue.main.asyncAfter(deadline:.now()+1.4,execute:work)
@@ -3603,7 +3603,19 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
         if search.compactBar != compactNow{search.compactBar=compactNow}
         if signature != idleSignature{idleSignature=signature;idleSince=Date();search.idleCountdown=nil;return}
         let blank=search.value.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && !search.imageMode && !search.rewriteMode && !search.promptMode && voice.phrase.isEmpty && voice.partial.isEmpty && !voice.popupSettingsOpen
-        guard blank else{search.idleCountdown=nil;return}
+        // Something is genuinely running (a card or document being made): wait for it, but never longer than 2½ minutes.
+        if let since=search.builderBusySince{
+            if Date().timeIntervalSince(since)<150{search.idleCountdown=nil;return}
+            search.builderBusySince=nil
+            NotificationCenter.default.post(name:.ezmeBuilderGenerationFinished,object:nil,userInfo:["status":"That took too long. Try again.","key":""])
+        }
+        // Text is typed but nothing is running and nobody has touched the popup for 30 seconds: count down and close.
+        guard blank else{
+            let idle=Date().timeIntervalSince(idleSince)
+            if idle>=30{hide();return}
+            if idle>=27{let left=max(1,30-Int(idle));if search.idleCountdown != left{search.idleCountdown=left}}else if search.idleCountdown != nil{search.idleCountdown=nil}
+            return
+        }
         let idle=Date().timeIntervalSince(idleSince)
         if compactNow{if idle>=3{hide();return};let left=max(1,3-Int(idle));if search.idleCountdown != left{search.idleCountdown=left};return}
         if idle>=13{hide();return}
