@@ -29,6 +29,7 @@ enum VoiceKeys {
     static let doubleBackslash = "ezmeVoiceDoubleBackslash"
     static let sounds = "ezmeVoiceSounds"
     static let locale = "ezmeVoiceLocale"
+    static let wakeAlways = "keydoWakeAlways"
 }
 
 enum VoiceCommand: Equatable {
@@ -98,9 +99,43 @@ final class KeyDoVoice: ObservableObject {
         didSet { if oldValue != popupSettingsOpen { announceLayout() } }
     }
 
-    var wantsExpandedPopup: Bool { phase != .off || popupSettingsOpen || !errorMessage.isEmpty }
+    var wantsExpandedPopup: Bool { (phase != .off && !wakeOnly) || popupSettingsOpen || !errorMessage.isEmpty }
 
     // MARK: Settings (also edited with @AppStorage in the settings panel)
+    /// Listen quietly for "Hey KeyDo" the whole time the app is open (on unless switched off in voice settings).
+    var wakeAlways: Bool { UserDefaults.standard.object(forKey: VoiceKeys.wakeAlways) as? Bool ?? true }
+    /// True while the mic only waits for the wake phrase and ignores everything else that is said.
+    @Published private(set) var wakeOnly = false
+
+    func startWakeIfNeeded() {
+        guard wakeAlways, phase == .off, appHandlers != nil else { return }
+        context = .app
+        wakeOnly = true
+        phraseWords = []
+        phrase = ""
+        phase = .listening
+        feedback = ""
+        startIdleTimer()
+        ensureRunning()
+    }
+
+    /// Go back to quietly waiting for "Hey KeyDo", or switch the mic off when that is turned off.
+    func rest() {
+        if wakeAlways {
+            if phase == .off { startWakeIfNeeded(); return }
+            context = .app
+            wakeOnly = true
+            phraseWords = []
+            phrase = ""
+            partial = ""
+            phase = .listening
+            idleLeft = nil
+            say("Say \u{201C}Hey KeyDo\u{201D} when you need me", sound: nil)
+        } else {
+            stop(announce: false)
+        }
+    }
+
     var continuous: Bool { UserDefaults.standard.object(forKey: VoiceKeys.continuous) as? Bool ?? false }
     var soundsOn: Bool { UserDefaults.standard.object(forKey: VoiceKeys.sounds) as? Bool ?? true }
     private var localeIdentifier: String {
@@ -134,7 +169,7 @@ final class KeyDoVoice: ObservableObject {
             context = .app
             say("Still listening · say “open popup”", sound: nil)
         } else {
-            stop(announce: false)
+            rest()
         }
     }
 
@@ -173,10 +208,11 @@ final class KeyDoVoice: ObservableObject {
 
     private func idleTick() {
         guard phase != .off else { idleLeft = nil; return }
-        if phase == .paused || (context == .app && continuous) { lastActivity = Date(); idleLeft = nil; return }
+        if phase == .paused || wakeOnly || (context == .app && continuous) { lastActivity = Date(); idleLeft = nil; return }
         let idle = Date().timeIntervalSince(lastActivity)
         if idle >= 10 {
             idleLeft = nil
+            if wakeAlways { rest(); return }
             stop(announce: false)
             say("Mic turned off after 10 seconds of silence. Tap the mic to start again.", sound: .stop)
             return
@@ -195,6 +231,7 @@ final class KeyDoVoice: ObservableObject {
     // MARK: Buttons
     func start(_ context: Context) {
         errorMessage = ""
+        wakeOnly = false
         if self.context != context { phraseWords = []; phrase = "" }
         self.context = context
         if phase == .listening, running { return }
@@ -222,6 +259,7 @@ final class KeyDoVoice: ObservableObject {
         idleTimer?.invalidate()
         idleTimer = nil
         idleLeft = nil
+        wakeOnly = false
         debounce?.cancel()
         phase = .off
         tearDown()
@@ -400,7 +438,7 @@ final class KeyDoVoice: ObservableObject {
     }
 
     private func contextualWords() -> [String] {
-        var words = ["enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup"]
+        var words = ["enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup", "hey keydo", "keydo"]
         words += (handlers?.vocabulary() ?? []).prefix(120)
         return words
     }
@@ -419,6 +457,16 @@ final class KeyDoVoice: ObservableObject {
     }
 
     private func interpret(_ fresh: [String]) {
+        if wakeOnly {
+            var at = 0
+            while at < fresh.count {
+                if let (command, length) = VoiceGrammar.match(fresh, at: at) {
+                    if command == .openPopup { run(command); return }
+                    at += length
+                } else { at += 1 }
+            }
+            return
+        }
         var index = 0
         var gathered: [String] = []
         while index < fresh.count {
@@ -462,7 +510,7 @@ final class KeyDoVoice: ObservableObject {
         case .pause:
             pause()
         default:
-            guard phase == .listening else { return }
+            guard phase == .listening, !wakeOnly || command == .openPopup else { return }
             switch command {
             case .enter:
                 say("Enter", sound: .enter)
@@ -488,8 +536,9 @@ final class KeyDoVoice: ObservableObject {
                 touch()
                 if context == .popup { say("I\u{2019}m listening", sound: nil) }
                 if context == .app {
+                    wakeOnly = false
                     say("Opening the popup", sound: .enter)
-                    NotificationCenter.default.post(name: .miniJOpenPicker, object: nil, userInfo: ["slashTriggered": false])
+                    NotificationCenter.default.post(name: .miniJOpenPicker, object: nil, userInfo: ["voice": true])
                 }
             default:
                 break
@@ -578,7 +627,7 @@ struct VoiceControlBar: View {
     private var title: String {
         switch voice.phase {
         case .off: return "Voice commands are off"
-        case .listening: return "Listening"
+        case .listening: return voice.wakeOnly ? "Waiting for \u{201C}Hey KeyDo\u{201D}" : "Listening"
         case .paused: return "Paused"
         }
     }
@@ -586,6 +635,7 @@ struct VoiceControlBar: View {
     private var subtitle: String {
         if !voice.errorMessage.isEmpty { return voice.errorMessage }
         if !voice.feedback.isEmpty { return voice.feedback }
+        if voice.wakeOnly { return "Say \u{201C}Hey KeyDo\u{201D} to wake me" }
         if !voice.partial.isEmpty && voice.phase == .listening { return "“\(voice.partial)”" }
         switch voice.phase {
         case .off: return context == .popup ? "Press Start, or press \\ twice" : "Press Start and say a shortcut or “open dashboard”"
@@ -655,6 +705,7 @@ struct VoiceControlBar: View {
 struct VoiceSettingsPanel: View {
     @ObservedObject var voice: KeyDoVoice
     @AppStorage(VoiceKeys.continuous) private var continuous = false
+    @AppStorage(VoiceKeys.wakeAlways) private var wakeAlways = true
     @AppStorage(VoiceKeys.doubleBackslash) private var doubleBackslash = true
     @AppStorage(VoiceKeys.sounds) private var sounds = true
     @AppStorage(VoiceKeys.locale) private var locale = ""
@@ -673,6 +724,8 @@ struct VoiceSettingsPanel: View {
                 Text("Voice settings").font(.system(size: 13, weight: .semibold))
                 Spacer()
             }
+            toggle("Always listen for “Hey KeyDo”", "While KeyDo is open the mic waits quietly and ignores everything except “Hey KeyDo”, which opens the popup. macOS shows its mic indicator while this is on.", $wakeAlways)
+                .onChange(of: wakeAlways) { on in if on { voice.startWakeIfNeeded() } else if voice.wakeOnly { voice.stop(announce: false) } }
             toggle("Keep listening after a shortcut is pasted", "The microphone stays on in the background. Say “open popup” to bring the popup back.", $continuous)
             toggle("Press \\ twice to start voice", "A quick double backslash starts listening. Turn this off if you type \\\\ in code or file paths.", $doubleBackslash)
             toggle("Sound cues", "A short sound when listening starts, pauses, stops or when you say enter.", $sounds)
@@ -833,6 +886,7 @@ struct VoiceSearchAssistant: View {
             return model.clips.prefix(60).flatMap { clip in [clip.name, String(clip.key.drop(while: { $0 == "/" || $0 == "\\" }))] }.filter { !$0.isEmpty }
         }
         KeyDoVoice.shared.attach(.app, handlers)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { KeyDoVoice.shared.startWakeIfNeeded() }
     }
 
     private var microphoneButton: some View {
@@ -842,10 +896,10 @@ struct VoiceSearchAssistant: View {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
                 if expanded {
                     expanded = false
-                    if voice.context == .app && !voice.continuous { voice.stop(announce: false) }
+                    if voice.context == .app && !voice.continuous { voice.rest() }
                 } else {
                     expanded = true
-                    if voice.phase == .off { voice.start(.app) }
+                    if voice.phase == .off || voice.wakeOnly { voice.start(.app) }
                 }
             }
         } label: {
