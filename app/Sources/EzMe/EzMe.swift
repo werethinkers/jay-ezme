@@ -259,7 +259,7 @@ private func keyDoImage(_ name:String)->NSImage?{guard let url=Bundle.main.url(f
      } else if typedShortcuts.isEmpty {
        ContentUnavailableView("No \(typeFilter.title.lowercased()) here",systemImage:typeFilter.symbol,description:Text("Pick another type above, or choose All."))
       } else if layout=="Grid" {
-       LibraryGridView(clips:pageShortcuts,selecting:selectingShortcuts,selectedIDs:$selectedShortcutIDs,onEdit:onEditShortcut)
+       LibraryGridView(clips:pageShortcuts,selecting:selectingShortcuts,selectedIDs:$selectedShortcutIDs,onEdit:onEditShortcut,galleryClips:typedShortcuts)
       } else {
       ScrollView {
        LazyVStack(spacing:8) {

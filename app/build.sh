@@ -2,6 +2,7 @@
 # Builds KeyDo (the app bundle file is still named EzMe.app so installed copies update in place) and a distributable zip. Runs on macOS with Xcode command line tools.
 #   BUILD_NUMBER   CFBundleVersion (default: 169)
 #   OUT_DIR        output folder (default: app/build)
+#   SWIFT_OPT      optimiser flag (default -O; pull request builds pass -Onone, which compiles much faster)
 #   SIGN_IDENTITY  codesign identity (name or SHA-1). Empty = ad-hoc signature.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -15,7 +16,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 echo "Compiling KeyDo $VERSION ($BUILD)..."
-xcrun swiftc -O -parse-as-library -swift-version 5 \
+xcrun swiftc "${SWIFT_OPT:--O}" -wmo -num-threads "$(sysctl -n hw.ncpu)" -parse-as-library -swift-version 5 \
   -target arm64-apple-macos14.0 \
   -sdk "$(xcrun --show-sdk-path --sdk macosx)" \
   Sources/EzMe/*.swift \

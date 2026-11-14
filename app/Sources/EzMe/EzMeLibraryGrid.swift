@@ -126,6 +126,16 @@ struct LibraryGridView: View {
     var selecting: Bool
     @Binding var selectedIDs: Set<UUID>
     var onEdit: (Clip) -> Void
+    /// Every shortcut in the current filter, so the large viewer can step through all the media, not just this page.
+    var galleryClips: [Clip]? = nil
+    @State private var viewer: LibraryGalleryStart?
+
+    private func openViewer(_ clip: Clip, path: String?) {
+        let items = LibraryGalleryItem.items(from: galleryClips ?? clips)
+        guard !items.isEmpty else { return }
+        let start = items.firstIndex { $0.clipID == clip.id && (path == nil || $0.path == path) } ?? items.firstIndex { $0.clipID == clip.id } ?? 0
+        viewer = LibraryGalleryStart(items: items, index: start)
+    }
 
     var body: some View {
         ScrollView {
@@ -138,12 +148,14 @@ struct LibraryGridView: View {
                         onToggle: {
                             if selectedIDs.contains(clip.id) { selectedIDs.remove(clip.id) } else { selectedIDs.insert(clip.id) }
                         },
-                        onEdit: { onEdit(clip) }
+                        onEdit: { onEdit(clip) },
+                        onEnlarge: { openViewer(clip, path: clip.files.first { FileManager.default.fileExists(atPath: $0) }) }
                     )
                 }
             }
             .padding(2)
         }
+        .sheet(item: $viewer) { start in LibraryMediaViewer(items: start.items, startIndex: start.index) }
     }
 }
 
@@ -153,8 +165,8 @@ struct LibraryGridCard: View {
     let isSelected: Bool
     var onToggle: () -> Void
     var onEdit: () -> Void
+    var onEnlarge: () -> Void = {}
     @State private var hovering = false
-    @State private var showViewer = false
 
     private var type: LibraryContentType { LibraryContentType.of(clip) }
     private var canEnlarge: Bool { [.image, .gif, .video, .music].contains(type) && clip.files.contains { FileManager.default.fileExists(atPath: $0) } }
@@ -185,11 +197,10 @@ struct LibraryGridCard: View {
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { hovering = $0 }
         .onTapGesture { if selecting { onToggle() } else { onEdit() } }
-        .sheet(isPresented: $showViewer) { LibraryMediaViewer(clip: clip) }
     }
 
     private var enlargeButton: some View {
-        Button { showViewer = true } label: {
+        Button { onEnlarge() } label: {
             Image(systemName: type == .video || type == .music ? "play.fill" : "arrow.up.left.and.arrow.down.right")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.white)
@@ -508,53 +519,106 @@ struct AppIconTile: View {
 
 // MARK: - Large viewer
 
-/// A big view of one shortcut's pictures, GIFs, videos or audio. A video plays here with its own controls.
-struct LibraryMediaViewer: View {
-    let clip: Clip
-    @Environment(\.dismiss) private var dismiss
-    @State private var index = 0
+struct LibraryGalleryItem: Identifiable {
+    let id: String
+    let clipID: UUID
+    let title: String
+    let path: String
 
-    private var items: [String] {
-        clip.files.filter {
-            FileManager.default.fileExists(atPath: $0) && [.image, .gif, .video, .music].contains(LibraryContentType.fileType($0))
+    /// Every picture, GIF, video and audio file of these shortcuts, in order.
+    static func items(from clips: [Clip]) -> [LibraryGalleryItem] {
+        var result: [LibraryGalleryItem] = []
+        for clip in clips {
+            for path in clip.files where [.image, .gif, .video, .music].contains(LibraryContentType.fileType(path)) {
+                result.append(LibraryGalleryItem(id: clip.id.uuidString + path, clipID: clip.id, title: clip.name.isEmpty ? displayTrigger(clip.key) : clip.name, path: path))
+            }
         }
+        return result
     }
+}
+
+struct LibraryGalleryStart: Identifiable {
+    let id = UUID()
+    let items: [LibraryGalleryItem]
+    let index: Int
+}
+
+/// A big view of pictures, GIFs, videos and audio with Previous and Next, like a browser's image viewer.
+/// Left and right arrow keys move too. A video plays with its own controls.
+struct LibraryMediaViewer: View {
+    let items: [LibraryGalleryItem]
+    @Environment(\.dismiss) private var dismiss
+    @State private var index: Int
+
+    init(items: [LibraryGalleryItem], startIndex: Int) {
+        self.items = items
+        _index = State(initialValue: min(max(0, startIndex), max(0, items.count - 1)))
+    }
+
+    private var hasPrevious: Bool { index > 0 }
+    private var hasNext: Bool { index < items.count - 1 }
+    private func go(_ delta: Int) { let next = index + delta; if next >= 0, next < items.count { index = next } }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Text(clip.name.isEmpty ? displayTrigger(clip.key) : clip.name).font(.headline).lineLimit(1)
-                if items.count > 1 { Text("\(min(index, items.count - 1) + 1) of \(items.count)").font(.caption).foregroundStyle(.secondary) }
+                Text(items.isEmpty ? "" : items[index].title).font(.headline).lineLimit(1)
+                Text("\(items.isEmpty ? 0 : index + 1) of \(items.count)").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                if items.count > 1 {
-                    Button { index = (index - 1 + items.count) % items.count } label: { Image(systemName: "chevron.left") }
-                    Button { index = (index + 1) % items.count } label: { Image(systemName: "chevron.right") }
-                }
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             .padding(12)
             Divider()
-            Group {
+            ZStack {
                 if items.isEmpty {
                     Text("Nothing to show.").foregroundStyle(.secondary)
                 } else {
-                    let path = items[min(index, items.count - 1)]
-                    switch LibraryContentType.fileType(path) {
-                    case .image:
-                        if let image = NSImage(contentsOfFile: path) {
-                            Image(nsImage: image).resizable().scaledToFit().padding(12)
-                        } else { Text("Could not open this picture.").foregroundStyle(.secondary) }
-                    case .gif:
-                        AnimatedGIFView(path: path).padding(12)
-                    default:
-                        LargeMediaPlayer(url: URL(fileURLWithPath: path)).id(path)
-                    }
+                    media(items[index].path).id(items[index].id)
                 }
+                HStack {
+                    navButton("chevron.left", enabled: hasPrevious) { go(-1) }
+                    Spacer()
+                    navButton("chevron.right", enabled: hasNext) { go(1) }
+                }
+                .padding(.horizontal, 14)
+                // Arrow keys
+                Button("") { go(-1) }.keyboardShortcut(.leftArrow, modifiers: []).opacity(0).frame(width: 0, height: 0)
+                Button("") { go(1) }.keyboardShortcut(.rightArrow, modifiers: []).opacity(0).frame(width: 0, height: 0)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.black.opacity(0.05))
         }
-        .frame(minWidth: 760, idealWidth: 980, minHeight: 560, idealHeight: 720)
+        .frame(minWidth: 820, idealWidth: 1040, minHeight: 600, idealHeight: 760)
+    }
+
+    private func navButton(_ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 46, height: 46)
+                .background(Circle().fill(Color.black.opacity(enabled ? 0.6 : 0.2)))
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
+        .help(symbol == "chevron.left" ? "Previous" : "Next")
+    }
+
+    @ViewBuilder private func media(_ path: String) -> some View {
+        if !FileManager.default.fileExists(atPath: path) {
+            Text("This file is missing.").foregroundStyle(.secondary)
+        } else {
+            switch LibraryContentType.fileType(path) {
+            case .image:
+                if let image = NSImage(contentsOfFile: path) {
+                    Image(nsImage: image).resizable().scaledToFit().padding(.horizontal, 70).padding(.vertical, 12)
+                } else { Text("Could not open this picture.").foregroundStyle(.secondary) }
+            case .gif:
+                AnimatedGIFView(path: path).padding(.horizontal, 70).padding(.vertical, 12)
+            default:
+                LargeMediaPlayer(url: URL(fileURLWithPath: path))
+            }
+        }
     }
 }
 
