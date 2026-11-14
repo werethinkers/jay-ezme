@@ -10,13 +10,24 @@
 // panel, type the prompt, attach the media and press send.
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import WebKit
 
 extension Notification.Name {
     static let keydoSendPrompt = Notification.Name("KeyDoSendPrompt")
+    static let keydoPromptTargetsChanged = Notification.Name("KeyDoPromptTargetsChanged")
 }
 
 // MARK: - Sites the prompt can be sent to
+
+/// What KeyDo found when it read an AI page: the prompt box, the upload slots and the button that starts the work.
+struct LearnedPage: Codable, Equatable {
+    var summary: String
+    var promptHint: String
+    var uploadSlots: Int
+    var kind: String          // "video", "image" or "chat"
+    var generateLabel: String
+}
 
 struct PromptTarget: Codable, Identifiable, Equatable {
     var name: String
@@ -24,6 +35,7 @@ struct PromptTarget: Codable, Identifiable, Equatable {
     var editor: [String]
     var send: [String]
     var builtIn: Bool = false
+    var learned: LearnedPage? = nil
     var id: String { name }
 }
 
@@ -66,6 +78,13 @@ enum PromptTargets {
         items.append(PromptTarget(name: cleanName, url: cleanURL,
                                   editor: ["textarea", "div.ProseMirror[contenteditable='true']", "[contenteditable='true']", "div[role='textbox']"],
                                   send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[aria-label*='Submit' i]"]))
+        if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: customKey) }
+    }
+
+    static func setLearned(_ learned: LearnedPage, for name: String) {
+        var items = custom()
+        guard let index = items.firstIndex(where: { $0.name == name }) else { return }
+        items[index].learned = learned
         if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: customKey) }
     }
 
@@ -354,6 +373,7 @@ struct PromptBuilderView: View {
         .onChange(of: text) { value in textChanged(value) }
         .onChange(of: autoCorrect) { _ in recompute() }
         .sheet(isPresented: $showAddSite) { addSiteSheet }
+        .onReceive(NotificationCenter.default.publisher(for: .keydoPromptTargetsChanged)) { _ in targets = PromptTargets.load() }
     }
 
     private var header: some View {
@@ -838,6 +858,7 @@ struct PromptBuilderView: View {
                     .disabled(!canSend)
                     .contextMenu {
                         if !target.builtIn {
+                            Button("Read the page again") { learn(target) }
                             Button("Remove \(target.name)") { PromptTargets.removeCustom(target.name); targets = PromptTargets.load() }
                         }
                     }
@@ -845,8 +866,11 @@ struct PromptBuilderView: View {
                 Button { showAddSite = true } label: { Label("Add site", systemImage: "plus").frame(maxWidth: .infinity) }
                     .buttonStyle(.bordered)
             }
-            Text("Attached media is pasted into the site, so the site's own sign-in is used. The clipboard is used for that step.")
+            Text("Attached media goes into the site's own upload box, so the site's own sign-in is used.")
                 .font(.caption).foregroundStyle(.secondary)
+            ForEach(targets.filter { $0.learned != nil }) { target in
+                Text("\(target.name): \(target.learned?.summary ?? "")").font(.caption2).foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -865,19 +889,26 @@ struct PromptBuilderView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if flashTarget == target.name { flashTarget = nil } }
     }
 
+    private func learn(_ target: PromptTarget) {
+        NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: "", files: [], learnOnly: true))
+        notice = "Opening \(target.name) in the side panel to read the page. Sign in there if it asks."
+    }
+
     private var addSiteSheet: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Add an AI site").font(.title3.weight(.bold))
             TextField("Name, for example Mistral", text: $newSiteName)
             TextField("Address, for example chat.mistral.ai", text: $newSiteURL)
-            Text("KeyDo looks for the site's prompt box and send button on its own. Sign in to the site in the side panel once.")
+            Text("KeyDo opens the page in the side panel and reads it once: the prompt box, the places to add pictures or video, and the Generate or Send button. Sign in there if it asks. Then your prompt and media are put in the right places and it starts running. Image and video sites may use up credits when it presses Generate.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()
                 Button("Cancel") { showAddSite = false }
                 Button("Add") {
+                    let addedName = newSiteName.trimmingCharacters(in: .whitespacesAndNewlines)
                     PromptTargets.addCustom(name: newSiteName, url: newSiteURL)
                     targets = PromptTargets.load()
+                    if let added = targets.first(where: { $0.name == addedName }) { learn(added) }
                     newSiteName = ""
                     newSiteURL = ""
                     showAddSite = false
@@ -897,11 +928,14 @@ final class PromptDispatchRequest {
     let target: PromptTarget
     let prompt: String
     let files: [String]
+    /// Only open the page and read it (prompt box, upload slots, start button); send nothing.
+    var learnOnly = false
 
-    init(target: PromptTarget, prompt: String, files: [String]) {
+    init(target: PromptTarget, prompt: String, files: [String], learnOnly: Bool = false) {
         self.target = target
         self.prompt = prompt
         self.files = files
+        self.learnOnly = learnOnly
     }
 }
 
@@ -929,17 +963,111 @@ final class PromptDispatchRequest {
     function kdFind(sels){for(var i=0;i<sels.length;i++){var c=document.querySelectorAll(sels[i]);for(var j=0;j<c.length;j++){var r=c[j].getBoundingClientRect();if(r.width>0&&r.height>0){return c[j];}}}return null;}
     """
 
+    /// Reads the page: visible prompt boxes, file upload inputs and buttons that look like "Generate" or "Send".
+    private static let analyzeScript = """
+    (function(){
+      function vis(e){var r=e.getBoundingClientRect();var s=getComputedStyle(e);return r.width>20&&r.height>10&&s.visibility!=='hidden'&&s.display!=='none';}
+      function label(e){return (e.getAttribute('aria-label')||e.getAttribute('placeholder')||e.getAttribute('data-placeholder')||e.title||'').trim().slice(0,90);}
+      var eds=[].slice.call(document.querySelectorAll('textarea,[contenteditable="true"],[role="textbox"],input[type="text"],input:not([type])')).filter(vis).map(function(e){var r=e.getBoundingClientRect();return {label:label(e),area:r.width*r.height};}).sort(function(a,b){return b.area-a.area;});
+      var files=[].slice.call(document.querySelectorAll('input[type=file]')).map(function(i){return (i.getAttribute('accept')||'').toLowerCase();});
+      var btns=[].slice.call(document.querySelectorAll('button,[role=button],a[class*=btn],div[class*=btn],div[class*=button]')).filter(vis).map(function(b){var r=b.getBoundingClientRect();return {text:(b.innerText||b.getAttribute('aria-label')||'').replace(/\\s+/g,' ').trim().slice(0,40),area:r.width*r.height};}).filter(function(b){return b.text.length>0&&b.text.length<=30&&/^(generate|create|send|submit|run|start|make|animate|render|go|imagine|produce)\\b/i.test(b.text);}).sort(function(a,b){return b.area-a.area;});
+      return JSON.stringify({editors:eds.slice(0,4),files:files,buttons:btns.slice(0,4),title:document.title});
+    })()
+    """
+
+    private struct AnalysisEditor: Decodable { var label: String }
+    private struct AnalysisButton: Decodable { var text: String }
+    private struct Analysis: Decodable { var editors: [AnalysisEditor]; var files: [String]; var buttons: [AnalysisButton]; var title: String }
+
+    private static func learn(_ request: PromptDispatchRequest, tabID: String, browser: EzMeBrowserTabs) async {
+        let name = request.target.name
+        browser.browserMessage = "Reading \(name)… Sign in there if it asks."
+        var steady = 0
+        for _ in 0..<110 {
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard let web = browser.webViews[tabID], !web.isLoading else { continue }
+            guard let json = try? await web.evaluateJavaScript(analyzeScript) as? String, let data = json.data(using: .utf8),
+                  let found = try? JSONDecoder().decode(Analysis.self, from: data) else { continue }
+            guard !found.editors.isEmpty || !found.files.isEmpty else { steady = 0; continue }
+            steady += 1
+            guard steady >= 2 else { continue } // the page has stopped changing
+            let accept = found.files.joined(separator: " ")
+            let kind = accept.contains("video") ? "video" : (accept.contains("image") || !found.files.isEmpty ? "image" : "chat")
+            let hint = found.editors.first?.label ?? ""
+            let button = found.buttons.first?.text ?? ""
+            var parts: [String] = []
+            parts.append(found.editors.isEmpty ? "no prompt box" : "prompt box" + (hint.isEmpty ? "" : " \u{201C}\(hint)\u{201D}"))
+            parts.append(found.files.isEmpty ? "no upload slots" : "\(found.files.count) upload slot" + (found.files.count == 1 ? "" : "s"))
+            parts.append(button.isEmpty ? "no start button found yet" : "button \u{201C}\(button)\u{201D}")
+            let learned = LearnedPage(summary: parts.joined(separator: " · "), promptHint: hint, uploadSlots: found.files.count, kind: kind, generateLabel: button)
+            PromptTargets.setLearned(learned, for: name)
+            NotificationCenter.default.post(name: .keydoPromptTargetsChanged, object: nil)
+            browser.browserMessage = "Read \(name): \(learned.summary)."
+            return
+        }
+        browser.browserMessage = "Could not read \(name) yet. Sign in to it in the side panel, then choose \u{201C}Read the page again\u{201D}."
+    }
+
+    /// Puts files into the page like a person would: into its file inputs, else as a paste, else as a drop.
+    /// Returns where they went ("input", "paste", "drop") or "none".
+    private static func attach(_ files: [String], to web: WKWebView, editors: String) async -> String {
+        _ = try? await web.evaluateJavaScript("window.__kdF={};window.__kdM={};'ok'")
+        var index = 0
+        for path in files {
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)), data.count <= 120_000_000 else { continue }
+            let ext = URL(fileURLWithPath: path).pathExtension
+            let mime = UTType(filenameExtension: ext)?.preferredMIMEType ?? "application/octet-stream"
+            _ = try? await web.evaluateJavaScript("window.__kdM[\(index)]={name:\(literal(URL(fileURLWithPath: path).lastPathComponent)),type:\(literal(mime))};window.__kdF[\(index)]='';'ok'")
+            let chunk = 1_500_000 // a multiple of 3, so every piece is valid base64 on its own
+            var offset = 0
+            while offset < data.count {
+                let piece = data.subdata(in: offset..<min(offset + chunk, data.count)).base64EncodedString()
+                _ = try? await web.evaluateJavaScript("window.__kdF[\(index)]+='\(piece)';'ok'")
+                offset += chunk
+            }
+            index += 1
+        }
+        guard index > 0 else { return "none" }
+        let script = """
+        (function(){\(findScript)
+        var metas=window.__kdM||{},data=window.__kdF||{},files=[];
+        Object.keys(metas).sort(function(a,b){return a-b;}).forEach(function(k){var bin=atob(data[k]||'');var arr=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);files.push(new File([arr],metas[k].name,{type:metas[k].type}));});
+        window.__kdF={};window.__kdM={};
+        if(!files.length)return 'none';
+        function accepts(inp,f){var a=(inp.getAttribute('accept')||'').toLowerCase().trim();if(!a)return true;var ext='.'+f.name.split('.').pop().toLowerCase(),t=(f.type||'').toLowerCase();return a.split(',').some(function(p){p=p.trim();if(p===ext||p===t)return true;if(p.slice(-2)==='/*')return t.indexOf(p.slice(0,-1))===0;return false;});}
+        function put(inp,list){var dt=new DataTransfer();list.forEach(function(f){dt.items.add(f);});inp.files=dt.files;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));}
+        var remaining=files.slice(),placed=0;
+        [].slice.call(document.querySelectorAll('input[type=file]')).filter(function(i){return !i.disabled;}).forEach(function(inp){
+          var ok=remaining.filter(function(f){return accepts(inp,f);});if(!ok.length)return;
+          if(inp.multiple){put(inp,ok);remaining=remaining.filter(function(f){return ok.indexOf(f)<0;});placed+=ok.length;}
+          else{put(inp,[ok[0]]);remaining=remaining.filter(function(f){return f!==ok[0];});placed+=1;}
+        });
+        if(placed>0)return 'input';
+        var el=kdFind(\(editors))||document.activeElement||document.body;el.focus();
+        var dt=new DataTransfer();files.forEach(function(f){dt.items.add(f);});
+        var ev;try{ev=new ClipboardEvent('paste',{bubbles:true,cancelable:true,clipboardData:dt});}catch(e){ev=new Event('paste',{bubbles:true,cancelable:true});try{Object.defineProperty(ev,'clipboardData',{value:dt});}catch(e2){}}
+        if(!el.dispatchEvent(ev))return 'paste';
+        var target=el.closest('[class*=drop],[class*=upload]')||el,handled=false;
+        ['dragenter','dragover','drop'].forEach(function(type){var d;try{d=new DragEvent(type,{bubbles:true,cancelable:true,dataTransfer:dt});}catch(e){d=new Event(type,{bubbles:true,cancelable:true});try{Object.defineProperty(d,'dataTransfer',{value:dt});}catch(e2){}}
+          if(!target.dispatchEvent(d)&&type==='drop')handled=true;});
+        return handled?'drop':'none';})()
+        """
+        let result = try? await web.evaluateJavaScript(script)
+        return (result as? String) ?? "none"
+    }
+
     private static func run(_ request: PromptDispatchRequest, tabID: String, browser: EzMeBrowserTabs) async {
+        if request.learnOnly { await learn(request, tabID: tabID, browser: browser); return }
         let name = request.target.name
         let editors = literal(request.target.editor)
         let senders = literal(request.target.send)
 
-        // 1. Wait for the page and its prompt box.
+        // 1. Wait for the page and its prompt box (or, for pages that only take pictures, its upload input).
         var web: WKWebView?
         for _ in 0..<90 {
             try? await Task.sleep(nanoseconds: 700_000_000)
             guard let candidate = browser.webViews[tabID], !candidate.isLoading else { continue }
-            let found = try? await candidate.evaluateJavaScript("(function(){\(findScript) return kdFind(\(editors))?'yes':'no';})()")
+            let found = try? await candidate.evaluateJavaScript("(function(){\(findScript) return (kdFind(\(editors))||document.querySelector('input[type=file]'))?'yes':'no';})()")
             if (found as? String) == "yes" { web = candidate; break }
         }
         guard let web else {
@@ -968,19 +1096,28 @@ final class PromptDispatchRequest {
             _ = try? await web.evaluateJavaScript("(function(){\(findScript) var el=kdFind(\(editors)); if(el){el.focus();} return 'ok';})()")
         }
 
-        // 3. Paste the media, like pasting files into the site by hand.
+        // 3. Attach the media: into the page's own upload inputs when it has them, else as a paste or a drop.
         let files = request.files.filter { FileManager.default.fileExists(atPath: $0) }
         if !files.isEmpty {
             try? await Task.sleep(nanoseconds: 400_000_000)
-            let pasteboard = NSPasteboard.general
-            pasteboard.clearContents()
-            if files.count == 1, let image = NSImage(contentsOfFile: files[0]), ["png", "jpg", "jpeg", "heic", "tiff", "bmp"].contains(URL(fileURLWithPath: files[0]).pathExtension.lowercased()) {
-                pasteboard.writeObjects([image])
-            } else {
-                pasteboard.writeObjects(files.map { URL(fileURLWithPath: $0) as NSURL })
+            var placed = await attach(files, to: web, editors: editors)
+            if placed == "none" {
+                // Last resort: a real paste from the clipboard, with the prompt box focused.
+                _ = try? await web.evaluateJavaScript("(function(){\(findScript) var el=kdFind(\(editors)); if(el){el.focus();} return 'ok';})()")
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                if files.count == 1, let image = NSImage(contentsOfFile: files[0]), ["png", "jpg", "jpeg", "heic", "tiff", "bmp"].contains(URL(fileURLWithPath: files[0]).pathExtension.lowercased()) {
+                    pasteboard.writeObjects([image])
+                } else {
+                    pasteboard.writeObjects(files.map { URL(fileURLWithPath: $0) as NSURL })
+                }
+                NSApp.activate(ignoringOtherApps: true)
+                web.window?.makeKeyAndOrderFront(nil)
+                web.window?.makeFirstResponder(web)
+                _ = web.tryToPerform(#selector(NSText.paste(_:)), with: nil)
+                placed = "clipboard"
             }
-            web.window?.makeFirstResponder(web)
-            _ = NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+            browser.browserMessage = "Attached \(files.count) file\(files.count == 1 ? "" : "s") to \(name) (\(placed))…"
             let bytes = files.reduce(0.0) { total, path in
                 total + Double((try? FileManager.default.attributesOfItem(atPath: path)[.size] as? NSNumber)?.doubleValue ?? 0)
             }
@@ -996,6 +1133,13 @@ final class PromptDispatchRequest {
         var sels=\(senders);
         for(var i=0;i<sels.length;i++){var c=document.querySelectorAll(sels[i]);for(var j=0;j<c.length;j++){var b=c[j];var r=b.getBoundingClientRect();
           if(r.width>0&&r.height>0&&!b.disabled&&b.getAttribute('aria-disabled')!=='true'){b.click();return 'clicked';}}}
+        var want=\(literal(request.target.learned?.generateLabel ?? "")).toLowerCase();
+        var all=document.querySelectorAll('button,[role=button],a[class*=btn],div[class*=btn],div[class*=button]');
+        for(var k=0;k<all.length;k++){var b=all[k];var r=b.getBoundingClientRect();if(!(r.width>0&&r.height>0))continue;
+          var t=(b.innerText||b.getAttribute('aria-label')||'').replace(/\\s+/g,' ').trim().toLowerCase();if(!t||t.length>30)continue;
+          var hit=want?(t===want||t.indexOf(want)===0):/^(generate|create|send|submit|run|start|animate|make|imagine)\\b/.test(t);
+          var off=b.disabled||b.getAttribute('aria-disabled')==='true'||/disabled/.test(b.className||'');
+          if(hit&&!off){b.click();return 'clicked';}}
         return 'wait';})()
         """
         for _ in 0..<40 {

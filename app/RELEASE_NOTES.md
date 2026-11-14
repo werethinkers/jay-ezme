@@ -1,13 +1,6 @@
-## Browser full screen and safety, a lighter grid, and sentence commands for apps
+## Prompt Builder: media now reaches ChatGPT and other AI sites, and AI pages can be learned
 
-- **Browser, full screen:** the full screen button on video sites (Reddit, YouTube and others) now works in the KeyDo browser.
-- **Browser, safer by default:**
-  - Programs and installers are never downloaded: apps, installers, disk images, scripts and Windows programs are blocked.
-  - Every other download asks first and names the site and the file.
-  - Pictures, audio and video open on the page instead of downloading by themselves.
-  - Web addresses starting with http are tried as https first, with one fall back for sites that have no https.
-  - Well-known advertising and tracking hosts are blocked when they load inside another site.
-  - Pages can no longer open pop-up windows on their own.
-- **Library grid is lighter:** the first four or five rows load at once and more load as you scroll. Pictures are shown as small copies in a size-limited cache, videos and GIFs play only while their tile is on screen, and the cache is emptied when you leave the grid.
-- **Sentence commands for apps:** say or type a sentence such as "send Diwali greetings to Rohit". The words that match a phrase are the command and the rest are the details, so KeyDo makes the card. When you say it in the popup, it makes the card and pastes it into the app you were in once you stop talking. All 16 greeting apps, hbd and hwa come with three suggested phrases.
-- **Edit the phrases:** every app has a "Voice and sentence commands" box in its settings, one phrase per line. An app can have two or three phrases, and "Use suggestions" puts the suggested ones back.
+- **Attached media is sent properly.** KeyDo now puts pictures and videos straight into the site's own upload box (the way a file chooser would), and only falls back to pasting or dropping them if the page has no upload box. Before, it relied on a paste that many sites ignored. Several files go into several upload slots in order. The fix covers ChatGPT, Claude, Gemini, Grok, Perplexity and any site you add.
+- **Add an AI page and KeyDo reads it.** Press "Add site", give the address of an AI page (for example an image or video app on SeaArt) and KeyDo opens it in the side panel and reads it once, after you sign in: the prompt box, how many places take pictures or video, and the Generate or Send button. What it found is shown under the buttons. Your prompt goes in the prompt box, your media into the upload slots, and the button is pressed for you.
+- **Read the page again:** right-click an added site and choose "Read the page again" if the page changes.
+- Note: image and video sites can use up credits when Generate is pressed.
