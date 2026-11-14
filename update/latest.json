@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 295,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build295/EzMe-3.44-macOS.zip",
-  "sha256": "5ecbb51b1b8347d91fa13f882c7d6817d26c0fea9a3d881bca106279fd9208ea",
-  "notes": "## Previous and Next in the large media viewer, and faster builds\n\n- **Library grid:** the large viewer now has Previous and Next buttons on each side, and the left and right arrow keys work too. You can step through every picture, GIF, video and audio file in the current collection and filter, not just the one shortcut you opened, much like a browser's image viewer. The title bar shows the position, for example \"12 of 87\".\n- Behind the scenes, the app is now compiled with multi-threaded code generation, so builds are quicker.",
-  "published": "2026-11-14T01:22:33Z",
+  "build": 298,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build298/EzMe-3.44-macOS.zip",
+  "sha256": "28e12253cb2fbbe312dd1bb87b580f122844ea09339f8cf2c10f459a45c4062a",
+  "notes": "## Browser full screen and safety, a lighter grid, and sentence commands for apps\n\n- **Browser, full screen:** the full screen button on video sites (Reddit, YouTube and others) now works in the KeyDo browser.\n- **Browser, safer by default:**\n  - Programs and installers are never downloaded: apps, installers, disk images, scripts and Windows programs are blocked.\n  - Every other download asks first and names the site and the file.\n  - Pictures, audio and video open on the page instead of downloading by themselves.\n  - Web addresses starting with http are tried as https first, with one fall back for sites that have no https.\n  - Well-known advertising and tracking hosts are blocked when they load inside another site.\n  - Pages can no longer open pop-up windows on their own.\n- **Library grid is lighter:** the first four or five rows load at once and more load as you scroll. Pictures are shown as small copies in a size-limited cache, videos and GIFs play only while their tile is on screen, and the cache is emptied when you leave the grid.\n- **Sentence commands for apps:** say or type a sentence such as \"send Diwali greetings to Rohit\". The words that match a phrase are the command and the rest are the details, so KeyDo makes the card. When you say it in the popup, it makes the card and pastes it into the app you were in once you stop talking. All 16 greeting apps, hbd and hwa come with three suggested phrases.\n- **Edit the phrases:** every app has a \"Voice and sentence commands\" box in its settings, one phrase per line. An app can have two or three phrases, and \"Use suggestions\" puts the suggested ones back.",
+  "published": "2026-11-14T01:47:26Z",
   "minimumSystemVersion": "14.0"
 }
