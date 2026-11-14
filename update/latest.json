@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 304,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build304/EzMe-3.44-macOS.zip",
-  "sha256": "5a2dd60647c0064c9b3912164f8b28e172c1ea3c96f10ea40476babbad02c800",
-  "notes": "## Hide and show the menu row and the tip row\n\n- A new arrow button at the top right (next to \"Check for updates\") hides or shows the two rows under the KeyDo bar: the menu row (AppBuilder, WishStudio, Ez Studio...) and the tip row (the yellow lightbulb line). Choose either one, or both at once. The shortcut for both is Shift-Command-M.\n- The tip row also has its own small \u2715 to hide it.\n- While the menu row is hidden, the page you are on stays visible as a small pill after the KeyDo tabs. Click it to bring the menu row back.\n- It works the same on every page, and KeyDo remembers your choice when you reopen it.",
-  "published": "2026-11-14T02:41:54Z",
+  "build": 306,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build306/EzMe-3.44-macOS.zip",
+  "sha256": "99f15af6318e39a2bae11e33e742e0c776006e0feecea65605b43577c5b508d6",
+  "notes": "## KeyDo logo in the top bar, and edit or delete AI links in the Prompt Builder\n\n- **Logo:** the KeyDo logo now replaces the plain \"KeyDo\" text in the top bar of every page. When the window is narrow (under about 1,000 points wide) the top bar shows just the KeyDo icon so the tabs keep their room. The sidebar, sign-in and home pages already used the logo and the icon.\n- **Prompt Builder, edit and delete AI links:**\n  - Press **Edit links** under the send buttons. Every site then shows a pencil and a bin. You can also right-click any site and choose Edit or Delete.\n  - Edit changes the address, and for a site you added, its name too. If the address changes, KeyDo reads the new page again.\n  - Delete removes a site you added. The built-in sites (ChatGPT, Grok, Claude, Gemini, Perplexity) are hidden, and \"Bring back removed sites\" puts them back.",
+  "published": "2026-11-14T03:34:55Z",
   "minimumSystemVersion": "14.0"
 }
