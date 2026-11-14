@@ -1,6 +1,6 @@
 # KeyDo brand guidelines
 
-KeyDo was called EzMe until 2026-11-12. These rules cover the name, logo, icon and colours. They are taken from the logo files supplied by Vijay Jain (`keydo-logo.png`, `keydo-icon.png`).
+KeyDo was called EzMe until 2026-11-12. These rules cover the name, logo, icon and colours. They are taken from the logo files supplied by Vijay Jain (`keydo-logo.png`, `keydo-icon.png`). The logo was replaced on 2026-11-14: the "do" in the word is coral, the rest charcoal.
 
 ## Name
 
