@@ -53,6 +53,9 @@ struct ButterTopBar: View {
     var onFullScreen: () -> Void
     var onToggleBrowser: () -> Void
     var onOpen: (String) -> Void
+    /// The row of sub-menus and the tip row under the top bar can each be hidden to give the page more room. Remembered across launches.
+    @AppStorage("keydoHideMenuRow") private var hideMenuRow = false
+    @AppStorage("keydoHideTipRow") private var hideTipRow = false
 
     var body: some View {
         let current = ButterNav.area(containing: section)
@@ -79,7 +82,43 @@ struct ButterTopBar: View {
                     .buttonStyle(.plain)
                     .help(area.items.map { $0.title }.joined(separator: ", "))
                 }
+                if hideMenuRow, current.items.count > 1, let here = ButterNav.item(for: section) {
+                    Button { hideMenuRow = false } label: {
+                        HStack(spacing: 4) {
+                            Text(here.title)
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .foregroundStyle(Butter.cocoa)
+                        .background(Butter.honey, in: Capsule())
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show the menu row")
+                }
                 Spacer()
+                Menu {
+                    Button(hideMenuRow ? "Show menu row" : "Hide menu row") { hideMenuRow.toggle() }
+                    Button(hideTipRow ? "Show tip row" : "Hide tip row") { hideTipRow.toggle() }
+                    Divider()
+                    Button(hideMenuRow && hideTipRow ? "Show both rows" : "Hide both rows") {
+                        let hide = !(hideMenuRow && hideTipRow)
+                        hideMenuRow = hide
+                        hideTipRow = hide
+                    }
+                    .keyboardShortcut("m", modifiers: [.command, .shift])
+                } label: {
+                    Image(systemName: hideMenuRow || hideTipRow ? "chevron.down.square" : "chevron.up.square")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Butter.cocoa)
+                        .padding(5)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .help("Hide or show the menu row and the tip row (\u{21E7}\u{2318}M)")
                 ButterUpdateButton()
                 Menu {
                     Button(browserPanelVisible ? "Hide browser panel" : "Show browser panel", action: onToggleBrowser)
@@ -106,7 +145,7 @@ struct ButterTopBar: View {
             }
             .padding(.horizontal, 18).padding(.vertical, 10)
 
-            if current.items.count > 1 {
+            if current.items.count > 1 && !hideMenuRow {
                 HStack(spacing: 6) {
                     ForEach(current.items) { item in
                         Button { onOpen(item.id) } label: {
@@ -124,11 +163,16 @@ struct ButterTopBar: View {
                 }
                 .padding(.horizontal, 18).padding(.bottom, 9)
             }
-            if let item = ButterNav.item(for: section) {
+            if !hideTipRow, let item = ButterNav.item(for: section) {
                 HStack(spacing: 8) {
                     Image(systemName: "lightbulb.fill").foregroundStyle(Butter.coral)
                     Text(item.hint).font(.system(size: 13, weight: .medium)).foregroundStyle(Butter.cocoa)
                     Spacer()
+                    Button { hideTipRow = true } label: {
+                        Image(systemName: "xmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Butter.cocoa.opacity(0.55)).padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Hide this tip row. Bring it back from the arrow button at the top right.")
                 }
                 .padding(.horizontal, 18).padding(.vertical, 8)
                 .background(Butter.honey.opacity(0.35))
@@ -136,6 +180,8 @@ struct ButterTopBar: View {
             Rectangle().fill(Butter.honey).frame(height: 1)
         }
         .background(Butter.cream)
+        .animation(.easeInOut(duration: 0.18), value: hideMenuRow)
+        .animation(.easeInOut(duration: 0.18), value: hideTipRow)
     }
 }
 

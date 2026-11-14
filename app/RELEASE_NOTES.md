@@ -1,5 +1,6 @@
-## The popup now closes by itself, and sentence commands understand "Send Diwali Greetings to Rohit"
+## Hide and show the menu row and the tip row
 
-- **Popup no longer gets stuck.** When an app command such as a bill is being made, the popup waits for it, but never more than 2½ minutes; after that it says it took too long and lets go. When nothing is running and you have not touched the popup for 30 seconds, a countdown shows for the last 3 seconds and the popup closes, even if there is text in it. Before, it stayed on every screen for ever whenever text was left in the box.
-- **Voice and sentence commands are understood by meaning.** "Send", "Create" or "Make" is the command word, the app is found from its name in your sentence (Diwali, Thank You, Bill and so on), greeting words such as greetings, card, wishes and happy are ignored, and what follows "to" or "for" is the details: "Send Diwali Greetings to Rohit" makes the Diwali card for Rohit. Your own phrases for an app still win when they match exactly.
-- **Set what each app listens for.** In AppBuilder and in WishStudio (Templates tab) each app has a "Voice and sentence commands" box with its phrases, one per line, and a tick box to run it by itself when you say it (make the result and paste it) or only fill the popup so you press Enter.
+- A new arrow button at the top right (next to "Check for updates") hides or shows the two rows under the KeyDo bar: the menu row (AppBuilder, WishStudio, Ez Studio...) and the tip row (the yellow lightbulb line). Choose either one, or both at once. The shortcut for both is Shift-Command-M.
+- The tip row also has its own small ✕ to hide it.
+- While the menu row is hidden, the page you are on stays visible as a small pill after the KeyDo tabs. Click it to bring the menu row back.
+- It works the same on every page, and KeyDo remembers your choice when you reopen it.
