@@ -53,7 +53,7 @@ enum VoiceGrammar {
         (["clear", "search"], .clear), (["clear", "all"], .clear), (["start", "over"], .clear),
         (["close", "popup"], .closePopup), (["close", "panel"], .closePopup),
         (["open", "popup"], .openPopup), (["show", "popup"], .openPopup), (["show", "shortcuts"], .openPopup),
-        (["keydo"], .openPopup), (["hey", "keydo"], .openPopup), (["key", "do"], .openPopup), (["hey", "key", "do"], .openPopup), (["kido"], .openPopup), (["keido"], .openPopup), (["keyedo"], .openPopup), (["kiado"], .openPopup),
+        (["keydo"], .openPopup), (["hey", "keydo"], .openPopup), (["hey", "kiddo"], .openPopup), (["kiddo"], .openPopup), (["keydough"], .openPopup), (["key", "dough"], .openPopup), (["hey", "key", "dough"], .openPopup), (["hi", "keydo"], .openPopup), (["okay", "keydo"], .openPopup), (["hey", "kido"], .openPopup), (["a", "keydo"], .openPopup), (["key", "do"], .openPopup), (["hey", "key", "do"], .openPopup), (["kido"], .openPopup), (["keido"], .openPopup), (["keyedo"], .openPopup), (["kiado"], .openPopup),
     ]
 
     /// Words that begin a longer command. They are held back until the next word arrives.
@@ -106,9 +106,45 @@ final class KeyDoVoice: ObservableObject {
     var wakeAlways: Bool { UserDefaults.standard.object(forKey: VoiceKeys.wakeAlways) as? Bool ?? true }
     /// True while the mic only waits for the wake phrase and ignores everything else that is said.
     @Published private(set) var wakeOnly = false
+    private var watchdog: Timer?
+    private var lastWakeAttempt = Date.distantPast
+    private var observingEngine = false
+
+    /// Keeps "Hey KeyDo" alive: restarts it if the mic stopped for any reason, and rebuilds the audio session
+    /// when the Mac switches microphone (headphones, Bluetooth, sleep and wake).
+    func armWatchdog() {
+        if !observingEngine {
+            observingEngine = true
+            NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self, self.phase != .off else { return }
+                    self.recycle(after: 0.3)
+                }
+            }
+        }
+        guard watchdog == nil else { return }
+        watchdog = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.watchdogTick() }
+        }
+    }
+
+    private func watchdogTick() {
+        guard wakeAlways else { return }
+        if phase == .off {
+            if errorMessage.isEmpty, Date().timeIntervalSince(lastWakeAttempt) > 20 { startWakeIfNeeded() }
+        } else if !running, !authorizing, Date().timeIntervalSince(lastStart) > 8 {
+            recycle(after: 0.1)
+        }
+    }
+
+    /// The Stop button and "stop listening": the commands end, but "Hey KeyDo" keeps waiting unless it is switched off.
+    func userStop() {
+        if wakeAlways { rest() } else { stop() }
+    }
 
     func startWakeIfNeeded() {
-        guard wakeAlways, phase == .off, appHandlers != nil else { return }
+        guard wakeAlways, phase == .off else { return }
+        lastWakeAttempt = Date()
         context = .app
         wakeOnly = true
         phraseWords = []
@@ -154,7 +190,7 @@ final class KeyDoVoice: ObservableObject {
 
     func detach(_ context: Context) {
         if context == .popup { popupHandlers = nil } else { appHandlers = nil }
-        if self.context == context && phase != .off && context == .app { stop(announce: false) }
+        if self.context == context && phase != .off && context == .app && !wakeOnly { rest() }
     }
 
     /// The popup has gone away. Keep listening in the background only if the person asked for continuous listening.
@@ -506,7 +542,7 @@ final class KeyDoVoice: ObservableObject {
         case .start:
             if phase == .paused { resume() } else if phase == .listening { say("Already listening", sound: nil) }
         case .stop:
-            stop()
+            userStop()
         case .pause:
             pause()
         default:
@@ -670,7 +706,7 @@ struct VoiceControlBar: View {
                     if voice.phase == .paused { voice.resume() } else { voice.start(context) }
                 }
                 control("pause.fill", "Pause", enabled: voice.phase == .listening, tint: .orange, help: "Pause listening. Say “start listening” to continue") { voice.pause() }
-                control("stop.fill", "Stop", enabled: voice.phase != .off, tint: .red, help: "Stop listening and turn the microphone off") { voice.stop() }
+                control("stop.fill", "Stop", enabled: voice.phase != .off, tint: .red, help: "Stop voice commands. “Hey KeyDo” keeps waiting unless you turn it off in settings") { voice.userStop() }
                 if let onSettings {
                     Button(action: onSettings) {
                         Image(systemName: "gearshape").font(.system(size: 12, weight: .semibold)).frame(width: 28, height: 28)
@@ -886,7 +922,7 @@ struct VoiceSearchAssistant: View {
             return model.clips.prefix(60).flatMap { clip in [clip.name, String(clip.key.drop(while: { $0 == "/" || $0 == "\\" }))] }.filter { !$0.isEmpty }
         }
         KeyDoVoice.shared.attach(.app, handlers)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { KeyDoVoice.shared.startWakeIfNeeded() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { KeyDoVoice.shared.armWatchdog(); KeyDoVoice.shared.startWakeIfNeeded() }
     }
 
     private var microphoneButton: some View {

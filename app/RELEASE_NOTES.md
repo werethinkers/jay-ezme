@@ -1,6 +1,4 @@
-## "Hey KeyDo" now listens in the background
+## "Hey KeyDo" stays on, and the browser names your pages
 
-- While KeyDo is open, the mic quietly waits for "Hey KeyDo" (or "KeyDo"). It ignores everything else you say, so it never types or runs anything by accident. Saying it opens the popup and starts normal voice commands.
-- After 10 quiet seconds in the popup (with the 3 second countdown), KeyDo goes back to waiting for "Hey KeyDo" instead of switching the mic off. Closing the popup does the same.
-- Turn it off in voice settings: "Always listen for Hey KeyDo". macOS shows its orange mic dot while it is on, and asks for microphone and speech permission the first time.
-- Opening the popup by voice from the app now also switches voice commands over to the popup, so what you say next lands in its search.
+- **Hey KeyDo keeps working:** it no longer depends on a window being open, restarts itself within a few seconds if the mic ever stops, and rebuilds after the Mac changes microphone (headphones, Bluetooth, sleep). The Stop button and "stop listening" now end voice commands but keep "Hey KeyDo" waiting; turn it off in voice settings. More spoken variants are recognised ("Hey Kiddo", "Hi KeyDo", "Okay KeyDo").
+- **Scan a page:** in the browser, Save link now scans the page (title, site name, main heading, description) and suggests a clear name, plus a short shortcut such as `github` or `github-pricing`. Pick a suggestion or type your own. Saving also creates a Websites & URLs shortcut for the link, so `\github.web` opens it from the popup. Duplicate keys get a number.
