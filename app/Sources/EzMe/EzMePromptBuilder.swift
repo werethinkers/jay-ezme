@@ -126,7 +126,7 @@ enum PromptTargets {
         if !cleanURL.lowercased().hasPrefix("http") { cleanURL = "https://" + cleanURL }
         var items = custom().filter { $0.name.caseInsensitiveCompare(cleanName) != .orderedSame }
         items.append(PromptTarget(name: cleanName, url: cleanURL,
-                                  editor: ["textarea", "div.ProseMirror[contenteditable='true']", "[contenteditable='true']", "div[role='textbox']"],
+                                  editor: ["textarea", "div.rich-editor[contenteditable]", "div.ProseMirror[contenteditable='true']", "[contenteditable='true']", "div[role='textbox']"],
                                   send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[aria-label*='Submit' i]"]))
         if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: customKey) }
     }
@@ -1064,7 +1064,7 @@ final class PromptDispatchRequest {
     }
 
     private static let findScript = """
-    function kdFind(sels){for(var i=0;i<sels.length;i++){var c=document.querySelectorAll(sels[i]);for(var j=0;j<c.length;j++){var r=c[j].getBoundingClientRect();if(r.width>0&&r.height>0){return c[j];}}}return null;}
+    function kdFind(sels){for(var i=0;i<sels.length;i++){var c=document.querySelectorAll(sels[i]);var best=null,ba=0;for(var j=0;j<c.length;j++){var r=c[j].getBoundingClientRect();var st=getComputedStyle(c[j]);if(r.width>0&&r.height>0&&st.visibility!=='hidden'&&st.display!=='none'&&c[j].type!=='search'&&!(c[j].closest&&c[j].closest('nav,header'))){var a=r.width*r.height;if(a>ba){ba=a;best=c[j];}}}if(best){return best;}}return null;}
     """
 
     /// Reads the page: visible prompt boxes, file upload inputs and buttons that look like "Generate" or "Send".
@@ -1191,7 +1191,11 @@ final class PromptDispatchRequest {
               el.dispatchEvent(new Event('input',{bubbles:true}));
             } else {
               document.execCommand('selectAll',false,null);
-              document.execCommand('insertText',false,text);
+              var okIns=document.execCommand('insertText',false,text);
+              if(!okIns||((el.innerText||el.textContent||'').trim().length===0)){
+                el.textContent=text;
+                try{el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));}catch(e){el.dispatchEvent(new Event('input',{bubbles:true}));}
+              }
             }
             return 'ok';})()
             """
@@ -1240,8 +1244,8 @@ final class PromptDispatchRequest {
         var want=\(literal(request.target.learned?.generateLabel ?? "")).toLowerCase();
         var all=document.querySelectorAll('button,[role=button],a[class*=btn],div[class*=btn],div[class*=button]');
         for(var k=0;k<all.length;k++){var b=all[k];var r=b.getBoundingClientRect();if(!(r.width>0&&r.height>0))continue;
-          var t=(b.innerText||b.getAttribute('aria-label')||'').replace(/\\s+/g,' ').trim().toLowerCase();if(!t||t.length>30)continue;
-          var hit=want?(t===want||t.indexOf(want)===0):/^(generate|create|send|submit|run|start|animate|make|imagine)\\b/.test(t);
+          var t=(b.innerText||b.getAttribute('aria-label')||'').replace(/\\s+/g,' ').trim().toLowerCase();if(!t||t.length>60)continue;
+          var hit=want?(t===want||t.indexOf(want)===0||t.split(/[\\s(]/)[0]===want.split(/[\\s(]/)[0]):/^(generate|create|send|submit|run|start|animate|make|imagine)\\b/.test(t);
           var off=b.disabled||b.getAttribute('aria-disabled')==='true'||/disabled/.test(b.className||'');
           if(hit&&!off){b.click();return 'clicked';}}
         return 'wait';})()
