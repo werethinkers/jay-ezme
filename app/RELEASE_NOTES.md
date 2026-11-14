@@ -1,6 +1,7 @@
-## Hide and show the menu row and the tip row
+## KeyDo logo in the top bar, and edit or delete AI links in the Prompt Builder
 
-- A new arrow button at the top right (next to "Check for updates") hides or shows the two rows under the KeyDo bar: the menu row (AppBuilder, WishStudio, Ez Studio...) and the tip row (the yellow lightbulb line). Choose either one, or both at once. The shortcut for both is Shift-Command-M.
-- The tip row also has its own small ✕ to hide it.
-- While the menu row is hidden, the page you are on stays visible as a small pill after the KeyDo tabs. Click it to bring the menu row back.
-- It works the same on every page, and KeyDo remembers your choice when you reopen it.
+- **Logo:** the KeyDo logo now replaces the plain "KeyDo" text in the top bar of every page. When the window is narrow (under about 1,000 points wide) the top bar shows just the KeyDo icon so the tabs keep their room. The sidebar, sign-in and home pages already used the logo and the icon.
+- **Prompt Builder, edit and delete AI links:**
+  - Press **Edit links** under the send buttons. Every site then shows a pencil and a bin. You can also right-click any site and choose Edit or Delete.
+  - Edit changes the address, and for a site you added, its name too. If the address changes, KeyDo reads the new page again.
+  - Delete removes a site you added. The built-in sites (ChatGPT, Grok, Claude, Gemini, Perplexity) are hidden, and "Bring back removed sites" puts them back.
