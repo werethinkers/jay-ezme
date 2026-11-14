@@ -63,6 +63,9 @@ jobs:
           echo "SIGN_IDENTITY=$ID" >> "$GITHUB_ENV"
 
       - name: Build
+        env:
+          # A pull request build is only a compile check, so skip the slow optimiser there. Releases stay -O.
+          SWIFT_OPT: ${{ github.event_name == 'pull_request' && '-Onone' || '-O' }}
         run: |
           BUILD_NUMBER="${{ steps.v.outputs.build }}" OUT_DIR="$RUNNER_TEMP/out" ./app/build.sh
           cp "$RUNNER_TEMP/out/EzMe-${{ steps.v.outputs.version }}-macOS.zip" "$RUNNER_TEMP/out/EzMe-macOS.zip"

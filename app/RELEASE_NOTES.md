@@ -1,5 +1,4 @@
-## App commands now paste their result, by typing and by voice
+## Previous and Next in the large media viewer, and faster builds
 
-- **Typing:** type an app command such as `\hbd-Hiral` and press Space. KeyDo makes the card or text and pastes it straight into the app you were typing in, replacing the command. Before, it only showed the result in the popup.
-- **Popup and voice:** with an app command in the popup, press Enter (or say "enter") and it makes the result and pastes it. If the result is already made, Enter pastes it.
-- **Voice:** say the command naturally: "hbd hiral", "thanks rohit", "diwali dash Shah family" or "thanks rohit dot media". KeyDo turns it into `hbd-hiral`, `thanks-rohit.media` and so on before searching.
+- **Library grid:** the large viewer now has Previous and Next buttons on each side, and the left and right arrow keys work too. You can step through every picture, GIF, video and audio file in the current collection and filter, not just the one shortcut you opened, much like a browser's image viewer. The title bar shows the position, for example "12 of 87".
+- Behind the scenes, the app is now compiled with multi-threaded code generation, so builds are quicker.
