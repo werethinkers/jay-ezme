@@ -52,6 +52,7 @@ enum VoiceGrammar {
         (["clear", "search"], .clear), (["clear", "all"], .clear), (["start", "over"], .clear),
         (["close", "popup"], .closePopup), (["close", "panel"], .closePopup),
         (["open", "popup"], .openPopup), (["show", "popup"], .openPopup), (["show", "shortcuts"], .openPopup),
+        (["keydo"], .openPopup), (["hey", "keydo"], .openPopup), (["key", "do"], .openPopup), (["hey", "key", "do"], .openPopup), (["kido"], .openPopup), (["keido"], .openPopup), (["keyedo"], .openPopup), (["kiado"], .openPopup),
     ]
 
     /// Words that begin a longer command. They are held back until the next word arrives.
@@ -152,6 +153,44 @@ final class KeyDoVoice: ObservableObject {
     private var lastStart = Date.distantPast
     private var running = false
     private var authorizing = false
+    private var lastActivity = Date()
+    private var idleTimer: Timer?
+    @Published private(set) var idleLeft: Int? = nil
+
+    /// Anything heard or said counts as use. The mic turns itself off after 10 quiet seconds, with a 3 second countdown.
+    private func touch() {
+        lastActivity = Date()
+        if idleLeft != nil { idleLeft = nil; feedback = "" }
+    }
+
+    private func startIdleTimer() {
+        idleTimer?.invalidate()
+        lastActivity = Date()
+        idleTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.idleTick() }
+        }
+    }
+
+    private func idleTick() {
+        guard phase != .off else { idleLeft = nil; return }
+        if phase == .paused || (context == .app && continuous) { lastActivity = Date(); idleLeft = nil; return }
+        let idle = Date().timeIntervalSince(lastActivity)
+        if idle >= 10 {
+            idleLeft = nil
+            stop(announce: false)
+            say("Mic turned off after 10 seconds of silence. Tap the mic to start again.", sound: .stop)
+            return
+        }
+        if idle >= 7 {
+            let left = max(1, Int(ceil(10 - idle)))
+            if left != idleLeft { idleLeft = left; say("Turning off in \(left)… say something to keep listening", sound: nil) }
+        } else if idleLeft != nil {
+            idleLeft = nil
+        }
+    }
+
+    /// A short message from outside the engine, for example which collection was picked.
+    func announce(_ text: String) { say(text, sound: nil); touch() }
 
     // MARK: Buttons
     func start(_ context: Context) {
@@ -161,12 +200,14 @@ final class KeyDoVoice: ObservableObject {
         if phase == .listening, running { return }
         phase = .listening
         say("Listening", sound: .start)
+        startIdleTimer()
         ensureRunning()
     }
 
     func resume() {
         guard phase == .paused else { return }
         phase = .listening
+        touch()
         say("Listening", sound: .start)
     }
 
@@ -178,6 +219,9 @@ final class KeyDoVoice: ObservableObject {
 
     func stop(announce: Bool = true) {
         let wasOn = phase != .off
+        idleTimer?.invalidate()
+        idleTimer = nil
+        idleLeft = nil
         debounce?.cancel()
         phase = .off
         tearDown()
@@ -288,6 +332,7 @@ final class KeyDoVoice: ObservableObject {
         let decibels = 20 * log10(max(rms, 0.00001))
         let normal = CGFloat(max(0, min(1, (decibels + 50) / 40)))
         let smooth = level * 0.5 + normal * 0.5
+        if normal > 0.45 { touch() }
         if abs(smooth - level) > 0.03 { level = smooth }
     }
 
@@ -295,6 +340,7 @@ final class KeyDoVoice: ObservableObject {
         guard token == sessionToken, phase != .off else { return }
         if let result {
             let text = result.bestTranscription.formattedString
+            if text != partial, !text.isEmpty { touch() }
             partial = text
             if result.isFinal {
                 debounce?.cancel()
@@ -439,6 +485,8 @@ final class KeyDoVoice: ObservableObject {
             case .closePopup:
                 if context == .popup { say("Closing", sound: nil); handlers?.close() }
             case .openPopup:
+                touch()
+                if context == .popup { say("I\u{2019}m listening", sound: nil) }
                 if context == .app {
                     say("Opening the popup", sound: .enter)
                     NotificationCenter.default.post(name: .miniJOpenPicker, object: nil, userInfo: ["slashTriggered": false])
