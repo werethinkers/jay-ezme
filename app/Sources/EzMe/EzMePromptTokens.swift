@@ -489,6 +489,7 @@ enum PromptVoice {
         case "grok": set.formUnion(["grock", "groc", "croc", "grokk", "rock"])
         case "gemini": set.formUnion(["jiminy", "gemni", "geminie", "gemin"])
         case "perplexity": set.formUnion(["perplexed", "perplexitee"])
+        case "seaart": set.formUnion(["seaart", "seart", "seeart", "sea art", "seaarte", "cdart", "ciart", "seaheart", "seaarts", "seeheart", "cear"])
         default: break
         }
         return set
@@ -853,21 +854,62 @@ struct PromptMicButton: View {
     var onText: (String, Bool) -> Void
     @StateObject private var speech = EzMeSpeechDictation()
     @State private var showError = false
+    @State private var countdown: Int? = nil
+    @State private var lastHeard = Date()
+    @AppStorage("keydoVoiceLocale") private var voiceLocale = ""
+    private let ticker = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
+    private static let languages: [(String, String)] = [
+        ("", "Mac default"), ("en-US", "English (US)"), ("en-IN", "English (India)"), ("en-GB", "English (UK)"),
+        ("hi-IN", "Hindi"), ("gu-IN", "Gujarati"), ("mr-IN", "Marathi"), ("bn-IN", "Bengali"), ("ta-IN", "Tamil"),
+        ("te-IN", "Telugu"), ("es-ES", "Spanish"), ("fr-FR", "French"), ("de-DE", "German"), ("ar-SA", "Arabic"), ("ja-JP", "Japanese")
+    ]
+
+    private func stopNow() {
+        countdown = nil
+        speech.stop()
+        onStop()
+    }
 
     var body: some View {
-        Button {
-            if speech.isListening {
-                speech.stop()
-                onStop()
-            } else {
-                onStart()
-                speech.startContinuous(onTranscript: { spoken in onText(spoken, true) }, onPartial: { spoken in onText(spoken, false) })
+        HStack(spacing: 6) {
+            Button {
+                if speech.isListening {
+                    stopNow()
+                } else {
+                    lastHeard = Date()
+                    countdown = nil
+                    onStart()
+                    speech.startContinuous(onTranscript: { spoken in lastHeard = Date(); countdown = nil; onText(spoken, true) }, onPartial: { spoken in lastHeard = Date(); countdown = nil; onText(spoken, false) })
+                }
+            } label: {
+                if let left = countdown, speech.isListening {
+                    Label("Turning off in \(left)…", systemImage: "timer").foregroundStyle(.orange)
+                } else {
+                    Label(speech.isListening ? "Listening… tap to stop" : "Speak", systemImage: speech.isListening ? "stop.circle.fill" : "mic.fill")
+                        .foregroundStyle(speech.isListening ? .red : .blue)
+                }
             }
-        } label: {
-            Label(speech.isListening ? "Stop listening" : "Speak", systemImage: speech.isListening ? "stop.circle.fill" : "mic.fill")
-                .foregroundStyle(speech.isListening ? .red : .blue)
+            .buttonStyle(.bordered)
+            .help("The mic turns itself off after 10 seconds of silence, with a 3 second countdown. Speaking keeps it on.")
+            Menu {
+                ForEach(Self.languages, id: \.0) { item in
+                    Button { voiceLocale = item.0 } label: { Text(item.0 == voiceLocale ? "\u{2713} \(item.1)" : item.1) }
+                }
+            } label: {
+                Label(Self.languages.first(where: { $0.0 == voiceLocale })?.1 ?? voiceLocale, systemImage: "globe")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .disabled(speech.isListening)
+            .help("Language you speak. Change it before tapping Speak.")
         }
-        .buttonStyle(.bordered)
+        .onReceive(ticker) { _ in
+            guard speech.isListening else { countdown = nil; return }
+            let idle = Date().timeIntervalSince(lastHeard)
+            if idle >= 10 { stopNow() }
+            else if idle >= 7 { countdown = max(1, Int(ceil(10 - idle))) }
+            else { countdown = nil }
+        }
         .onChange(of: speech.errorMessage) { value in showError = !value.isEmpty }
         .alert("Voice input", isPresented: $showError) {
             Button("OK") { speech.clearError() }
