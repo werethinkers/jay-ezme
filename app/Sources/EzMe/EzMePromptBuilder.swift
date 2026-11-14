@@ -66,7 +66,57 @@ enum PromptTargets {
         return items
     }
 
-    static func load() -> [PromptTarget] { defaults + custom() }
+    private static let hiddenKey = "keydoPromptTargetsHidden"
+    private static let overrideKey = "keydoPromptTargetsURLOverrides"
+
+    static func hidden() -> Set<String> { Set(UserDefaults.standard.stringArray(forKey: hiddenKey) ?? []) }
+    private static func overrides() -> [String: String] { UserDefaults.standard.dictionary(forKey: overrideKey) as? [String: String] ?? [:] }
+
+    static func load() -> [PromptTarget] {
+        let hiddenNames = hidden()
+        let changed = overrides()
+        let shown = defaults.filter { !hiddenNames.contains($0.name) }.map { target -> PromptTarget in
+            var copy = target
+            if let url = changed[target.name], !url.isEmpty { copy.url = url }
+            return copy
+        }
+        return shown + custom()
+    }
+
+    /// Takes a link away. The built-in sites are hidden (they can be brought back); added sites are deleted.
+    static func delete(_ target: PromptTarget) {
+        if target.builtIn {
+            UserDefaults.standard.set(Array(hidden().union([target.name])), forKey: hiddenKey)
+        } else {
+            removeCustom(target.name)
+        }
+    }
+
+    static func restoreBuiltIns() {
+        UserDefaults.standard.removeObject(forKey: hiddenKey)
+        UserDefaults.standard.removeObject(forKey: overrideKey)
+    }
+
+    /// Changes the address (and for an added site, the name). An added site keeps what was learned only if its address is the same.
+    static func edit(_ target: PromptTarget, name: String, url: String) {
+        var cleanURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanURL.isEmpty else { return }
+        if !cleanURL.lowercased().hasPrefix("http") { cleanURL = "https://" + cleanURL }
+        if target.builtIn {
+            var changed = overrides()
+            changed[target.name] = cleanURL
+            UserDefaults.standard.set(changed, forKey: overrideKey)
+            return
+        }
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return }
+        var items = custom()
+        guard let index = items.firstIndex(where: { $0.name == target.name }) else { return }
+        if cleanURL != items[index].url { items[index].learned = nil }
+        items[index].name = cleanName
+        items[index].url = cleanURL
+        if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: customKey) }
+    }
 
     /// Adds a site of the person's choice. It uses general-purpose selectors for the prompt box and send button.
     static func addCustom(name: String, url: String) {
@@ -333,6 +383,10 @@ struct PromptBuilderView: View {
     @State private var voiceHint = ""
     @State private var showVoiceHelp = false
     @State private var showAddSite = false
+    @State private var editingSites = false
+    @State private var siteBeingEdited: PromptTarget?
+    @State private var editSiteName = ""
+    @State private var editSiteURL = ""
     @State private var newSiteName = ""
     @State private var newSiteURL = ""
 
@@ -373,6 +427,7 @@ struct PromptBuilderView: View {
         .onChange(of: text) { value in textChanged(value) }
         .onChange(of: autoCorrect) { _ in recompute() }
         .sheet(isPresented: $showAddSite) { addSiteSheet }
+        .sheet(item: $siteBeingEdited) { _ in editSiteSheet }
         .onReceive(NotificationCenter.default.publisher(for: .keydoPromptTargetsChanged)) { _ in targets = PromptTargets.load() }
     }
 
@@ -848,6 +903,15 @@ struct PromptBuilderView: View {
             Text("SEND TO · OPENS IN THE SIDE PANEL AND STARTS RUNNING").font(.caption.weight(.bold)).foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], alignment: .leading, spacing: 10) {
                 ForEach(targets) { target in
+                    if editingSites {
+                        HStack(spacing: 4) {
+                            Text(target.name).font(.callout.weight(.semibold)).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                            Button { beginEdit(target) } label: { Image(systemName: "pencil") }.buttonStyle(.borderless).help("Edit \(target.name)")
+                            Button { PromptTargets.delete(target); targets = PromptTargets.load() } label: { Image(systemName: "trash") }.buttonStyle(.borderless).foregroundStyle(.red).help("Delete \(target.name)")
+                        }
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.purple.opacity(0.12)))
+                    } else {
                     Button { send(to: target) } label: {
                         Label(flashTarget == target.name ? "Sending…" : target.name, systemImage: flashTarget == target.name ? "checkmark.circle.fill" : "paperplane.fill").frame(maxWidth: .infinity)
                     }
@@ -857,14 +921,20 @@ struct PromptBuilderView: View {
                     .animation(.easeInOut(duration: 0.2), value: flashTarget)
                     .disabled(!canSend)
                     .contextMenu {
-                        if !target.builtIn {
-                            Button("Read the page again") { learn(target) }
-                            Button("Remove \(target.name)") { PromptTargets.removeCustom(target.name); targets = PromptTargets.load() }
-                        }
+                        Button("Edit \(target.name)\u{2026}") { beginEdit(target) }
+                        if !target.builtIn { Button("Read the page again") { learn(target) } }
+                        Button("Delete \(target.name)", role: .destructive) { PromptTargets.delete(target); targets = PromptTargets.load() }
+                    }
                     }
                 }
                 Button { showAddSite = true } label: { Label("Add site", systemImage: "plus").frame(maxWidth: .infinity) }
                     .buttonStyle(.bordered)
+                Button { editingSites.toggle() } label: { Label(editingSites ? "Done" : "Edit links", systemImage: editingSites ? "checkmark" : "pencil").frame(maxWidth: .infinity) }
+                    .buttonStyle(.bordered)
+                if editingSites, !PromptTargets.hidden().isEmpty {
+                    Button { PromptTargets.restoreBuiltIns(); targets = PromptTargets.load() } label: { Label("Bring back removed sites", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity) }
+                        .buttonStyle(.bordered)
+                }
             }
             Text("Attached media goes into the site's own upload box, so the site's own sign-in is used.")
                 .font(.caption).foregroundStyle(.secondary)
@@ -887,6 +957,40 @@ struct PromptBuilderView: View {
             : "Opening \(target.name) in the side panel and sending your prompt" + (attached > 0 ? " with \(attached) attached media…" : "…")
         flashTarget = target.name
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if flashTarget == target.name { flashTarget = nil } }
+    }
+
+    private func beginEdit(_ target: PromptTarget) {
+        editSiteName = target.name
+        editSiteURL = target.url
+        siteBeingEdited = target
+    }
+
+    private var editSiteSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Edit AI link").font(.title3.weight(.bold))
+            TextField("Name", text: $editSiteName).disabled(siteBeingEdited?.builtIn == true)
+            TextField("Address", text: $editSiteURL)
+            Text(siteBeingEdited?.builtIn == true
+                 ? "The name of a built-in site stays the same. You can point it at another address."
+                 : "If you change the address, KeyDo reads the new page again.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Cancel") { siteBeingEdited = nil }
+                Button("Save") {
+                    guard let target = siteBeingEdited else { return }
+                    let oldURL = target.url
+                    PromptTargets.edit(target, name: editSiteName, url: editSiteURL)
+                    targets = PromptTargets.load()
+                    siteBeingEdited = nil
+                    if !target.builtIn, let updated = targets.first(where: { $0.name == editSiteName.trimmingCharacters(in: .whitespacesAndNewlines) }), updated.url != oldURL, updated.learned == nil { learn(updated) }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(editSiteURL.trimmingCharacters(in: .whitespaces).isEmpty || editSiteName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
     }
 
     private func learn(_ target: PromptTarget) {

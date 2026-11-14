@@ -56,14 +56,27 @@ struct ButterTopBar: View {
     /// The row of sub-menus and the tip row under the top bar can each be hidden to give the page more room. Remembered across launches.
     @AppStorage("keydoHideMenuRow") private var hideMenuRow = false
     @AppStorage("keydoHideTipRow") private var hideTipRow = false
+    /// Width of the bar. Below about 1,000 points the logo is shown as its icon only, to leave room for the tabs.
+    @State private var barWidth: CGFloat = 1400
+
+    @ViewBuilder private var topBarLogo: some View {
+        if barWidth >= 1000, let logo = ezMeBrandImage() {
+            Image(nsImage: logo).resizable().scaledToFit().frame(width: 136, height: 39).help("KeyDo")
+        } else if let icon = keyDoIconImage() {
+            Image(nsImage: icon).resizable().scaledToFit().padding(5).frame(width: 36, height: 36)
+                .background(Butter.cream, in: RoundedRectangle(cornerRadius: 9))
+                .overlay(RoundedRectangle(cornerRadius: 9).stroke(Butter.honey, lineWidth: 1))
+                .help("KeyDo")
+        } else {
+            Text("KeyDo").font(.system(size: 20, weight: .bold, design: .serif)).foregroundStyle(Butter.cocoa)
+        }
+    }
 
     var body: some View {
         let current = ButterNav.area(containing: section)
         VStack(spacing: 0) {
             HStack(spacing: 6) {
-                Text("KeyDo")
-                    .font(.system(size: 20, weight: .bold, design: .serif))
-                    .foregroundStyle(Butter.cocoa)
+                topBarLogo
                     .padding(.trailing, 10)
                 ForEach(ButterNav.areas) { area in
                     Button {
@@ -180,6 +193,11 @@ struct ButterTopBar: View {
             Rectangle().fill(Butter.honey).frame(height: 1)
         }
         .background(Butter.cream)
+        .background(GeometryReader { proxy in
+            Color.clear
+                .onAppear { barWidth = proxy.size.width }
+                .onChange(of: proxy.size.width) { barWidth = $0 }
+        })
         .animation(.easeInOut(duration: 0.18), value: hideMenuRow)
         .animation(.easeInOut(duration: 0.18), value: hideTipRow)
     }
