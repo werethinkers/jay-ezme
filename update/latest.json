@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 309,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build309/EzMe-3.44-macOS.zip",
-  "sha256": "4a7f1eb39a7a95d59266d826874f9f0290547e26802d65386ac00c8cb9391076",
-  "notes": "## Prompt Builder: SeaArt, mic and language\n\n- **SeaArt and similar image/video pages:** the prompt goes into the largest visible prompt box (SeaArt's rich editor), with a fallback typing method for custom editors. The Generate button is found even when its label shows a changing cost such as \"Generate (Estimated Cost:161)\".\n- **Voice:** saying \"SeaArt\" (or common mishearings such as \"see art\") now picks the SeaArt link.\n- **MacBook mic:** checks that a working microphone exists and explains what to fix if not. Silent gaps no longer end the session with an error.\n- **Auto-off:** the mic turns itself off after 10 seconds of silence, with a visible 3-2-1 countdown. Speaking keeps it on.\n- **Language:** a language menu next to Speak (English, Hindi, Gujarati, Marathi, Bengali, Tamil, Telugu, Spanish, French, German, Arabic, Japanese).",
-  "published": "2026-11-14T04:19:14Z",
+  "build": 312,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build312/EzMe-3.44-macOS.zip",
+  "sha256": "fdf9dd16ccbcb8f0f14d544f11a252f6d71d26c10cec6b28b33fe76833d25b65",
+  "notes": "## New KeyDo logo\n\n- The new logo (speech bubble, arrow and a two-colour \"keydo\" with the coral \"do\") now appears everywhere in the app: sidebar, top bar, sign-in, account page, backslash popup and the app icon in the Dock and Finder.\n- Small spaces use the new icon only.",
+  "published": "2026-11-14T04:41:36Z",
   "minimumSystemVersion": "14.0"
 }
