@@ -2096,6 +2096,15 @@ struct WishTemplatesTab: View {
             .padding(12)
             .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.accentSoft))
 
+            if let builderApp = WishOccasions.all.first(where: { $0.appName == model.app.name || $0.reuses == model.app.name })?.presetName {
+                VStack(alignment: .leading, spacing: 8) {
+                    wishCaption("Voice and sentence commands")
+                    BuilderPhrasesEditor(app: builderApp).id(builderApp)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.accentSoft))
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 wishCaption("Save this look")
                 TextField("Template name, like Soft pink family", text: $name).textFieldStyle(.roundedBorder)
