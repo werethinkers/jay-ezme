@@ -4,6 +4,7 @@
 // 10 seconds, documents and sheets show their first page (Quick Look), links show the page's own preview image,
 // apps show their icon and text shortcuts show their words.
 import AppKit
+import ImageIO
 import AVFoundation
 import AVKit
 import LinkPresentation
@@ -129,6 +130,10 @@ struct LibraryGridView: View {
     /// Every shortcut in the current filter, so the large viewer can step through all the media, not just this page.
     var galleryClips: [Clip]? = nil
     @State private var viewer: LibraryGalleryStart?
+    /// About four or five rows first. More tiles are added only when the person scrolls near the end.
+    @State private var shown = LibraryGridView.firstBatch
+    static let firstBatch = 24
+    private static let nextBatch = 24
 
     private func openViewer(_ clip: Clip, path: String?) {
         let items = LibraryGalleryItem.items(from: galleryClips ?? clips)
@@ -139,8 +144,9 @@ struct LibraryGridView: View {
 
     var body: some View {
         ScrollView {
+          LazyVStack(spacing: 0) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 320), spacing: 14, alignment: .top)], spacing: 14) {
-                ForEach(clips) { clip in
+                ForEach(clips.prefix(shown)) { clip in
                     LibraryGridCard(
                         clip: clip,
                         selecting: selecting,
@@ -154,7 +160,16 @@ struct LibraryGridView: View {
                 }
             }
             .padding(2)
+            if shown < clips.count {
+                ProgressView().controlSize(.small).padding(14)
+                    .onAppear { shown = min(clips.count, shown + LibraryGridView.nextBatch) }
+                    .id(shown)
+            }
+          }
         }
+        .onChange(of: clips.first?.id) { _ in shown = LibraryGridView.firstBatch; LibraryThumbs.removeAll() }
+        .onChange(of: clips.count) { count in if count < shown { shown = max(LibraryGridView.firstBatch, count) } }
+        .onDisappear { LibraryThumbs.removeAll() }
         .sheet(item: $viewer) { start in LibraryMediaViewer(items: start.items, startIndex: start.index) }
     }
 }
@@ -167,13 +182,14 @@ struct LibraryGridCard: View {
     var onEdit: () -> Void
     var onEnlarge: () -> Void = {}
     @State private var hovering = false
+    @State private var visible = false
 
     private var type: LibraryContentType { LibraryContentType.of(clip) }
     private var canEnlarge: Bool { [.image, .gif, .video, .music].contains(type) && clip.files.contains { FileManager.default.fileExists(atPath: $0) } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            LibraryPreview(clip: clip, type: type)
+            LibraryPreview(clip: clip, type: type, isVisible: visible)
                 .frame(height: 160)
                 .frame(maxWidth: .infinity)
                 .clipped()
@@ -196,6 +212,8 @@ struct LibraryGridCard: View {
         .shadow(color: .black.opacity(hovering ? 0.14 : 0.05), radius: hovering ? 8 : 3, y: 2)
         .contentShape(RoundedRectangle(cornerRadius: 14))
         .onHover { hovering = $0 }
+        .onAppear { visible = true }
+        .onDisappear { visible = false }
         .onTapGesture { if selecting { onToggle() } else { onEdit() } }
     }
 
@@ -242,6 +260,8 @@ struct LibraryGridCard: View {
 struct LibraryPreview: View {
     let clip: Clip
     let type: LibraryContentType
+    /// False once the tile has scrolled away: videos and GIFs stop and free their memory.
+    var isVisible: Bool = true
 
     private var path: String? {
         clip.files.first(where: { FileManager.default.fileExists(atPath: $0) })
@@ -257,15 +277,21 @@ struct LibraryPreview: View {
     @ViewBuilder private var content: some View {
         switch type {
         case .image:
-            if let path = path, let image = EzMeImageCache.load(contentsOfFile: path) {
-                Image(nsImage: image).resizable().scaledToFill()
-            } else {
-                missing("photo")
-            }
+            if let path = path { LibraryPosterTile(path: path, isVideo: false) } else { missing("photo") }
         case .gif:
-            if let path = path { AnimatedGIFView(path: path) } else { missing("photo.on.rectangle.angled") }
+            if let path = path {
+                ZStack {
+                    LibraryPosterTile(path: path, isVideo: false)
+                    if isVisible { AnimatedGIFView(path: path) }
+                }
+            } else { missing("photo.on.rectangle.angled") }
         case .video:
-            if let path = path { LoopingVideoView(url: URL(fileURLWithPath: path), limit: 10) } else { missing("film") }
+            if let path = path {
+                ZStack {
+                    LibraryPosterTile(path: path, isVideo: true)
+                    if isVisible { LoopingVideoView(url: URL(fileURLWithPath: path), limit: 10) }
+                }
+            } else { missing("film") }
         case .music:
             ZStack {
                 LinearGradient(colors: [Color.purple.opacity(0.35), Color.blue.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -371,8 +397,73 @@ final class LoopingVideoNSView: NSView {
 
     func stop() {
         player.pause()
+        player.replaceCurrentItem(with: nil)
         if let observer = timeObserver { player.removeTimeObserver(observer); timeObserver = nil }
         if let observer = endObserver { NotificationCenter.default.removeObserver(observer); endObserver = nil }
+    }
+}
+
+// MARK: Small pictures, kept in a bounded cache
+
+/// Small copies of pictures and video first frames. The cache is limited in size and is emptied when the grid goes away,
+/// so a big library never holds full-size pictures in memory.
+enum LibraryThumbs {
+    private static let cache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 140
+        cache.totalCostLimit = 40 * 1024 * 1024
+        return cache
+    }()
+
+    static func removeAll() { cache.removeAllObjects() }
+
+    private static func store(_ image: NSImage, key: String) {
+        cache.setObject(image, forKey: key as NSString, cost: Int(image.size.width * image.size.height * 4))
+    }
+
+    static func picture(_ path: String, maxPixel: CGFloat = 520) async -> NSImage? {
+        let key = "p:" + path
+        if let hit = cache.object(forKey: key as NSString) { return hit }
+        let image: NSImage? = await Task.detached(priority: .utility) {
+            guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil) else { return nil }
+            let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                                           kCGImageSourceThumbnailMaxPixelSize: maxPixel, kCGImageSourceShouldCacheImmediately: true]
+            guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+            return NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        }.value
+        if let image { store(image, key: key) }
+        return image
+    }
+
+    static func videoFrame(_ path: String, maxPixel: CGFloat = 520) async -> NSImage? {
+        let key = "v:" + path
+        if let hit = cache.object(forKey: key as NSString) { return hit }
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: URL(fileURLWithPath: path)))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: maxPixel, height: maxPixel)
+        guard let result = try? await generator.image(at: CMTime(seconds: 0.4, preferredTimescale: 600)) else { return nil }
+        let image = NSImage(cgImage: result.image, size: NSSize(width: result.image.width, height: result.image.height))
+        store(image, key: key)
+        return image
+    }
+}
+
+/// A resized picture, or a video's first frame. Cleared when the tile scrolls away.
+struct LibraryPosterTile: View {
+    let path: String
+    let isVideo: Bool
+    @State private var image: NSImage?
+
+    var body: some View {
+        ZStack {
+            if let image { Image(nsImage: image).resizable().scaledToFill() }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
+        .task(id: path) {
+            image = isVideo ? await LibraryThumbs.videoFrame(path) : await LibraryThumbs.picture(path)
+        }
+        .onDisappear { image = nil }
     }
 }
 

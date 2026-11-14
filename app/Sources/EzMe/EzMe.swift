@@ -1228,21 +1228,25 @@ private struct BrowserBookmarkEditor:View{
 }
 struct EzMeWebView:NSViewRepresentable { @ObservedObject var state:EzMeBrowserTabs;var tab:EzMeBrowserTab
  func makeCoordinator()->Coordinator{Coordinator(state:state,id:tab.id)}
- func makeNSView(context:Context)->WKWebView{let configuration=WKWebViewConfiguration();configuration.websiteDataStore=state.webDataStore;configuration.preferences.javaScriptCanOpenWindowsAutomatically=true;let view=WKWebView(frame:.zero,configuration:configuration);view.navigationDelegate=context.coordinator;view.uiDelegate=context.coordinator;state.webViews[tab.id]=view;if let url=URL(string:tab.url){view.load(URLRequest(url:url))};return view}
+ func makeNSView(context:Context)->WKWebView{let configuration=WKWebViewConfiguration();configuration.websiteDataStore=state.webDataStore;configuration.preferences.javaScriptCanOpenWindowsAutomatically=false;configuration.preferences.isElementFullscreenEnabled=true;let view=WKWebView(frame:.zero,configuration:configuration);view.navigationDelegate=context.coordinator;view.uiDelegate=context.coordinator;EzMeBrowserSafety.withRules{[weak view] list in view?.configuration.userContentController.add(list)};state.webViews[tab.id]=view;if let url=URL(string:tab.url){view.load(URLRequest(url:url))};return view}
  func updateNSView(_ view:WKWebView,context:Context){view.pageZoom=state.zoomLevels[tab.id] ?? 1.0;if view.url?.absoluteString != tab.url,let url=URL(string:tab.url){view.load(URLRequest(url:url))}}
  final class Coordinator:NSObject,WKNavigationDelegate,WKUIDelegate,WKDownloadDelegate {
-  let state:EzMeBrowserTabs;let id:String;private var activeDownloads=[ObjectIdentifier:WKDownload]();private var downloadDestinations=[ObjectIdentifier:URL]()
+  let state:EzMeBrowserTabs;let id:String;private var activeDownloads=[ObjectIdentifier:WKDownload]();private var downloadDestinations=[ObjectIdentifier:URL]();private var upgradedFrom:URL?;private var insecureAllowed=Set<String>()
   init(state:EzMeBrowserTabs,id:String){self.state=state;self.id=id}
   func webView(_ webView:WKWebView,runOpenPanelWith parameters:WKOpenPanelParameters,initiatedByFrame frame:WKFrameInfo,completionHandler:@escaping ([URL]?)->Void){let panel=NSOpenPanel();panel.title="Choose a file to upload";panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=parameters.allowsMultipleSelection;panel.allowedContentTypes=[.item];panel.begin{response in completionHandler(response == .OK ? panel.urls:nil)}}
-  func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!){state.update(id,title:webView.title ?? "Web page",url:webView.url?.absoluteString ?? state.address);state.loadFavicon(for:id,webView:webView)}
-  func webView(_ webView:WKWebView,decidePolicyFor navigationAction:WKNavigationAction,decisionHandler:@escaping (WKNavigationActionPolicy)->Void){if navigationAction.shouldPerformDownload{decisionHandler(.download);return};if navigationAction.navigationType == .linkActivated,navigationAction.targetFrame?.isMainFrame ?? true,state.shouldSendToSplit(from:id),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.openInSplit(target.absoluteString);decisionHandler(.cancel);return};decisionHandler(.allow)}
+  func webView(_ webView:WKWebView,didFailProvisionalNavigation navigation:WKNavigation!,withError error:Error){guard let original=upgradedFrom,(error as NSError).code != NSURLErrorCancelled else{return};upgradedFrom=nil;if let host=original.host{insecureAllowed.insert(host)};webView.load(URLRequest(url:original))}
+  func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!){upgradedFrom=nil;state.update(id,title:webView.title ?? "Web page",url:webView.url?.absoluteString ?? state.address);state.loadFavicon(for:id,webView:webView)}
+  func webView(_ webView:WKWebView,decidePolicyFor navigationAction:WKNavigationAction,decisionHandler:@escaping (WKNavigationActionPolicy)->Void){if navigationAction.shouldPerformDownload{decisionHandler(.download);return};if navigationAction.targetFrame?.isMainFrame ?? true,let target=navigationAction.request.url,!insecureAllowed.contains(target.host ?? ""),upgradedFrom != target,let secure=EzMeBrowserSafety.httpsUpgrade(for:target){upgradedFrom=target;decisionHandler(.cancel);webView.load(URLRequest(url:secure));return};if navigationAction.navigationType == .linkActivated,navigationAction.targetFrame?.isMainFrame ?? true,state.shouldSendToSplit(from:id),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.openInSplit(target.absoluteString);decisionHandler(.cancel);return};decisionHandler(.allow)}
   func webView(_ webView:WKWebView,createWebViewWith configuration:WKWebViewConfiguration,for navigationAction:WKNavigationAction,windowFeatures:WKWindowFeatures)->WKWebView?{guard navigationAction.targetFrame == nil else{return nil};if state.shouldSendToSplit(from:id),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.openInSplit(target.absoluteString);return nil};webView.load(navigationAction.request);return nil}
-  func webView(_ webView:WKWebView,decidePolicyFor navigationResponse:WKNavigationResponse,decisionHandler:@escaping (WKNavigationResponsePolicy)->Void){let attachment=(navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField:"Content-Disposition")?.localizedCaseInsensitiveContains("attachment") ?? false;let mime=navigationResponse.response.mimeType?.lowercased() ?? "";let media=mime.hasPrefix("image/") || mime.hasPrefix("audio/") || mime.hasPrefix("video/");if attachment || media || !navigationResponse.canShowMIMEType{decisionHandler(.download)}else{decisionHandler(.allow)}}
+  func webView(_ webView:WKWebView,decidePolicyFor navigationResponse:WKNavigationResponse,decisionHandler:@escaping (WKNavigationResponsePolicy)->Void){let attachment=(navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField:"Content-Disposition")?.localizedCaseInsensitiveContains("attachment") ?? false;let mime=navigationResponse.response.mimeType?.lowercased() ?? "";if attachment || !navigationResponse.canShowMIMEType{decisionHandler(.download)}else{decisionHandler(.allow)};_=mime}
   func webView(_ webView:WKWebView,navigationAction:WKNavigationAction,didBecome download:WKDownload){begin(download)}
   func webView(_ webView:WKWebView,navigationResponse:WKNavigationResponse,didBecome download:WKDownload){begin(download)}
   private func begin(_ download:WKDownload){activeDownloads[ObjectIdentifier(download)]=download;download.delegate=self;state.downloadStatus="Downloading to Desktop…"}
   func download(_ download:WKDownload,decideDestinationUsing response:URLResponse,suggestedFilename:String,completionHandler:@escaping (URL?)->Void){
-   let folder=FileManager.default.urls(for:.desktopDirectory,in:.userDomainMask)[0];let raw=URL(fileURLWithPath:suggestedFilename).lastPathComponent;let safe=raw.isEmpty ? "download" : raw;var destination=folder.appendingPathComponent(safe);var n=2;while FileManager.default.fileExists(atPath:destination.path){let ext=destination.pathExtension;let base=destination.deletingPathExtension().lastPathComponent;destination=folder.appendingPathComponent("\(base) (\(n))"+(ext.isEmpty ? "":".\(ext)"));n+=1};downloadDestinations[ObjectIdentifier(download)]=destination;completionHandler(destination)
+   let raw=URL(fileURLWithPath:suggestedFilename).lastPathComponent;let safe=raw.isEmpty ? "download" : raw
+   if EzMeBrowserSafety.isBlocked(filename:safe){state.downloadStatus="Blocked · KeyDo does not download programs or installers (\(safe))";activeDownloads.removeValue(forKey:ObjectIdentifier(download));completionHandler(nil);return}
+   if !EzMeBrowserSafety.confirmDownload(filename:safe,from:response.url?.host ?? ""){state.downloadStatus="Download cancelled";activeDownloads.removeValue(forKey:ObjectIdentifier(download));completionHandler(nil);return}
+   let folder=FileManager.default.urls(for:.desktopDirectory,in:.userDomainMask)[0];var destination=folder.appendingPathComponent(safe);var n=2;while FileManager.default.fileExists(atPath:destination.path){let ext=destination.pathExtension;let base=destination.deletingPathExtension().lastPathComponent;destination=folder.appendingPathComponent("\(base) (\(n))"+(ext.isEmpty ? "":".\(ext)"));n+=1};downloadDestinations[ObjectIdentifier(download)]=destination;completionHandler(destination)
   }
   func downloadDidFinish(_ download:WKDownload){let key=ObjectIdentifier(download);let destination=downloadDestinations.removeValue(forKey:key);let name=destination?.lastPathComponent ?? "file";state.downloadStatus="Downloaded to Desktop · \(name)";state.lastDownloadURL=destination;activeDownloads.removeValue(forKey:key)}
   func download(_ download:WKDownload,didFailWithError error:Error,resumeData:Data?){let key=ObjectIdentifier(download);state.downloadStatus="Download failed · \(error.localizedDescription)";downloadDestinations.removeValue(forKey:key);activeDownloads.removeValue(forKey:key)}
@@ -1883,6 +1887,7 @@ struct AppIconGallerySheet:View{
      Button("Add action",systemImage:"plus.circle.fill"){createActionFromPrompt()}.buttonStyle(.borderedProminent).tint(Butter.coral).disabled(newActionName.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty)
     }
     TextField("Action code (e.g. invoice)",text:$shortcutPrefix).textFieldStyle(.roundedBorder)
+    BuilderPhrasesEditor(app:name).id(name)
     Text("The Action says what to do. Add missing Information, pick saved shortcut content in Collection, then define calculations in Function and the final Selection.").font(.caption).foregroundStyle(.secondary)
    }
   } label:{Text("Step 1 · Action").font(.system(size:19,weight:.bold,design:.rounded)).help("Action (Prompt): choose an AI task or one-tap command that does the work. This is the purpose of your app.")}
@@ -2953,6 +2958,7 @@ func keydoSpokenAppCommand(_ spoken:String,clips:[Clip],records:[CollectionRecor
 func customBuilderCommand(_ raw:String,clips:[Clip]=[],records:[CollectionRecord]=[])->CustomBuilderCommand?{
  var command=raw.trimmingCharacters(in:.whitespacesAndNewlines);if command.first=="\\" || command.first=="/"{command.removeFirst()}
  let names=(try? JSONDecoder().decode([String].self,from:Data((UserDefaults.standard.string(forKey:"ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
+ if let sentence=BuilderPhrases.rewrite(command,apps:names){command=sentence}
  for app in names {
   migrateLegacyBillBuilderSchema(app)
   let defaultPrefix=String(app.lowercased().replacingOccurrences(of:"[^a-z0-9]+",with:"-",options:.regularExpression).prefix(12))
@@ -3451,12 +3457,22 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
         if extraHeightObserver == nil{extraHeightObserver=NotificationCenter.default.addObserver(forName:.keydoPopupExtraHeight,object:nil,queue:.main){[weak self] note in let extra=note.userInfo?["extra"] as? CGFloat ?? 0;MainActor.assumeIsolated{self?.applyExtraHeight(extra)}}}
         if voiceLayoutObserver == nil{voiceLayoutObserver=NotificationCenter.default.addObserver(forName:.keydoVoiceLayoutChanged,object:nil,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.applyCompact()}}}
         var handlers=KeyDoVoice.Handlers()
-        handlers.search={[weak self,weak db] text in guard let db else{self?.setQuery(text);return};self?.setQuery(keydoSpokenAppCommand(text,clips:db.clips,records:db.collectionRecords))}
+        handlers.search={[weak self,weak db] text in guard let db else{self?.setQuery(text);return};let query=keydoSpokenAppCommand(text,clips:db.clips,records:db.collectionRecords);self?.setQuery(query);self?.scheduleVoiceAutoRun(query,db:db)}
         handlers.enter={[weak self] in self?.chooseFirst()}
         handlers.move={delta in NotificationCenter.default.post(name:.miniJMoveSelection,object:nil,userInfo:["delta":delta])}
         handlers.close={[weak self] in self?.hide()}
         handlers.vocabulary={[weak db] in guard let db else{return []};return db.availableClips.prefix(60).flatMap{clip in [clip.name,String(clip.key.drop(while:{$0=="/" || $0=="\\"}))]}.filter{!$0.isEmpty}}
         KeyDoVoice.shared.attach(.popup,handlers)
+    }
+    private var voiceAutoRun:DispatchWorkItem?
+    /// A spoken sentence such as "send diwali greetings to Rohit" runs by itself once the words stop: it makes the card and pastes it.
+    private func scheduleVoiceAutoRun(_ query:String,db:DB){
+        voiceAutoRun?.cancel()
+        let names=(try? JSONDecoder().decode([String].self,from:Data((UserDefaults.standard.string(forKey:"ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
+        guard BuilderPhrases.rewrite(query,apps:names) != nil,let command=customBuilderCommand(query,clips:db.clips,records:db.collectionRecords),command.isComplete else{return}
+        let work=DispatchWorkItem{NotificationCenter.default.post(name:.keydoBuilderEnter,object:nil)}
+        voiceAutoRun=work
+        DispatchQueue.main.asyncAfter(deadline:.now()+1.4,execute:work)
     }
     func setQuery(_ value: String) {
         queryWork?.cancel()
