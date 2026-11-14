@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 314,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build314/EzMe-3.44-macOS.zip",
-  "sha256": "a43c7c3e7e28f0f5cb6d1dfb944baae025425d0e96f149b53558af7a5ac72d1e",
-  "notes": "## Voice that listens, then rests\n\n- **Auto-off:** after 10 seconds with nothing said, the popup and app mic turn off. The last 3 seconds show a countdown (\"Turning off in 3\u2026\"), and speaking keeps the mic on. Background listening, if you turned it on in voice settings, keeps running.\n- **Say \"KeyDo\":** while the mic is listening in the background, say \"KeyDo\" (or \"Hey KeyDo\") to open the popup.\n- **Apps by sentence:** Send, Create, Make, Generate, Write and similar words start an app, for example \"Send Diwali greetings to Mohit\". More starter words were added.\n- **Collections and shortcuts by voice:** say \"hashtag birthday\" or \"hash media files rahul\" to pick a collection and search inside it, \"run collection X\", \"run shortcut X\" or \"run X\" to find and paste a shortcut, \"insert function date\" (or \"insert date\") to paste a live value, and \"all collections\" to search everywhere again.",
-  "published": "2026-11-14T11:23:13Z",
+  "build": 316,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build316/EzMe-3.44-macOS.zip",
+  "sha256": "f016f9dfbb211e6afb399ab3791f6923c72abefd717a216898e5f2bed0aa49ab",
+  "notes": "## \"Hey KeyDo\" now listens in the background\n\n- While KeyDo is open, the mic quietly waits for \"Hey KeyDo\" (or \"KeyDo\"). It ignores everything else you say, so it never types or runs anything by accident. Saying it opens the popup and starts normal voice commands.\n- After 10 quiet seconds in the popup (with the 3 second countdown), KeyDo goes back to waiting for \"Hey KeyDo\" instead of switching the mic off. Closing the popup does the same.\n- Turn it off in voice settings: \"Always listen for Hey KeyDo\". macOS shows its orange mic dot while it is on, and asks for microphone and speech permission the first time.\n- Opening the popup by voice from the app now also switches voice commands over to the popup, so what you say next lands in its search.",
+  "published": "2026-11-14T14:44:39Z",
   "minimumSystemVersion": "14.0"
 }
