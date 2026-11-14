@@ -71,7 +71,7 @@ enum BuilderPhrases {
 
     // MARK: Loose matching: "send diwali greetings to Rohit"
 
-    private static let verbs: Set<String> = ["send", "create", "make", "generate", "write", "prepare", "wish", "share", "run", "start", "give", "design", "build", "get", "compose", "draft"]
+    private static let verbs: Set<String> = ["send", "create", "make", "generate", "write", "prepare", "wish", "share", "run", "start", "give", "design", "build", "get", "compose", "draft", "produce", "do", "issue", "raise"]
     private static let lead: Set<String> = ["please", "can", "could", "you", "hey", "kindly", "now", "just", "i", "want", "to", "need", "would", "like", "will", "let", "lets", "let's"]
     private static let fillers: Set<String> = ["a", "an", "the", "some", "my", "happy", "greeting", "greetings", "card", "cards", "wish", "wishes", "wishing", "message", "messages", "note", "image", "picture", "pic", "post", "new", "special", "festival", "festive", "best", "warm", "lovely", "nice", "beautiful", "our", "and"]
     private static let connectors: Set<String> = ["to", "for", "of", "about", "towards", "with"]
