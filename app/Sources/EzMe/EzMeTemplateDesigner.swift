@@ -95,11 +95,11 @@ struct TemplateLibraryView: View {
                     }
                 }
                 if !message.isEmpty { Text(message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)) }
-                if store.templates.isEmpty {
+                if store.templates.filter({ $0.designID == nil }).isEmpty {
                     emptyState
                 } else {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 230, maximum: 300), spacing: 14)], spacing: 14) {
-                        ForEach(store.templates) { template in card(template) }
+                        ForEach(store.templates.filter { $0.designID == nil }) { template in card(template) }
                     }
                 }
                 Text("An app fills a box when it has a field with the same name, for example a field called amount fills the box called amount. Text always shrinks to fit its box.")
@@ -199,12 +199,11 @@ struct TemplateUseSheet: View {
     }
 
     var body: some View {
-        let template = store.template(id: templateID)
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Use \u{201C}\(template?.name ?? "template")\u{201D} in apps").font(.system(size: 17, weight: .bold)).foregroundStyle(Butter.cocoa)
-                    Text("Boxes: \((template?.fieldKeys ?? []).joined(separator: ", "))").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
+                    Text("Use \u{201C}\(TemplateLinks.title(for: templateID))\u{201D} in apps").font(.system(size: 17, weight: .bold)).foregroundStyle(Butter.cocoa)
+                    Text("Boxes and variables: \(TemplateLinks.fieldKeys(for: templateID).joined(separator: ", "))").font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(2)
                 }
                 Spacer()
                 Button("Done") { dismiss() }.buttonStyle(.borderedProminent).tint(Butter.coral)
@@ -257,6 +256,7 @@ struct WishTemplatePicker: View {
     var existingFieldKeys: [String]
     var onAddFields: ([String]) -> Void
     @ObservedObject private var store = TemplateStore.shared
+    @ObservedObject private var designs = AppDesignStore.shared
     @State private var selected = ""
     @State private var showLibrary = false
 
@@ -266,15 +266,17 @@ struct WishTemplatePicker: View {
             HStack(spacing: 10) {
                 Picker("", selection: $selected) {
                     Text("None: use the built-in looks").tag("")
-                    ForEach(store.templates) { Text($0.name).tag($0.id) }
+                    ForEach(store.templates.filter { $0.designID == nil }) { Text($0.name).tag($0.id) }
+                    ForEach(designs.designs) { Text($0.name + " (AppDesigner)").tag("design:" + $0.id) }
                 }
                 .labelsHidden().frame(maxWidth: 320)
-                Button { showLibrary = true } label: { Label("Design or upload templates", systemImage: "photo.on.rectangle.angled") }
+                Button { showLibrary = true } label: { Label("Open AppDesigner", systemImage: "paintpalette.fill") }
                     .buttonStyle(.bordered)
             }
-            if let template = store.template(id: selected) {
-                let missing = template.fieldKeys.filter { key in !existingFieldKeys.contains(where: { TemplateFill.normal($0) == TemplateFill.normal(key) }) }
-                Text("Boxes: \(template.fieldKeys.joined(separator: ", ")). A field with the same name fills its box.")
+            if !selected.isEmpty, !TemplateLinks.pages(for: selected).isEmpty {
+                let keys = TemplateLinks.fieldKeys(for: selected)
+                let missing = keys.filter { key in !existingFieldKeys.contains(where: { TemplateFill.normal($0) == TemplateFill.normal(key) }) }
+                Text("Boxes and variables: \(keys.joined(separator: ", ")). A field with the same name fills its box.")
                     .font(.system(size: 11)).foregroundStyle(WishTheme.muted)
                 if !missing.isEmpty {
                     Button { onAddFields(missing) } label: { Label("Create \(missing.count) field\(missing.count == 1 ? "" : "s") from the boxes", systemImage: "plus.rectangle.on.rectangle") }
@@ -290,9 +292,9 @@ struct WishTemplatePicker: View {
         .sheet(isPresented: $showLibrary) {
             VStack(spacing: 0) {
                 HStack { Spacer(); Button("Close") { showLibrary = false }.buttonStyle(.borderedProminent).tint(Butter.coral) }.padding(12)
-                TemplateLibraryView()
+                AppDesignerView()
             }
-            .frame(minWidth: 1040, minHeight: 720)
+            .frame(minWidth: 1100, minHeight: 760)
         }
     }
 }
@@ -339,11 +341,35 @@ struct TemplateDesignerView: View {
     @State private var testImages: [String: NSImage] = [:]
     @State private var testVersion = 0
     var onClose: () -> Void
+    var pageInfo: (index: Int, count: Int)? = nil
+    var onGoToPage: ((Int) -> Void)? = nil
+    var onAddPage: (() -> Void)? = nil
+    var onRelease: (() -> String)? = nil
+    var onVariablesChange: (([String: String]) -> Void)? = nil
+    var onReplaceElsewhere: ((String, String) -> Int)? = nil
+    var designTitle: String? = nil
+    @State private var vars: [String: String]
+    @State private var commandText = ""
+    @State private var heard = ""
+    @State private var newVariable = ""
+    @StateObject private var speech = EzMeSpeechDictation()
+    @FocusState private var commandFocused: Bool
 
-    init(template: ImageTemplate, onClose: @escaping () -> Void) {
+    init(template: ImageTemplate, onClose: @escaping () -> Void, pageInfo: (index: Int, count: Int)? = nil,
+         onGoToPage: ((Int) -> Void)? = nil, onAddPage: (() -> Void)? = nil, onRelease: (() -> String)? = nil,
+         variables: [String: String] = [:], onVariablesChange: (([String: String]) -> Void)? = nil,
+         onReplaceElsewhere: ((String, String) -> Int)? = nil, designTitle: String? = nil) {
         _template = State(initialValue: template)
         _base = State(initialValue: TemplateStore.shared.basePicture(for: template) ?? NSImage(size: NSSize(width: 100, height: 100)))
+        _vars = State(initialValue: variables)
         self.onClose = onClose
+        self.pageInfo = pageInfo
+        self.onGoToPage = onGoToPage
+        self.onAddPage = onAddPage
+        self.onRelease = onRelease
+        self.onVariablesChange = onVariablesChange
+        self.onReplaceElsewhere = onReplaceElsewhere
+        self.designTitle = designTitle
     }
 
     // MARK: Layout
@@ -353,7 +379,12 @@ struct TemplateDesignerView: View {
             topBar
             Divider()
             HStack(spacing: 0) {
-                canvas.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(white: 0.9))
+                VStack(spacing: 0) {
+                    canvas.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    Divider()
+                    commandBar
+                }
+                .background(Color(white: 0.9))
                 Divider()
                 ScrollView { inspector.padding(14) }.frame(width: 350).background(Color(nsColor: .windowBackgroundColor))
             }
@@ -363,18 +394,32 @@ struct TemplateDesignerView: View {
         .onChange(of: mode) { _, _ in refresh() }
         .onChange(of: testTexts) { _, _ in refresh() }
         .onChange(of: testVersion) { _, _ in refresh() }
-        .onDisappear { store.save(template) }
+        .onChange(of: vars) { _, _ in refresh() }
+        .onDisappear { speech.stop(); store.save(template) }
     }
 
     private var topBar: some View {
         HStack(spacing: 10) {
             Button { finish() } label: { Label("Templates", systemImage: "chevron.left") }.buttonStyle(.bordered)
-            TextField("Template name", text: $template.name).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
+            if let designTitle { Text(designTitle).font(.system(size: 13, weight: .bold)).foregroundStyle(Butter.cocoa).lineLimit(1) }
+            TextField(designTitle == nil ? "Template name" : "Page name", text: $template.name).textFieldStyle(.roundedBorder).frame(maxWidth: 200)
+            if let info = pageInfo {
+                HStack(spacing: 4) {
+                    Button { _ = go(to: info.index - 2) } label: { Image(systemName: "chevron.left") }.disabled(info.index <= 1)
+                    Text("Page \(info.index) of \(info.count)").font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.cocoa)
+                    Button { _ = go(to: info.index) } label: { Image(systemName: "chevron.right") }.disabled(info.index >= info.count)
+                    Button { _ = perform(.addPage) } label: { Label("Page", systemImage: "plus") }
+                }
+                .buttonStyle(.bordered).controlSize(.small)
+            }
             Picker("", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
                 .pickerStyle(.segmented).labelsHidden().frame(width: 230)
             if let busy { ProgressView().controlSize(.small); Text(busy).font(.system(size: 12)).foregroundStyle(.secondary) }
             else if !message.isEmpty { Text(message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)).lineLimit(1) }
             Spacer()
+            if onRelease != nil {
+                Button { message = perform(.release) } label: { Label("Release", systemImage: "paperplane.fill") }.buttonStyle(.bordered)
+            }
             Button { finish() } label: { Label("Save and close", systemImage: "checkmark") }
                 .buttonStyle(.borderedProminent).tint(Butter.coral)
         }
@@ -560,6 +605,7 @@ struct TemplateDesignerView: View {
         switch mode {
         case .design:
             VStack(alignment: .leading, spacing: 14) {
+                if onVariablesChange != nil { variablesCard }
                 pictureCard
                 addCard
                 boxesCard
@@ -573,7 +619,10 @@ struct TemplateDesignerView: View {
                 pictureCard
             }
         case .fill:
-            fillCard
+            VStack(alignment: .leading, spacing: 14) {
+                if onVariablesChange != nil { variablesCard }
+                fillCard
+            }
         }
     }
 
@@ -698,6 +747,7 @@ struct TemplateDesignerView: View {
                     Button("0\u{00B0}") { template.slots[index].angle = 0 }.buttonStyle(.bordered).controlSize(.small)
                 }
             }
+            if slot.kind != .logo { contentEditor(index) }
             if slot.kind == .text { textEditor(index) }
             if slot.kind == .logo { logoEditor(index) }
             HStack {
@@ -821,14 +871,14 @@ struct TemplateDesignerView: View {
     }
 
     private func exportPNG() {
-        let inputs = testInputs()
-        guard let data = TemplateRenderer.pngData(template, base: base, texts: inputs.texts, images: inputs.images) else { message = "The picture could not be made."; return }
+        let made = resolvedInputs(designing: false)
+        guard let data = TemplateRenderer.pngData(template, base: base, texts: made.texts, images: made.images) else { message = "The picture could not be made."; return }
         message = TemplateDialogs.savePNG(data, name: template.name)
     }
 
     private func copyPNG() {
-        let inputs = testInputs()
-        guard let data = TemplateRenderer.pngData(template, base: base, texts: inputs.texts, images: inputs.images), let image = NSImage(data: data) else { return }
+        let made = resolvedInputs(designing: false)
+        guard let data = TemplateRenderer.pngData(template, base: base, texts: made.texts, images: made.images), let image = NSImage(data: data) else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
         message = "Copied the picture."
@@ -837,9 +887,8 @@ struct TemplateDesignerView: View {
     // MARK: Actions
 
     private func refresh() {
-        let inputs = testInputs()
-        preview = TemplateRenderer.render(template, base: base, texts: mode == .fill ? inputs.texts : nil, images: inputs.images,
-                                          useSamples: mode != .fill, maxSide: 1500)
+        let made = resolvedInputs(designing: mode != .fill)
+        preview = TemplateRenderer.render(template, base: base, texts: made.texts, images: made.images, useSamples: mode != .fill, maxSide: 1500)
     }
 
     private func uniqueKey(_ stem: String) -> String {
@@ -982,5 +1031,443 @@ struct TemplateDesignerView: View {
             template.slots.append(slot)
         }
         selectedID = nil
+    }
+}
+
+// MARK: - AppDesigner additions: live content, variables, spoken commands
+
+struct DesignFunction: Identifiable {
+    let title: String
+    let token: String
+    var id: String { token }
+    static let items: [DesignFunction] = [
+        DesignFunction(title: "Today's date", token: "{=TODAY()}"), DesignFunction(title: "Time now", token: "{=time}"),
+        DesignFunction(title: "Date and time", token: "{=now}"), DesignFunction(title: "Month", token: "{=month}"),
+        DesignFunction(title: "Year", token: "{=year}"), DesignFunction(title: "Weekday", token: "{=weekday}"),
+        DesignFunction(title: "Date + 7 days", token: "{=Date+7}"), DesignFunction(title: "Date + 30 days", token: "{=Date+30}")
+    ]
+}
+
+extension TemplateDesignerView {
+    func luminance(_ hex: String) -> Double {
+        guard let color = NSColor(templateHex: hex).usingColorSpace(.deviceRGB) else { return 1 }
+        return 0.299 * Double(color.redComponent) + 0.587 * Double(color.greenComponent) + 0.114 * Double(color.blueComponent)
+    }
+
+    func mixWithWhite(_ hex: String, _ amount: Double) -> String {
+        guard let color = NSColor(templateHex: hex).usingColorSpace(.deviceRGB) else { return hex }
+        func blend(_ value: CGFloat) -> CGFloat { value * (1 - CGFloat(amount)) + CGFloat(amount) }
+        return NSColor(srgbRed: blend(color.redComponent), green: blend(color.greenComponent), blue: blend(color.blueComponent), alpha: 1).templateHex
+    }
+
+    /// Text and pictures for every box: what an app would give it, or its live content worked out.
+    func resolvedInputs(designing: Bool) -> (texts: [String: String], images: [String: NSImage]) {
+        let inputs = testInputs()
+        var values: [String: String] = [:]
+        for (key, value) in vars { values[key] = value }
+        for (key, value) in inputs.texts { values[key] = value }
+        let made = TemplateFill.resolved(template, values: values, clips: AppDesignContext.shared.clips, designing: designing)
+        var images = made.images
+        for (key, image) in inputs.images { images[key] = image }
+        return (made.texts, images)
+    }
+
+    // MARK: Command bar
+
+    var commandBar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Button { toggleListening() } label: {
+                    Image(systemName: speech.isListening ? "mic.fill" : "mic")
+                        .foregroundStyle(speech.isListening ? Color.white : Butter.coral)
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(speech.isListening ? Butter.coral : Color.white))
+                        .overlay(Circle().stroke(Butter.coral, lineWidth: 1.5))
+                }
+                .buttonStyle(.plain).help(speech.isListening ? "Stop listening" : "Listen: say what to change")
+                TextField("Say or type a change, like \u{201C}make the text pink\u{201D} or \u{201C}go to page 2\u{201D}", text: $commandText)
+                    .textFieldStyle(.roundedBorder).focused($commandFocused)
+                    .onSubmit { submitCommand() }
+                Button("Do it") { submitCommand() }.buttonStyle(.borderedProminent).tint(Butter.coral).disabled(commandText.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button { undoLast() } label: { Image(systemName: "arrow.uturn.backward") }.buttonStyle(.bordered).disabled(undo.isEmpty).help("Undo")
+            }
+            if speech.isListening || !heard.isEmpty {
+                Text(speech.isListening ? "Listening\u{2026} \(heard)" : "Heard: \(heard)").font(.system(size: 11)).foregroundStyle(Butter.cocoa.opacity(0.75)).lineLimit(1)
+            }
+        }
+        .padding(10).background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    func submitCommand() {
+        let text = commandText
+        commandText = ""
+        runCommand(text)
+        commandFocused = true
+    }
+
+    func toggleListening() {
+        if speech.isListening { speech.stop(); return }
+        speech.startContinuous(onTranscript: { text in runCommand(text) }, onPartial: { partial in heard = partial })
+    }
+
+    // MARK: Variables and live content
+
+    var variablesCard: some View {
+        card("Variables") {
+            if vars.isEmpty { hint("Variables are values that change for each use, like company or amount. Say \u{201C}replace Acme Ltd with variable company\u{201D}.") }
+            ForEach(vars.keys.sorted(), id: \.self) { key in
+                HStack(spacing: 6) {
+                    Text(key).font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.cocoa).frame(width: 84, alignment: .leading).lineLimit(1)
+                    TextField("starting value", text: Binding(get: { vars[key] ?? "" }, set: { vars[key] = $0; onVariablesChange?(vars) })).textFieldStyle(.roundedBorder)
+                    Button { vars[key] = nil; onVariablesChange?(vars) } label: { Image(systemName: "xmark.circle") }.buttonStyle(.plain)
+                }
+            }
+            HStack {
+                TextField("New variable name", text: $newVariable).textFieldStyle(.roundedBorder)
+                Button("Add") {
+                    let name = newVariable.trimmingCharacters(in: .whitespaces)
+                    guard !name.isEmpty else { return }
+                    vars[name] = vars[name] ?? ""
+                    onVariablesChange?(vars)
+                    newVariable = ""
+                }.disabled(newVariable.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .buttonStyle(.bordered).controlSize(.small)
+        }
+    }
+
+    func addToken(_ index: Int, _ token: String) {
+        guard index < template.slots.count else { return }
+        pushUndo()
+        if template.slots[index].kind == .image {
+            template.slots[index].content = token
+        } else {
+            let sample = template.slots[index].sample == "Your text" ? "" : template.slots[index].sample
+            let old = template.slots[index].content ?? sample
+            template.slots[index].content = old.isEmpty ? token : old + " " + token
+        }
+    }
+
+    func chooseSourceFile(_ index: Int) {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a picture or video"
+        panel.allowedContentTypes = [.image, .movie]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url, index < template.slots.count else { return }
+        pushUndo()
+        template.slots[index].content = url.path
+    }
+
+    func contentEditor(_ index: Int) -> some View {
+        let slot = template.slots[index]
+        let names = Array(Set(vars.keys).union(template.slots.map { $0.key })).sorted()
+        return card(slot.kind == .text ? "Live content (shown instead of the sample)" : "Picture or video source") {
+            TextField(slot.kind == .text ? "Type text, then add live values with the buttons" : "Shortcut name, a file, or {{variable}}",
+                      text: Binding(get: { template.slots[index].content ?? "" }, set: { template.slots[index].content = $0.isEmpty ? nil : $0 }), axis: .vertical)
+                .lineLimit(1...5).textFieldStyle(.roundedBorder)
+            HStack(spacing: 8) {
+                Menu("Variable") {
+                    ForEach(names, id: \.self) { name in Button(name) { addToken(index, "{{\(name)}}") } }
+                    Divider()
+                    Button("New variable") {
+                        addToken(index, "{{newvariable}}")
+                        vars["newvariable"] = vars["newvariable"] ?? ""
+                        onVariablesChange?(vars)
+                    }
+                }
+                Menu("Collection") { collectionMenu(index) }
+                Menu("Function") { ForEach(DesignFunction.items) { item in Button(item.title) { addToken(index, item.token) } } }
+                Menu("Shortcut") {
+                    ForEach(Array(AppDesignContext.shared.clips.prefix(40)), id: \.id) { clip in
+                        Button(clip.key) { addToken(index, slot.kind == .image ? clip.key : "{{shortcut:\(clip.key)}}") }
+                    }
+                }
+                if slot.kind == .image { Button("File") { chooseSourceFile(index) } }
+            }
+            .menuStyle(.borderlessButton).controlSize(.small)
+            hint(slot.kind == .text ? "Text shrinks to fit the box. {{@Customers/Rahul/email}} reads a collection item; {=Date+7} is a function." : "Pictures and videos fill the box shape (a video shows its first frame).")
+        }
+    }
+
+    @ViewBuilder func collectionMenu(_ index: Int) -> some View {
+        let records = AppDesignContext.shared.records
+        let names = Array(Set(records.map { $0.collection })).sorted()
+        if names.isEmpty { Text("No collections yet") }
+        ForEach(Array(names.prefix(30)), id: \.self) { name in
+            Menu(name) {
+                ForEach(Array(records.filter { $0.collection == name }.prefix(30)), id: \.id) { record in
+                    let reference = record.alias.isEmpty ? record.name : record.alias
+                    Menu(record.name) {
+                        Button("Name") { addToken(index, "{{@\(name)/\(reference)}}") }
+                        ForEach(record.values.keys.sorted(), id: \.self) { field in
+                            Button(field) { addToken(index, "{{@\(name)/\(reference)/\(field)}}") }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Commands
+
+    func runCommand(_ raw: String) {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        heard = text
+        var notes: [String] = []
+        for action in DesignCommand.parse(text) { notes.append(perform(action)) }
+        let joined = notes.filter { !$0.isEmpty }.joined(separator: " ")
+        if !joined.isEmpty { message = joined }
+        refresh()
+    }
+
+    private var needBox: String { "Click a box first, or say \u{201C}select <name>\u{201D}." }
+    private var noPages: String { "Pages work inside an AppDesigner design." }
+
+    func go(to index: Int) -> String {
+        guard let info = pageInfo else { return noPages }
+        guard index >= 0, index < info.count else { return "There is no page \(index + 1). This design has \(info.count)." }
+        store.save(template)
+        onGoToPage?(index)
+        return "Page \(index + 1)."
+    }
+
+    private func textTargets() -> [Int] {
+        if let index = selectedIndex, template.slots[index].kind == .text { return [index] }
+        return template.slots.indices.filter { template.slots[$0].kind == .text }
+    }
+
+    private func allTextIndices() -> [Int] { template.slots.indices.filter { template.slots[$0].kind == .text } }
+
+    private func setPageColor(_ hex: String) {
+        let size = TemplateImages.pixelSize(base)
+        guard let rep = TemplateImages.bitmap(width: Int(size.width), height: Int(size.height)),
+              let context = NSGraphicsContext(bitmapImageRep: rep) else { return }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        NSColor(templateHex: hex).setFill()
+        NSRect(x: 0, y: 0, width: size.width, height: size.height).fill()
+        NSGraphicsContext.restoreGraphicsState()
+        let image = NSImage(size: NSSize(width: size.width, height: size.height))
+        image.addRepresentation(rep)
+        applyBase(image)
+        let dark = luminance(hex) < 0.45
+        for index in allTextIndices() {
+            let level = luminance(template.slots[index].colorHex)
+            if dark && level < 0.45 { template.slots[index].colorHex = "#FFFFFF" }
+            if !dark && level > 0.75 { template.slots[index].colorHex = "#1F2A2E" }
+        }
+    }
+
+    private func applyTheme(_ hex: String) {
+        let dark = luminance(hex) < 0.4
+        setPageColor(dark ? hex : mixWithWhite(hex, 0.88))
+        for index in allTextIndices() {
+            template.slots[index].colorHex = dark ? "#FFFFFF" : (template.slots[index].bold ? hex : "#1F2A2E")
+        }
+    }
+
+    func perform(_ action: DesignAction) -> String {
+        switch action {
+        case .undo:
+            if undo.isEmpty { return "Nothing to undo." }
+            undoLast()
+            return "Undone."
+        case .release:
+            guard let onRelease else { return "Release works inside an AppDesigner design." }
+            store.save(template)
+            return onRelease()
+        case .save:
+            store.save(template)
+            return "Saved."
+        case .tryIt:
+            mode = .fill
+            return "Showing the finished result."
+        case .designMode:
+            mode = .design
+            return "Back to designing."
+        case .goPage(let number): return go(to: number - 1)
+        case .nextPage: return pageInfo.map { go(to: $0.index) } ?? noPages
+        case .previousPage: return pageInfo.map { go(to: $0.index - 2) } ?? noPages
+        case .firstPage: return go(to: 0)
+        case .lastPage: return pageInfo.map { go(to: $0.count - 1) } ?? noPages
+        case .addPage:
+            guard let onAddPage else { return noPages }
+            store.save(template)
+            onAddPage()
+            return "Added a page."
+        case .addBox(let kind, let name, let logo):
+            pushUndo()
+            switch kind {
+            case .text: addSlot(.text)
+            case .image: addSlot(.image)
+            case .logo: addLogo(logo ?? "Star")
+            }
+            if let name, kind != .logo, let index = selectedIndex { template.slots[index].key = uniqueKey(name) }
+            return "Added a \(kind.title.lowercased()) box. Drag it where you want it."
+        case .deleteBox:
+            guard let index = selectedIndex else { return needBox }
+            pushUndo()
+            deleteSlot(template.slots[index].id)
+            return "Deleted the box."
+        case .select(let name):
+            let key = TemplateFill.normal(name)
+            if !key.isEmpty, let found = template.slots.first(where: { TemplateFill.normal($0.key) == key }) ?? template.slots.first(where: { TemplateFill.normal($0.key).contains(key) }) {
+                selectedID = found.id
+                return "Selected \(found.key)."
+            }
+            if let number = Int(name.filter { $0.isNumber }), number >= 1, number <= template.slots.count {
+                selectedID = template.slots[number - 1].id
+                return "Selected box \(number)."
+            }
+            return "I could not find a box called \(name)."
+        case .selectOffset(let step):
+            guard !template.slots.isEmpty else { return "There are no boxes." }
+            let count = template.slots.count
+            let current = selectedIndex ?? (step > 0 ? -1 : 0)
+            let next = ((current + step) % count + count) % count
+            selectedID = template.slots[next].id
+            return "Selected \(template.slots[next].key)."
+        case .move(let dx, let dy):
+            guard let index = selectedIndex else { return needBox }
+            pushUndo()
+            template.slots[index].cx = min(1, max(0, template.slots[index].cx + dx))
+            template.slots[index].cy = min(1, max(0, template.slots[index].cy + dy))
+            return ""
+        case .center:
+            guard let index = selectedIndex else { return needBox }
+            pushUndo()
+            template.slots[index].cx = 0.5
+            return "Centred."
+        case .scale(let w, let h):
+            guard let index = selectedIndex else { return needBox }
+            pushUndo()
+            template.slots[index].w = min(1, template.slots[index].w * w)
+            template.slots[index].h = min(1, template.slots[index].h * h)
+            return ""
+        case .angleSet(let value):
+            guard let index = selectedIndex else { return needBox }
+            pushUndo()
+            template.slots[index].angle = max(-180, min(180, value))
+            return "Angle \(Int(value))\u{00B0}."
+        case .angleAdd(let value):
+            guard let index = selectedIndex else { return needBox }
+            pushUndo()
+            var angle = template.slots[index].angle + value
+            while angle > 180 { angle -= 360 }
+            while angle < -180 { angle += 360 }
+            template.slots[index].angle = angle
+            return "Angle \(Int(angle))\u{00B0}."
+        case .shape(let shape):
+            guard let index = selectedIndex else { return needBox }
+            pushUndo()
+            template.slots[index].shape = shape
+            return "Now a \(shape.title.lowercased())."
+        case .bold(let on):
+            pushUndo()
+            for index in textTargets() { template.slots[index].bold = on }
+            return on ? "Bold." : "Not bold."
+        case .italic(let on):
+            pushUndo()
+            for index in textTargets() { template.slots[index].italic = on }
+            return on ? "Italic." : "Not italic."
+        case .caps(let on):
+            pushUndo()
+            for index in textTargets() { template.slots[index].uppercase = on }
+            return on ? "Capitals." : "Normal case."
+        case .align(let value):
+            pushUndo()
+            for index in textTargets() { template.slots[index].align = value }
+            return "Aligned \(value)."
+        case .font(let name, let all):
+            var chosen = name
+            if chosen.isEmpty {
+                chosen = selectedIndex.map { template.slots[$0].fontName } ?? TemplateFonts.all.first ?? "Helvetica Neue"
+            } else {
+                let lower = name.lowercased()
+                guard let found = TemplateFonts.all.first(where: { $0.lowercased() == lower })
+                        ?? TemplateFonts.all.first(where: { $0.lowercased().contains(lower) || lower.contains($0.lowercased()) }) else {
+                    return "I do not have a font called \(name). Try " + TemplateFonts.all.prefix(5).joined(separator: ", ") + "."
+                }
+                chosen = found
+            }
+            pushUndo()
+            for index in (all ? allTextIndices() : textTargets()) { template.slots[index].fontName = chosen }
+            return "Font is now \(chosen)."
+        case .color(let hex, let target):
+            pushUndo()
+            switch target {
+            case .text:
+                for index in textTargets() { template.slots[index].colorHex = hex }
+                return "Text colour changed."
+            case .allText:
+                for index in allTextIndices() { template.slots[index].colorHex = hex }
+                return "All text colour changed."
+            case .shape:
+                let indices = selectedIndex.map { [$0] } ?? Array(template.slots.indices)
+                for index in indices { template.slots[index].fillHex = hex }
+                return "Shape colour changed."
+            case .logo:
+                for index in template.slots.indices where template.slots[index].kind == .logo && (selectedIndex == nil || selectedIndex == index) {
+                    template.slots[index].colorHex = hex
+                }
+                return "Logo colour changed."
+            case .page:
+                setPageColor(hex)
+                return "Page colour changed."
+            case .theme:
+                applyTheme(hex)
+                return "Theme changed."
+            }
+        case .setText(let value):
+            guard let index = selectedIndex else { return needBox }
+            guard template.slots[index].kind == .text else { return "That box holds a picture. Select a text box." }
+            pushUndo()
+            template.slots[index].content = value
+            template.slots[index].sample = value
+            return "Text changed."
+        case .insertToken(let token):
+            guard let index = selectedIndex else { return needBox }
+            guard template.slots[index].kind != .logo else { return "Logos do not hold text." }
+            addToken(index, token)
+            return "Added to \(template.slots[index].key)."
+        case .replace(let old, let new, let variable):
+            pushUndo()
+            var here = 0
+            for index in template.slots.indices where template.slots[index].kind == .text {
+                let source = template.slots[index].content ?? template.slots[index].sample
+                if source.range(of: old, options: .caseInsensitive) != nil {
+                    template.slots[index].content = source.replacingOccurrences(of: old, with: new, options: .caseInsensitive)
+                    here += 1
+                }
+            }
+            let elsewhere = onReplaceElsewhere?(old, new) ?? 0
+            if let variable, here + elsewhere > 0 {
+                vars[variable] = vars[variable] ?? old
+                onVariablesChange?(vars)
+            }
+            if here + elsewhere == 0 { return "I could not find \u{201C}\(old)\u{201D} in any text box." }
+            return "Replaced in \(here) box\(here == 1 ? "" : "es")" + (elsewhere > 0 ? " and \(elsewhere) on other pages." : ".")
+        case .variable(let name, let value):
+            vars[name] = value
+            onVariablesChange?(vars)
+            return "Variable \(name) starts as \u{201C}\(value)\u{201D}."
+        case .makeVariable(let name):
+            guard let index = selectedIndex else { return needBox }
+            guard template.slots[index].kind == .text else { return "Select a text box." }
+            pushUndo()
+            let old = template.slots[index].content ?? template.slots[index].sample
+            vars[name] = vars[name] ?? old
+            onVariablesChange?(vars)
+            template.slots[index].content = "{{\(name)}}"
+            return "That box is now the variable \(name)."
+        case .imageFrom(let name):
+            guard let index = selectedIndex, template.slots[index].kind == .image else { return "Select a picture box first." }
+            pushUndo()
+            template.slots[index].content = name
+            return "The picture box shows \(name)."
+        case .unknown(let text):
+            return "I did not understand \u{201C}\(text)\u{201D}. " + DesignCommand.help
+        }
     }
 }

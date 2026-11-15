@@ -849,14 +849,16 @@ final class WishStudioModel: ObservableObject {
     }
 
     /// The card drawn on the photo template linked to this app, or nil when none is linked.
-    var linkedTemplate: ImageTemplate? { TemplateStore.shared.template(id: TemplateStore.wishTemplateID(appID: app.id)) }
+    var linkedTemplate: ImageTemplate? { TemplateLinks.pages(for: TemplateStore.wishTemplateID(appID: app.id)).first }
 
     func templateCardImage(_ template: ImageTemplate, maxSide: CGFloat?) -> NSImage? {
         var extra: [String: NSImage] = [:]
         for item in card.media ?? [] where item.kind == "image" {
             if let url = store.mediaURL(item.file), let image = NSImage(contentsOf: url), let key = template.imageKeys.first(where: { extra[TemplateFill.normal($0)] == nil }) { extra[key] = image }
         }
-        return TemplateFill.render(template, values: context.variables, extraImages: extra, clips: [], maxSide: maxSide)
+        var values = TemplateLinks.variables(for: TemplateStore.wishTemplateID(appID: app.id))
+        for (key, value) in context.variables where !value.isEmpty { values[key] = value }
+        return TemplateFill.render(template, values: values, extraImages: extra, clips: AppDesignContext.shared.clips, maxSide: maxSide)
     }
 
     private func snapshotImage(_ done: @escaping (NSImage?) -> Void) {

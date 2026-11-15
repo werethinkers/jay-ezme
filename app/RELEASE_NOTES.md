@@ -1,9 +1,9 @@
-## Photo templates: make cards on any bill, invoice, challan or frame
+## AppDesigner: design apps by voice
 
-- **New AppBuilder app: Template Designer.** Upload any picture (bill, invoice, challan, photo frame, poster), or paste one, or start from a blank page.
-- **Remove the text.** One click removes all text from the picture, or removes it and makes an editable box for every line. You can also drag over any area to erase it, undo, replace the picture, or start again.
-- **Place boxes anywhere.** Add text, picture and logo boxes. Drag to move, drag the dots to resize, and turn them with the round arrow or the angle slider. Shapes: rectangle, square, circle, triangle and random (drag the yellow corners).
-- **Logos.** 30 ready logos, the KeyDo logo, or upload your own.
-- **Text always fits.** Pick a font, colour, bold, italic, capitals and alignment. The text shrinks to fill its box and never spills out.
-- **Try it** tab: type real words, pick pictures, see exactly what an app will make, and download or copy it.
-- **Use a template in any app.** In WishBuilder step 1, choose a photo template (it can create the fields from the boxes for you). For AppBuilder apps, open "Use in apps" on a template. An app fills a box when it has a field with the same name.
+- **New under Create: AppDesigner** (also in AppBuilder and from WishBuilder step 1). It builds on Template Designer and goes further: a design has many pages.
+- **Start from anything:** a bill, invoice or frame picture, a blank page, or an uploaded **NDA, agreement or letter** (PDF, Word, RTF or text). Documents are laid out on A4 pages, one text box per paragraph.
+- **Live content in every box.** Instead of filler text, a box can hold variables, collection items, shortcut text, functions (like today's date) or, in picture boxes, a shortcut's picture, a picture file or a video (its first frame). Text always shrinks to fit its box.
+- **Variables.** Turn any text into a variable, give it a starting value, and apps fill it by field name. "Replace Acme Ltd with variable company" does it on every page at once.
+- **Change it by speaking or typing.** Press the mic (or type) in the bar under the page: "go to page 3", "make the text pink", "background black", "pink theme", "font Georgia", "bold", "make it a circle", "rotate 15", "add text box called amount", "put function date", "undo", "release".
+- **Release.** Say "release" or press Release to freeze the pages. Apps that use the design switch to that released version. Keep editing, release again for a new version.
+- **Use in apps.** In AppDesigner choose "Use in apps", or pick a design in WishBuilder step 1. AppBuilder apps with a design that has more than one page make a PDF; one page makes a picture.
