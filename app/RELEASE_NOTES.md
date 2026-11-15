@@ -1,4 +1,4 @@
-## Fill by voice is easier to read
+## Faster updates, easier sign-in
 
-- The Fill by voice panel now always uses dark text on a light card, so the hints and instructions are clear in light and dark mode.
-- Larger hint text, a stronger heading and clearer Back, Next, Options and Done buttons.
+- **Updates download faster.** The update is fetched in four pieces at once, with a quicker connection setup, and checking, unpacking and verifying no longer freeze the window. The update check also gives up sooner when the server is slow.
+- **Sign-in:** clearer "Username (your email)" and "Password" labels, and an eye button to show or hide the password.
