@@ -150,8 +150,18 @@ struct EzyLookMenu: View {
 
     func toggle() { active ? stop() : start() }
 
+    private var takeover: NSObjectProtocol?
+    init() {
+        takeover = NotificationCenter.default.addObserver(forName: .keydoVoiceTakeover, object: nil, queue: .main) { [weak self] event in
+            guard (event.object as AnyObject?) !== self else { return }
+            Task { @MainActor in if self?.active == true { self?.stop() } }
+        }
+    }
+
     func start() {
         guard model?.detail != nil else { return }
+        FormVoice.shared.stop(message: nil)
+        NotificationCenter.default.post(name: .keydoVoiceTakeover, object: self)
         active = true
         index = firstEmptyIndex()
         note = ""
@@ -296,7 +306,10 @@ struct EzyVoiceBar: View {
                 Button {
                     guide.toggle()
                 } label: {
-                    Label(guide.active ? "Stop voice" : "Fill by voice", systemImage: guide.active ? "mic.fill" : "mic")
+                    HStack(spacing: 6) {
+                        KeyDoVoiceIcon(kind: .fill, size: 22, active: guide.active)
+                        Text(guide.active ? "Stop voice" : "Fill by voice")
+                    }
                         .font(.system(size: 12, weight: .bold))
                         .padding(.horizontal, 10).padding(.vertical, 6)
                         .background(Capsule().fill(guide.active ? EzyColor.coral : EzyColor.sun))

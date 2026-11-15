@@ -132,6 +132,7 @@ struct ButterTopBar: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
                 .help("Hide or show the menu row and the tip row (\u{21E7}\u{2318}M)")
+                FormVoiceTopButtons()
                 ButterUpdateButton()
                 Menu {
                     Button(browserPanelVisible ? "Hide browser panel" : "Show browser panel", action: onToggleBrowser)

@@ -361,6 +361,10 @@ struct MyDatabaseView: View {
                 }
             }
         }
+        .voiceChoices("Tab", options: tabs.map { $0.0 }, selected: tabs.firstIndex { $0.0 == tab }) { position in
+            guard position >= 0, position < tabs.count else { return }
+            tab = tabs[position].0; selection = []; search = ""; openTableID = nil; page = 0
+        }
     }
 
     // MARK: Contacts, links, files
