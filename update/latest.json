@@ -1,9 +1,9 @@
 {
-  "version": "3.45",
-  "build": 331,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.45-build331/EzMe-3.45-macOS.zip",
-  "sha256": "041ba4558a4c5667e5f3073a2ea3cbd2738efc8664ad0f5571cdc122a6112783",
-  "notes": "## Faster updates, easier sign-in\n\n- **Updates download faster.** The update is fetched in four pieces at once, with a quicker connection setup, and checking, unpacking and verifying no longer freeze the window. The update check also gives up sooner when the server is slow.\n- **Sign-in:** clearer \"Username (your email)\" and \"Password\" labels, and an eye button to show or hide the password.",
-  "published": "2026-11-15T14:26:34Z",
+  "version": "3.46",
+  "build": 333,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.46-build333/EzMe-3.46-macOS.zip",
+  "sha256": "24e6cb14b5a348f464b0910b15567abd4545926ac72458713c2684d60770d076",
+  "notes": "## One voice button for all of KeyDo\n\n- **One icon, one button.** The mic bubble at the bottom right of KeyDo and the mic at the top of the \\ popup now use the same single voice icon. The separate Voice command and Fill by voice buttons in the top bar and the AppBuilder bar are gone. Tap the bubble to listen; its card has \"Fill this screen by voice\".\n- **Say it instead:** \"Hey KeyDo\" or \"KeyDo\" wakes it, \"Pause KeyDo\" pauses, \"Stop KeyDo\" stops, and \"Fill by voice\" fills the screen you are on.\n- **Dictate anywhere.** Click into any text box and speak: while the mic is on, your words go straight into the box.\n- **Fill by voice is easier to see.** KeyDo now leaves blank space under the last box so the voice panel never covers it, scrolls the box you are filling into view, and shows the end of what you just said in the box.\n- **Prompt Builder** uses the same icon on its Speak button.\n\n## Browser\n\n- **Scanning a page now reads text inside pictures** (banners, logos, buttons) and uses it for better names and shortcut ideas when you save a link.",
+  "published": "2026-11-15T14:45:43Z",
   "minimumSystemVersion": "14.0"
 }
