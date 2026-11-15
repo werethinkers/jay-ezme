@@ -770,17 +770,18 @@ struct FormVoicePanelView: View {
                 currentBox
             }
             if !voice.heard.isEmpty {
-                Text("Hearing: \(voice.heard)").font(.system(size: 12)).foregroundStyle(Butter.coral).lineLimit(2)
+                Text("Hearing: \(voice.heard)").font(.system(size: 13, weight: .medium)).foregroundStyle(FormVoiceInk.accent).lineLimit(2)
             }
-            if !form.note.isEmpty { Text(form.note).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.75)).lineLimit(3) }
-            if !voice.errorMessage.isEmpty { Text(voice.errorMessage).font(.system(size: 11)).foregroundStyle(.red) }
+            if !form.note.isEmpty { Text(form.note).font(.system(size: 12)).foregroundStyle(FormVoiceInk.main).lineLimit(3) }
+            if !voice.errorMessage.isEmpty { Text(voice.errorMessage).font(.system(size: 12)).foregroundStyle(.red) }
             footer
         }
         .padding(14)
         .frame(width: 480, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Butter.cream))
-        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Butter.coral.opacity(0.55), lineWidth: 1.5))
+        .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(red: 1.0, green: 0.985, blue: 0.95)))
+        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Butter.coral.opacity(0.7), lineWidth: 1.5))
         .padding(6)
+        .environment(\.colorScheme, .light)
     }
 
     private var header: some View {
@@ -789,9 +790,9 @@ struct FormVoicePanelView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Fill by voice").font(.system(size: 15, weight: .heavy, design: .rounded)).foregroundStyle(Butter.cocoa)
                 if form.items.isEmpty {
-                    Text("No boxes found").font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text("No boxes found").font(.system(size: 12)).foregroundStyle(FormVoiceInk.soft)
                 } else {
-                    Text("\(form.index + 1) of \(form.items.count)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                    Text("\(form.index + 1) of \(form.items.count)").font(.system(size: 12, weight: .semibold)).foregroundStyle(FormVoiceInk.soft)
                 }
             }
             Spacer(minLength: 6)
@@ -802,7 +803,7 @@ struct FormVoicePanelView: View {
             }
             .pickerStyle(.segmented).labelsHidden().frame(width: 120)
             Button { form.stop(message: nil) } label: {
-                Image(systemName: "xmark.circle.fill").font(.system(size: 18)).foregroundStyle(Butter.cocoa.opacity(0.55))
+                Image(systemName: "xmark.circle.fill").font(.system(size: 18)).foregroundStyle(FormVoiceInk.soft)
             }
             .buttonStyle(.plain).help("Stop Fill by voice")
         }
@@ -813,7 +814,7 @@ struct FormVoicePanelView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.label).font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa).lineLimit(2)
                 Text(item.isChoice ? "Say an option, or say \u{201C}options\u{201D} to see the list." : "Say the answer. It goes straight into the box.")
-                    .font(.system(size: 12)).foregroundStyle(.secondary)
+                    .font(.system(size: 12)).foregroundStyle(FormVoiceInk.soft)
             }
         }
     }
@@ -825,7 +826,7 @@ struct FormVoicePanelView: View {
             HStack {
                 Text("Choose: \(item.label)").font(.system(size: 15, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa).lineLimit(1)
                 Spacer()
-                Text("\(top + 1)\u{2013}\(end) of \(item.options.count)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                Text("\(top + 1)\u{2013}\(end) of \(item.options.count)").font(.system(size: 12, weight: .semibold)).foregroundStyle(FormVoiceInk.soft)
             }
             HStack(spacing: 6) {
                 Button { form.scrollOptions(-1) } label: { Label("Scroll up", systemImage: "chevron.up") }
@@ -835,7 +836,7 @@ struct FormVoicePanelView: View {
                 Spacer()
                 Button("Close list") { form.closeOptions() }
             }
-            .buttonStyle(.bordered).controlSize(.small)
+            .buttonStyle(VoicePillStyle())
             ForEach(top..<end, id: \.self) { position in
                 Button { form.pick(position) } label: {
                     HStack(spacing: 10) {
@@ -852,7 +853,7 @@ struct FormVoicePanelView: View {
                 .buttonStyle(.plain)
             }
             Text("Say a name or number to choose \u{00B7} \u{201C}scroll down\u{201D} \u{00B7} \u{201C}scroll up\u{201D} \u{00B7} \u{201C}close\u{201D}")
-                .font(.system(size: 10)).foregroundStyle(.secondary)
+                .font(.system(size: 12)).foregroundStyle(FormVoiceInk.soft)
         }
     }
 
@@ -866,15 +867,36 @@ struct FormVoicePanelView: View {
             Button("Done") { form.stop(message: "Voice fill finished.") }
             Spacer(minLength: 4)
             if let left = form.idleLeft {
-                Text("Turning off in \(left)\u{2026}").font(.system(size: 11, weight: .semibold)).foregroundStyle(Butter.coral)
+                Text("Turning off in \(left)\u{2026}").font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.coral)
             } else {
-                Text("Say next, back, clear, options or done").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text("Say next, back, clear, options or done").font(.system(size: 12)).foregroundStyle(FormVoiceInk.soft)
             }
         }
-        .buttonStyle(.bordered).controlSize(.small)
+        .buttonStyle(VoicePillStyle())
     }
 }
 
+
+
+/// Dark-on-light colours for the panel, so it reads the same in light and dark mode.
+enum FormVoiceInk {
+    static let main = Color(red: 0.16, green: 0.11, blue: 0.08)
+    static let soft = Color(red: 0.34, green: 0.26, blue: 0.21)
+    static let accent = Color(red: 0.70, green: 0.28, blue: 0.19)
+}
+
+struct VoicePillStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(enabled ? FormVoiceInk.main : FormVoiceInk.soft.opacity(0.5))
+            .padding(.horizontal, 11).padding(.vertical, 5)
+            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.7 : 1)))
+            .overlay(Capsule().stroke(Butter.honey, lineWidth: 1.2))
+            .opacity(enabled ? 1 : 0.6)
+    }
+}
 
 // MARK: - Choices that are drawn by SwiftUI itself
 
