@@ -1,4 +1,5 @@
-## "Hey KeyDo" stays on, and the browser names your pages
+## A calmer, cleaner Prompt Builder and Collection Builder
 
-- **Hey KeyDo keeps working:** it no longer depends on a window being open, restarts itself within a few seconds if the mic ever stops, and rebuilds after the Mac changes microphone (headphones, Bluetooth, sleep). The Stop button and "stop listening" now end voice commands but keep "Hey KeyDo" waiting; turn it off in voice settings. More spoken variants are recognised ("Hey Kiddo", "Hi KeyDo", "Okay KeyDo").
-- **Scan a page:** in the browser, Save link now scans the page (title, site name, main heading, description) and suggests a clear name, plus a short shortcut such as `github` or `github-pricing`. Pick a suggestion or type your own. Saving also creates a Websites & URLs shortcut for the link, so `\github.web` opens it from the popup. Duplicate keys get a number.
+- **One look for both builders:** warm cream cards, a coral accent, numbered steps and one header style, matching the rest of KeyDo.
+- **Prompt Builder:** three clear steps, Write, Check, Send, with a progress strip at the top. The editor is bigger with a word count, the insert buttons (Collections, Media, Apps, Functions) are tidy chips, the checked prompt sits beside it, and each AI site is a tile with its own colour and a clear "Sending…" state. Add site and Edit links moved to the Send card's top right. Sending with an empty prompt now says what to do instead of doing nothing.
+- **Collection Builder:** its step cards and step strip use the same components, so the two builders feel like one product.
