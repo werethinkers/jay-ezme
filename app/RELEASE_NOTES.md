@@ -1,5 +1,5 @@
-## A calmer, cleaner Prompt Builder and Collection Builder
+## Browser tab icons stay put
 
-- **One look for both builders:** warm cream cards, a coral accent, numbered steps and one header style, matching the rest of KeyDo.
-- **Prompt Builder:** three clear steps, Write, Check, Send, with a progress strip at the top. The editor is bigger with a word count, the insert buttons (Collections, Media, Apps, Functions) are tidy chips, the checked prompt sits beside it, and each AI site is a tile with its own colour and a clear "Sending…" state. Add site and Edit links moved to the Send card's top right. Sending with an empty prompt now says what to do instead of doing nothing.
-- **Collection Builder:** its step cards and step strip use the same components, so the two builders feel like one product.
+- **Icons are saved:** each site's icon is remembered on this Mac, so tabs show it the moment they appear, including after you restart KeyDo. Incognito and Private Mode keep icons in memory only.
+- **No more late pop-in:** until an icon is found, the tab shows the first letter of the site's name instead of a blank globe, and the tab takes the site's name as soon as the page starts loading. The icon you had is kept when a page reloads or an icon fails to load, and is dropped only when you close the tab.
+- **Faster fetch:** icons are requested as the page starts, not only after it has fully loaded.
