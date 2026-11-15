@@ -722,9 +722,13 @@ enum TemplateEraser {
             let right = average(source, CGRect(x: area.maxX + 1, y: area.minY, width: band, height: area.height), size)
             let top = average(source, CGRect(x: area.minX, y: area.minY - band - 1, width: area.width, height: band), size)
             let bottom = average(source, CGRect(x: area.minX, y: area.maxY + 1, width: area.width, height: band), size)
-            let fallback = [left, right, top, bottom].compactMap { $0 }.first ?? (1, 1, 1)
-            let l = left ?? right ?? fallback, r = right ?? left ?? fallback
-            let t = top ?? bottom ?? fallback, b = bottom ?? top ?? fallback
+            let white: (CGFloat, CGFloat, CGFloat) = (1, 1, 1)
+            let known: [(CGFloat, CGFloat, CGFloat)] = [left, right, top, bottom].compactMap { $0 }
+            let fallback: (CGFloat, CGFloat, CGFloat) = known.first ?? white
+            let l: (CGFloat, CGFloat, CGFloat) = left ?? right ?? fallback
+            let r: (CGFloat, CGFloat, CGFloat) = right ?? left ?? fallback
+            let t: (CGFloat, CGFloat, CGFloat) = top ?? bottom ?? fallback
+            let b: (CGFloat, CGFloat, CGFloat) = bottom ?? top ?? fallback
 
             let cell: CGFloat = 3
             var y = area.minY
