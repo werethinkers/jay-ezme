@@ -105,6 +105,15 @@ enum PageNamer {
 
 @MainActor
 enum WebShortcutSaver {
+    private static var token: NSObjectProtocol?
+
+    /// The browser posts a note when a link is saved with a shortcut; the shortcut store adds it.
+    static func listen(_ db: DB) {
+        token = NotificationCenter.default.addObserver(forName: .keydoSaveWebShortcut, object: nil, queue: .main) { [weak db] note in
+            Task { @MainActor in if let db { save(note, db: db) } }
+        }
+    }
+
     /// Adds the page as a Websites & URLs shortcut with a key that is not already used.
     static func save(_ note: Notification, db: DB) {
         guard let info = note.userInfo, let key = info["key"] as? String, let name = info["name"] as? String, let url = info["url"] as? String else { return }
