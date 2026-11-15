@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 319,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build319/EzMe-3.44-macOS.zip",
-  "sha256": "af7213d7f50619e6e8cf96c1ec97d137a04bcc2c9bf934a26c3109c892668090",
-  "notes": "## \"Hey KeyDo\" stays on, and the browser names your pages\n\n- **Hey KeyDo keeps working:** it no longer depends on a window being open, restarts itself within a few seconds if the mic ever stops, and rebuilds after the Mac changes microphone (headphones, Bluetooth, sleep). The Stop button and \"stop listening\" now end voice commands but keep \"Hey KeyDo\" waiting; turn it off in voice settings. More spoken variants are recognised (\"Hey Kiddo\", \"Hi KeyDo\", \"Okay KeyDo\").\n- **Scan a page:** in the browser, Save link now scans the page (title, site name, main heading, description) and suggests a clear name, plus a short shortcut such as `github` or `github-pricing`. Pick a suggestion or type your own. Saving also creates a Websites & URLs shortcut for the link, so `\\github.web` opens it from the popup. Duplicate keys get a number.",
-  "published": "2026-11-15T04:14:14Z",
+  "build": 321,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build321/EzMe-3.44-macOS.zip",
+  "sha256": "1ef3629786d8464153a94e95ebe03c2a4eb5dcdad7fb9d7e8717e00b6414c27c",
+  "notes": "## A calmer, cleaner Prompt Builder and Collection Builder\n\n- **One look for both builders:** warm cream cards, a coral accent, numbered steps and one header style, matching the rest of KeyDo.\n- **Prompt Builder:** three clear steps, Write, Check, Send, with a progress strip at the top. The editor is bigger with a word count, the insert buttons (Collections, Media, Apps, Functions) are tidy chips, the checked prompt sits beside it, and each AI site is a tile with its own colour and a clear \"Sending\u2026\" state. Add site and Edit links moved to the Send card's top right. Sending with an empty prompt now says what to do instead of doing nothing.\n- **Collection Builder:** its step cards and step strip use the same components, so the two builders feel like one product.",
+  "published": "2026-11-15T04:24:24Z",
   "minimumSystemVersion": "14.0"
 }
