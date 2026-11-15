@@ -1,9 +1,9 @@
 {
   "version": "3.45",
-  "build": 329,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.45-build329/EzMe-3.45-macOS.zip",
-  "sha256": "05cf7646bffefead20cad3ab28f5463956026c3974793d5ad7919251d4e1e7be",
-  "notes": "## Fill by voice is easier to read\n\n- The Fill by voice panel now always uses dark text on a light card, so the hints and instructions are clear in light and dark mode.\n- Larger hint text, a stronger heading and clearer Back, Next, Options and Done buttons.",
-  "published": "2026-11-15T11:51:01Z",
+  "build": 331,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.45-build331/EzMe-3.45-macOS.zip",
+  "sha256": "041ba4558a4c5667e5f3073a2ea3cbd2738efc8664ad0f5571cdc122a6112783",
+  "notes": "## Faster updates, easier sign-in\n\n- **Updates download faster.** The update is fetched in four pieces at once, with a quicker connection setup, and checking, unpacking and verifying no longer freeze the window. The update check also gives up sooner when the server is slow.\n- **Sign-in:** clearer \"Username (your email)\" and \"Password\" labels, and an eye button to show or hide the password.",
+  "published": "2026-11-15T14:26:34Z",
   "minimumSystemVersion": "14.0"
 }
