@@ -402,12 +402,23 @@ struct PromptBuilderView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
+                HStack(spacing: 8) {
+                    BuilderStepPill(number: 1, title: "Write", done: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                    BuilderStepPill(number: 2, title: "Check", done: !finalPrompt.isEmpty)
+                    Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                    BuilderStepPill(number: 3, title: "Send", done: flashTarget != nil)
+                }
                 HStack(alignment: .top, spacing: 16) {
-                    typingBox
-                    liveBox
+                    typingBox.frame(minWidth: 360)
+                    liveBox.frame(minWidth: 300)
                 }
                 sendBox
-                if !notice.isEmpty { Text(notice).font(.callout).foregroundStyle(.secondary) }
+                if !notice.isEmpty {
+                    Label(notice, systemImage: "info.circle.fill").font(.callout).foregroundStyle(Butter.cocoa)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Butter.honey.opacity(0.35), in: RoundedRectangle(cornerRadius: 11))
+                }
             }
             .frame(maxWidth: 1240, alignment: .leading)
             .padding(26)
@@ -432,22 +443,22 @@ struct PromptBuilderView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Prompt Builder").font(.system(size: 28, weight: .bold, design: .rounded))
-            Text("Type or speak a prompt, then send it to an AI site in the side panel.")
-                .font(.subheadline).foregroundStyle(.secondary)
-            tokenGuide.padding(.top, 6)
+        VStack(alignment: .leading, spacing: 14) {
+            BuilderHeader(symbol: "text.bubble.fill", title: "Prompt Builder", subtitle: "Write or speak one prompt, add media with # and @, then send it to any AI site.") {
+                Button { showVoiceHelp.toggle() } label: { Label("Voice commands", systemImage: "waveform") }
+                    .buttonStyle(.bordered)
+                    .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
+            }
+            tokenGuide
         }
     }
 
     private var tokenGuide: some View {
         HStack(spacing: 10) {
-            guideCard("#", "Shortcuts and collections", "#rohit.media", .purple)
-            guideCard("@", "People and apps", "@priya", .blue)
-            guideCard("=", "Functions", "=date  =2+5", .orange)
-            Button { showVoiceHelp.toggle() } label: { Label("Voice commands", systemImage: "waveform") }
-                .buttonStyle(.bordered)
-                .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
+            guideCard("#", "Shortcuts and collections", "#rohit.media", Butter.coral)
+            guideCard("@", "People and apps", "@priya", Color(red: 0.30, green: 0.55, blue: 0.62))
+            guideCard("=", "Functions", "=date  =2+5", Color(red: 0.80, green: 0.55, blue: 0.15))
+            Spacer(minLength: 0)
         }
     }
 
@@ -485,15 +496,25 @@ struct PromptBuilderView: View {
     // MARK: Typing
 
     private var typingBox: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("YOUR PROMPT · TYPE OR SPEAK").font(.caption.weight(.bold)).foregroundStyle(.secondary)
+        BuilderCard(step: 1, title: "Write your prompt", symbol: "pencil", hint: "Type, or tap Speak. The mic rests after 10 quiet seconds.") {
+            typingContent
+        }
+    }
+
+    private var typingContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
             TextEditor(text: $text)
                 .font(.system(size: 15))
                 .frame(minHeight: 200)
                 .padding(6)
-                .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(editorFocused ? Color.accentColor.opacity(0.7) : Color.secondary.opacity(0.25), lineWidth: editorFocused ? 2 : 1))
+                .scrollContentBackground(.hidden)
+                .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(editorFocused ? Butter.coral : Butter.coral.opacity(0.2), lineWidth: editorFocused ? 2 : 1))
                 .focused($editorFocused)
+            HStack(spacing: 6) {
+                Text("\(text.split(whereSeparator: { $0.isWhitespace }).count) words").font(.caption2).foregroundStyle(.tertiary)
+                Spacer()
+            }
             HStack(spacing: 8) {
                 PromptMicButton(
                     onStart: { voiceBase = text; voiceSent = 0; dictating = false; voiceHint = "Listening… try “hash”, “equals date”, “accept suggestion 1” or “enter chatgpt”" },
@@ -510,13 +531,15 @@ struct PromptBuilderView: View {
                 Button("Clear") { text = ""; notice = ""; heard = ""; voiceHint = ""; dismissed = [] }.disabled(text.isEmpty)
             }
             HStack(spacing: 4) {
-                Menu("# Collections") { collectionsMenu }
-                Menu("# Media") { mediaMenu }
-                Menu("@ Apps") { appsMenu }
-                Menu("= Functions") { functionsMenu }
+                Text("INSERT").font(.system(size: 10, weight: .heavy)).foregroundStyle(.tertiary).padding(.trailing, 2)
+                Menu { collectionsMenu } label: { BuilderChipLabel(text: "Collections", symbol: "number") }
+                Menu { mediaMenu } label: { BuilderChipLabel(text: "Media", symbol: "photo") }
+                Menu { appsMenu } label: { BuilderChipLabel(text: "Apps", symbol: "at") }
+                Menu { functionsMenu } label: { BuilderChipLabel(text: "Functions", symbol: "function") }
                 Spacer(minLength: 0)
             }
             .menuStyle(.borderlessButton)
+            .buttonStyle(.plain)
             if !heard.isEmpty { Label("Heard: \(heard)", systemImage: "ear").font(.caption).foregroundStyle(.secondary).lineLimit(2) }
             markStrip
             suggestionStrip
@@ -830,13 +853,15 @@ struct PromptBuilderView: View {
     // MARK: Live prompt
 
     private var liveBox: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(aiText == nil ? "LIVE PROMPT · CORRECTED AS YOU TYPE" : "LIVE PROMPT · POLISHED BY AI")
-                    .font(.caption.weight(.bold)).foregroundStyle(.secondary)
-                Spacer()
-                Toggle("Auto-correct", isOn: $autoCorrect).toggleStyle(.switch).controlSize(.mini)
-            }
+        BuilderCard(step: 2, title: aiText == nil ? "Check the prompt" : "Polished by AI", symbol: "checkmark.seal", hint: aiText == nil ? "Spelling and names are fixed as you type." : "This version is what gets sent.", accessory: {
+            Toggle("Auto-correct", isOn: $autoCorrect).toggleStyle(.switch).controlSize(.mini)
+        }) {
+            liveContent
+        }
+    }
+
+    private var liveContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
             ScrollView {
                 Text(finalPrompt.isEmpty ? "Your corrected prompt appears here as you type." : finalPrompt)
                     .font(.system(size: 15))
@@ -846,8 +871,8 @@ struct PromptBuilderView: View {
                     .padding(10)
             }
             .frame(minHeight: 200, maxHeight: 260)
-            .background(Color.purple.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.purple.opacity(0.25)))
+            .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Butter.coral.opacity(0.2)))
             if aiText == nil && !composition.fixes.isEmpty {
                 Text("Fixed: " + composition.fixes.joined(separator: " · ")).font(.caption).foregroundStyle(.secondary).lineLimit(3)
             }
@@ -899,9 +924,19 @@ struct PromptBuilderView: View {
     // MARK: Send
 
     private var sendBox: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("SEND TO · OPENS IN THE SIDE PANEL AND STARTS RUNNING").font(.caption.weight(.bold)).foregroundStyle(.secondary)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 10)], alignment: .leading, spacing: 10) {
+        BuilderCard(step: 3, title: "Send to an AI site", symbol: "paperplane", hint: "Opens in the side panel and starts running.", accessory: {
+            HStack(spacing: 8) {
+                Button { showAddSite = true } label: { BuilderChipLabel(text: "Add site", symbol: "plus") }.buttonStyle(.plain)
+                Button { editingSites.toggle() } label: { BuilderChipLabel(text: editingSites ? "Done" : "Edit links", symbol: editingSites ? "checkmark" : "pencil") }.buttonStyle(.plain)
+            }
+        }) {
+            sendContent
+        }
+    }
+
+    private var sendContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 10)], alignment: .leading, spacing: 10) {
                 ForEach(targets) { target in
                     if editingSites {
                         HStack(spacing: 4) {
@@ -909,17 +944,12 @@ struct PromptBuilderView: View {
                             Button { beginEdit(target) } label: { Image(systemName: "pencil") }.buttonStyle(.borderless).help("Edit \(target.name)")
                             Button { PromptTargets.delete(target); targets = PromptTargets.load() } label: { Image(systemName: "trash") }.buttonStyle(.borderless).foregroundStyle(.red).help("Delete \(target.name)")
                         }
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(Color.purple.opacity(0.12)))
+                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Butter.honey.opacity(0.35)))
                     } else {
-                    Button { send(to: target) } label: {
-                        Label(flashTarget == target.name ? "Sending…" : target.name, systemImage: flashTarget == target.name ? "checkmark.circle.fill" : "paperplane.fill").frame(maxWidth: .infinity)
+                    BuilderSiteTile(name: target.name, sending: flashTarget == target.name, enabled: canSend) {
+                        if canSend { send(to: target) } else { notice = "Write a prompt or attach media first, then pick a site." }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(flashTarget == target.name ? .green : .purple)
-                    .scaleEffect(flashTarget == target.name ? 1.06 : 1)
-                    .animation(.easeInOut(duration: 0.2), value: flashTarget)
-                    .disabled(!canSend)
                     .contextMenu {
                         Button("Edit \(target.name)\u{2026}") { beginEdit(target) }
                         if !target.builtIn { Button("Read the page again") { learn(target) } }
@@ -927,10 +957,6 @@ struct PromptBuilderView: View {
                     }
                     }
                 }
-                Button { showAddSite = true } label: { Label("Add site", systemImage: "plus").frame(maxWidth: .infinity) }
-                    .buttonStyle(.bordered)
-                Button { editingSites.toggle() } label: { Label(editingSites ? "Done" : "Edit links", systemImage: editingSites ? "checkmark" : "pencil").frame(maxWidth: .infinity) }
-                    .buttonStyle(.bordered)
                 if editingSites, !PromptTargets.hidden().isEmpty {
                     Button { PromptTargets.restoreBuiltIns(); targets = PromptTargets.load() } label: { Label("Bring back removed sites", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity) }
                         .buttonStyle(.bordered)
