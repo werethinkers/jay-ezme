@@ -363,6 +363,7 @@ enum EzMeNavigation {
             Item(id: "Live & dynamic", title: "Live values", hint: "Words that fill in today's date, time or clock by themselves."),
         ]),
         Area(title: "CREATE", items: [
+            Item(id: "AppDesigner", title: "AppDesigner", hint: "Design apps by voice. Upload a bill, NDA or agreement, fill its boxes with variables, shortcuts, media and functions, then release it."),
             Item(id: "AppBuilder", title: "AppBuilder", hint: "Make your own mini app. Say what it does and get a PDF or a picture."),
             Item(id: "WishStudio", title: "WishStudio", hint: "Make birthday, Diwali and anniversary cards and infographics. Say a command to change them."),
             Item(id: "Ez Studio", title: "Ez Studio", hint: "Draw and fix pictures with AI."),

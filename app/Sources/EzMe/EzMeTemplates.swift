@@ -5,6 +5,7 @@
 import SwiftUI
 import AppKit
 import Vision
+import AVFoundation
 
 // MARK: - Model
 
@@ -81,6 +82,9 @@ struct TemplateSlot: Codable, Identifiable, Hashable {
     var logo: String = "Star"
     /// For free shapes: corner points as x,y pairs inside the box (0 to 1).
     var points: [Double] = TemplateSlot.defaultPoints
+    /// Live content that replaces the sample: text with {{variable}}, {{@Collection/item/field}}, {{shortcut:name}} and {=Function}
+    /// in it, or for picture boxes a shortcut name, file path or {{variable}}. Empty means use the sample.
+    var content: String? = nil
 
     static let defaultPoints: [Double] = [0.5, 0.0, 1.0, 0.38, 0.82, 1.0, 0.18, 1.0, 0.0, 0.38]
 }
@@ -95,6 +99,8 @@ struct ImageTemplate: Codable, Identifiable, Hashable {
     var pixelHeight: Int
     var slots: [TemplateSlot] = []
     var created: Date = Date()
+    /// Set when this picture is a page of an AppDesigner design (then it is not listed with plain templates).
+    var designID: String? = nil
 
     var textKeys: [String] { slots.filter { $0.kind == .text }.map { $0.key } }
     var imageKeys: [String] { slots.filter { $0.kind == .image }.map { $0.key } }
@@ -622,30 +628,69 @@ enum TemplateFill {
     }
 
     /// Finds a picture from a shortcut name, a file path or a media shortcut.
+    private static var pictureCache: [String: NSImage] = [:]
+    static let videoTypes = ["mp4", "mov", "m4v", "avi", "mkv"]
+
+    /// The first frame of a video, used where a picture box holds a video.
+    static func videoFrame(_ path: String) -> NSImage? {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: URL(fileURLWithPath: path)))
+        generator.appliesPreferredTrackTransform = true
+        guard let frame = try? generator.copyCGImage(at: CMTime(seconds: 0.5, preferredTimescale: 600), actualTime: nil) else { return nil }
+        return NSImage(cgImage: frame, size: NSSize(width: frame.width, height: frame.height))
+    }
+
+    private static func load(path: String) -> NSImage? {
+        if let cached = pictureCache[path] { return cached }
+        let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+        let image = videoTypes.contains(ext) ? videoFrame(path) : NSImage(contentsOfFile: path)
+        if let image {
+            if pictureCache.count > 40 { pictureCache.removeAll() }
+            pictureCache[path] = image
+        }
+        return image
+    }
+
     @MainActor static func picture(for value: String, clips: [Clip]) -> NSImage? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        if FileManager.default.fileExists(atPath: trimmed), let image = NSImage(contentsOfFile: trimmed) { return image }
-        let imageTypes = ["png", "jpg", "jpeg", "heic", "webp", "gif", "tiff"]
+        if FileManager.default.fileExists(atPath: trimmed), let image = load(path: trimmed) { return image }
+        let usable = ["png", "jpg", "jpeg", "heic", "webp", "gif", "tiff"] + videoTypes
         if let found = celebrationMedia(trimmed, clips: clips),
-           let path = found.paths.first(where: { imageTypes.contains(URL(fileURLWithPath: $0).pathExtension.lowercased()) }) {
-            return NSImage(contentsOfFile: path)
+           let path = found.paths.first(where: { usable.contains(URL(fileURLWithPath: $0).pathExtension.lowercased()) }) {
+            return load(path: path)
         }
         return nil
+    }
+
+    /// Turns every box into what it should show: the value an app gave it, or its live content worked out. `designing`
+    /// shows a marker where a variable has no value yet.
+    @MainActor static func resolved(_ template: ImageTemplate, values: [String: String], clips: [Clip], designing: Bool = false) -> (texts: [String: String], images: [String: NSImage]) {
+        var texts: [String: String] = [:]
+        for (key, value) in values { texts[normal(key)] = value }
+        var images: [String: NSImage] = [:]
+        let lookup = texts
+        for slot in template.slots {
+            let key = normal(slot.key)
+            let given = (lookup[key] ?? "")
+            if slot.kind == .text {
+                if given.isEmpty, let content = slot.content, !content.isEmpty { texts[key] = DesignContent.resolve(content, values: lookup, designing: designing) }
+            } else if slot.kind == .image {
+                var source = given
+                if source.isEmpty, let content = slot.content, !content.isEmpty { source = DesignContent.resolve(content, values: lookup, designing: designing) }
+                if !source.isEmpty, let found = picture(for: source, clips: clips) { images[key] = found }
+            }
+        }
+        return (texts, images)
     }
 
     /// The finished picture for a template, using the values by box name. Picture boxes read their value as a shortcut
     /// name or file path.
     @MainActor static func render(_ template: ImageTemplate, values: [String: String], extraImages: [String: NSImage] = [:], clips: [Clip], maxSide: CGFloat? = nil) -> NSImage? {
         guard let base = TemplateStore.shared.basePicture(for: template) else { return nil }
-        var texts: [String: String] = [:]
-        for (key, value) in values { texts[normal(key)] = value }
-        var images: [String: NSImage] = [:]
+        let made = resolved(template, values: values, clips: clips)
+        let texts = made.texts
+        var images = made.images
         for (key, image) in extraImages { images[normal(key)] = image }
-        for slot in template.slots where slot.kind == .image {
-            let key = normal(slot.key)
-            if images[key] == nil, let value = texts[key], let found = picture(for: value, clips: clips) { images[key] = found }
-        }
         return TemplateRenderer.render(template, base: base, texts: texts, images: images, useSamples: false, maxSide: maxSide)
     }
 
@@ -654,13 +699,8 @@ enum TemplateFill {
         guard let base = TemplateStore.shared.basePicture(for: template) else {
             throw NSError(domain: "KeyDoTemplates", code: 1, userInfo: [NSLocalizedDescriptionKey: "The template picture is missing."])
         }
-        var texts: [String: String] = [:]
-        for (key, value) in values { texts[normal(key)] = value }
-        var images: [String: NSImage] = [:]
-        for slot in template.slots where slot.kind == .image {
-            let key = normal(slot.key)
-            if let value = texts[key], let found = picture(for: value, clips: clips) { images[key] = found }
-        }
+        let made = resolved(template, values: values, clips: clips)
+        let texts = made.texts, images = made.images
         guard let data = TemplateRenderer.pngData(template, base: base, texts: texts, images: images) else {
             throw NSError(domain: "KeyDoTemplates", code: 2, userInfo: [NSLocalizedDescriptionKey: "The template picture could not be made."])
         }
