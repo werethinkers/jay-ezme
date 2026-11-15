@@ -882,11 +882,13 @@ struct PromptMicButton: View {
                     speech.startContinuous(onTranscript: { spoken in lastHeard = Date(); countdown = nil; onText(spoken, true) }, onPartial: { spoken in lastHeard = Date(); countdown = nil; onText(spoken, false) })
                 }
             } label: {
-                if let left = countdown, speech.isListening {
-                    Label("Turning off in \(left)…", systemImage: "timer").foregroundStyle(.orange)
-                } else {
-                    Label(speech.isListening ? "Listening… tap to stop" : "Speak", systemImage: speech.isListening ? "stop.circle.fill" : "mic.fill")
-                        .foregroundStyle(speech.isListening ? .red : .blue)
+                HStack(spacing: 7) {
+                    KeyDoVoiceIcon(kind: .one, size: 24, active: speech.isListening)
+                    if let left = countdown, speech.isListening {
+                        Text("Turning off in \(left)…").foregroundStyle(Butter.coral)
+                    } else {
+                        Text(speech.isListening ? "Listening… tap to stop" : "Speak").foregroundStyle(Butter.cocoa)
+                    }
                 }
             }
             .buttonStyle(.bordered)

@@ -1,6 +1,7 @@
 // Scans the page open in the browser and proposes a clear name and an easy-to-remember shortcut for its link.
 import SwiftUI
 import WebKit
+import Vision
 
 extension Notification.Name {
     static let keydoSaveWebShortcut = Notification.Name("KeyDoSaveWebShortcut")
@@ -13,6 +14,8 @@ struct PageScan {
     var summary = ""
     var host = ""
     var path = ""
+    /// Words read from pictures on the page (banners, buttons, logos), biggest first.
+    var imageText: [String] = []
 }
 
 enum PageScanner {
@@ -39,7 +42,39 @@ enum PageScanner {
                 scan.host = (object["host"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? fallbackHost
                 scan.path = object["path"] as? String ?? ""
             }
-            completion(scan)
+            let base = scan
+            readImages(from: view) { lines in
+                var result = base
+                result.imageText = lines
+                completion(result)
+            }
+        }
+    }
+
+    /// Reads the text that is drawn inside images on the visible part of the page. The biggest text comes first,
+    /// because that is usually the name on a banner or a logo.
+    @MainActor
+    private static func readImages(from view: WKWebView, done: @escaping ([String]) -> Void) {
+        let configuration = WKSnapshotConfiguration()
+        configuration.afterScreenUpdates = false
+        view.takeSnapshot(with: configuration) { image, _ in
+            guard let image, let picture = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { done([]); return }
+            DispatchQueue.global(qos: .userInitiated).async {
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate
+                request.usesLanguageCorrection = true
+                try? VNImageRequestHandler(cgImage: picture, options: [:]).perform([request])
+                var found: [(String, CGFloat)] = []
+                for observation in (request.results as? [VNRecognizedTextObservation]) ?? [] {
+                    guard let best = observation.topCandidates(1).first, best.confidence >= 0.5 else { continue }
+                    let text = best.string.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard text.count >= 3, text.contains(where: { $0.isLetter }) else { continue }
+                    found.append((text, observation.boundingBox.height))
+                }
+                var seen = Set<String>()
+                let lines = found.sorted { $0.1 > $1.1 }.map { $0.0 }.filter { seen.insert($0.lowercased()).inserted }
+                DispatchQueue.main.async { done(Array(lines.prefix(12))) }
+            }
         }
     }
 }
@@ -51,6 +86,11 @@ enum PageNamer {
     static func suggestName(_ scan: PageScan) -> String {
         let site = siteLabel(scan)
         var title = scan.title.isEmpty ? scan.heading : scan.title
+        let generic: Set<String> = ["", "home", "homepage", "welcome", "dashboard", "untitled", "login", "log in", "sign in", "index"]
+        if generic.contains(title.lowercased().trimmingCharacters(in: .whitespaces)) || title.lowercased() == site.lowercased(),
+           let picture = scan.imageText.first(where: { $0.count <= 40 }) {
+            title = picture
+        }
         let separators = [" | ", " - ", " – ", " — ", " · ", " • ", " :: "]
         var parts = [title]
         for separator in separators where title.contains(separator) {
@@ -92,7 +132,7 @@ enum PageNamer {
         let source = scan.path.split(separator: "/").last.map(String.init) ?? ""
         let pathWords = source.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map { String($0).lowercased() }
         if let word = pathWords.first(where: { $0.count > 2 && !stop.contains($0) && Int($0) == nil }) { topicWord = word }
-        else if let word = (scan.title.isEmpty ? scan.heading : scan.title).lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init).first(where: { $0.count > 2 && !stop.contains($0) && $0 != core }) { topicWord = word }
+        else if let word = (scan.title.isEmpty ? (scan.heading.isEmpty ? (scan.imageText.first ?? "") : scan.heading) : scan.title).lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init).first(where: { $0.count > 2 && !stop.contains($0) && $0 != core }) { topicWord = word }
         var result: [String] = []
         if !siteKey.isEmpty { result.append(siteKey) }
         if !topicWord.isEmpty, !siteKey.isEmpty { result.append(String("\(siteKey)-\(topicWord)".prefix(16))) }
@@ -152,6 +192,9 @@ struct PageScanPanel: View {
             let site = PageNamer.siteLabel(result)
             if !site.isEmpty, site != name { options.append(site) }
             if !result.heading.isEmpty, result.heading.count < 48, !options.contains(result.heading) { options.append(result.heading) }
+            for line in result.imageText.prefix(4) where line.count <= 40 && !options.contains(line) {
+                options.append(site.isEmpty || line.lowercased().contains(site.lowercased()) ? line : "\(site) \(line)")
+            }
             names = options
             keys = PageNamer.suggestShortcuts(result)
             title = name
@@ -168,6 +211,9 @@ struct PageScanPanel: View {
                 }.buttonStyle(.bordered).disabled(scanning)
                 if let scan, !scan.summary.isEmpty {
                     Text(scan.summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+                if let scan, !scan.imageText.isEmpty {
+                    Label("Read \(scan.imageText.count) text lines from pictures", systemImage: "text.viewfinder").font(.caption).foregroundStyle(.secondary)
                 }
             }
             if !names.isEmpty {
