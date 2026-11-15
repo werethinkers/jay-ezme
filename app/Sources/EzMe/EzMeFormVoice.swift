@@ -15,14 +15,14 @@ import Combine
 
 /// The two KeyDo voice icons, cropped from the brand reference.
 struct KeyDoVoiceIcon: View {
-    enum Kind { case command, fill }
+    enum Kind { case command, fill, one }
     var kind: Kind
     var size: CGFloat = 24
     var active = false
 
     var body: some View {
         Group {
-            if let image = keyDoVoiceImage(kind == .command ? "KeyDoVoiceCommand" : "KeyDoFillByVoice") {
+            if let image = keyDoVoiceImage(kind == .command ? "KeyDoVoiceCommand" : (kind == .fill ? "KeyDoFillByVoice" : "KeyDoVoiceOne")) {
                 Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
             } else {
                 Image(systemName: kind == .command ? "mic.fill" : "text.badge.plus").resizable().scaledToFit().padding(size * 0.2)
@@ -250,6 +250,19 @@ struct FormItem: Identifiable {
 
     func toggle() { active ? stop(message: nil) : start() }
 
+    /// Dictation: when a text box has the cursor, the words go straight into it, like macOS dictation.
+    static func dictateIntoFocus(_ text: String) -> Bool {
+        guard !FormVoice.shared.active, let window = NSApp.keyWindow, !(window is FormVoicePanel),
+              let editor = window.firstResponder as? NSTextView, editor.isEditable,
+              !(editor.delegate is NSSecureTextField) else { return false }
+        let words = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !words.isEmpty else { return false }
+        let lead = editor.string.isEmpty || editor.string.hasSuffix(" ") || editor.string.hasSuffix("\n") ? "" : " "
+        editor.insertText(lead + words, replacementRange: editor.selectedRange())
+        editor.scrollRangeToVisible(editor.selectedRange())
+        return true
+    }
+
     // MARK: Start and stop
 
     func start() {
@@ -285,6 +298,7 @@ struct FormItem: Identifiable {
         idleLeft = nil
         voice.stop()
         clearHighlight()
+        releaseSpace()
         panel?.close()
         if let window, let panel { window.removeChildWindow(panel) }
         panel = nil
@@ -353,6 +367,7 @@ struct FormItem: Identifiable {
         highlight(item.kind == .text ? nil : item.view)
         if item.isChoice { openOptions() }
         relayout()
+        keepClearOfPanel(item.view)
     }
 
     /// Looks at the screen again, so a box that appeared (a new tab, a revealed section) is found.
@@ -543,6 +558,7 @@ struct FormItem: Identifiable {
         item.view?.scrollToVisible(item.view?.bounds ?? .zero)
         if item.kind == .text { window?.makeFirstResponder(item.view) }
         highlight(item.kind == .text ? nil : item.view)
+        keepClearOfPanel(item.view)
     }
 
     private func handleOption(_ spoken: String, lower: String, item: FormItem) {
@@ -622,10 +638,12 @@ struct FormItem: Identifiable {
             editor.moveToEndOfDocument(nil)
             let lead = editor.string.isEmpty ? "" : " "
             editor.insertText(lead + value, replacementRange: editor.selectedRange())
+            editor.scrollRangeToVisible(editor.selectedRange())
             note = "Added to \(item.label). Say next when this box is done."
         } else {
             editor.selectAll(nil)
             editor.insertText(value, replacementRange: editor.selectedRange())
+            editor.scrollRangeToVisible(editor.selectedRange())
             note = "\(item.label): \(value)"
         }
         return true
@@ -680,6 +698,59 @@ struct FormItem: Identifiable {
         }
     }
 
+    // MARK: Room for the panel
+
+    private var reserved: [ObjectIdentifier: (scroll: NSScrollView, insets: NSEdgeInsets, auto: Bool)] = [:]
+
+    /// Adds blank space under the content, the height of the panel, so the last box is never hidden behind it.
+    private func reserveSpace(_ height: CGFloat) {
+        guard let root = window?.contentView else { return }
+        func visit(_ view: NSView) {
+            if view.isHidden || view is WKWebView { return }
+            if let scroll = view as? NSScrollView, scroll.documentView != nil, scroll.frame.width > 220, scroll.frame.height > 160 {
+                let key = ObjectIdentifier(scroll)
+                if reserved[key] == nil { reserved[key] = (scroll, scroll.contentInsets, scroll.automaticallyAdjustsContentInsets) }
+            }
+            view.subviews.forEach(visit)
+        }
+        visit(root)
+        for entry in reserved.values {
+            var insets = entry.insets
+            insets.bottom += height
+            entry.scroll.automaticallyAdjustsContentInsets = false
+            entry.scroll.contentInsets = insets
+        }
+    }
+
+    private func releaseSpace() {
+        for entry in reserved.values {
+            entry.scroll.contentInsets = entry.insets
+            entry.scroll.automaticallyAdjustsContentInsets = entry.auto
+        }
+        reserved.removeAll()
+    }
+
+    /// Scrolls so the box being filled is above the panel, not behind it.
+    private func keepClearOfPanel(_ view: NSView?) {
+        guard let view else { return }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 180_000_000)
+            guard self.active, let window = self.window, let panel = self.panel, view.window === window,
+                  let scroll = self.outerScrollView(of: view), let document = scroll.documentView else { return }
+            let box = window.convertToScreen(view.convert(view.bounds, to: nil))
+            let limit = panel.frame.maxY + 16
+            guard box.minY < limit else { return }
+            let clip = scroll.contentView
+            var origin = clip.bounds.origin
+            let delta = limit - box.minY
+            origin.y += document.isFlipped ? delta : -delta
+            let maxY = max(0, document.bounds.height + scroll.contentInsets.bottom - clip.bounds.height)
+            origin.y = max(0, min(origin.y, maxY))
+            clip.scroll(to: origin)
+            scroll.reflectScrolledClipView(clip)
+        }
+    }
+
     // MARK: Highlight
 
     private func highlight(_ view: NSView?) {
@@ -718,6 +789,7 @@ struct FormItem: Identifiable {
         DispatchQueue.main.async { [weak self] in
             guard let self, let panel = self.panel, let window = self.window else { return }
             panel.fit(to: window)
+            self.reserveSpace(panel.frame.height + 26 + 14)
         }
     }
 }

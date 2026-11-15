@@ -45,8 +45,8 @@ enum VoiceGrammar {
 
     static let phrases: [(words: [String], command: VoiceCommand)] = [
         (["start", "listening"], .start), (["resume", "listening"], .start),
-        (["pause", "listening"], .pause),
-        (["stop", "listening"], .stop),
+        (["pause", "listening"], .pause), (["pause", "keydo"], .pause), (["pause", "key", "do"], .pause), (["pause", "voice"], .pause),
+        (["stop", "listening"], .stop), (["stop", "keydo"], .stop), (["stop", "key", "do"], .stop), (["stop", "voice"], .stop),
         (["scroll", "down"], .scrollDown), (["page", "down"], .scrollDown),
         (["scroll", "up"], .scrollUp), (["page", "up"], .scrollUp),
         (["enter"], .enter), (["select", "it"], .enter), (["paste", "it"], .enter), (["insert", "it"], .enter),
@@ -477,7 +477,7 @@ final class KeyDoVoice: ObservableObject {
     }
 
     private func contextualWords() -> [String] {
-        var words = ["enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup", "fill by voice", "hey keydo", "keydo"]
+        var words = ["enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup", "fill by voice", "pause keydo", "stop keydo", "hey keydo", "keydo"]
         words += (handlers?.vocabulary() ?? []).prefix(120)
         return words
     }
@@ -897,6 +897,7 @@ struct VoiceSearchAssistant: View {
     var collections: [String]
     var onOpen: (String) -> Void
     @ObservedObject private var voice = KeyDoVoice.shared
+    @ObservedObject private var form = FormVoice.shared
     @StateObject private var model = AppVoiceModel()
     @State private var expanded = false
     @State private var showSettings = false
@@ -919,7 +920,10 @@ struct VoiceSearchAssistant: View {
         let expandedBinding = $expanded
         model.afterOpen = { withAnimation(.easeInOut(duration: 0.2)) { expandedBinding.wrappedValue = false } }
         var handlers = KeyDoVoice.Handlers()
-        handlers.search = { [weak model] text in model?.setQuery(text) }
+        handlers.search = { [weak model] text in
+            if FormVoice.dictateIntoFocus(text) { return }
+            model?.setQuery(text)
+        }
         handlers.enter = { [weak model] in model?.enter() }
         handlers.move = { [weak model] delta in model?.move(delta) }
         handlers.open = { [weak model] spoken in model?.onOpen(spoken); model?.afterOpen() }
@@ -935,6 +939,7 @@ struct VoiceSearchAssistant: View {
         let listening = voice.phase == .listening
         let paused = voice.phase == .paused
         return Button {
+            if form.active { form.stop(message: nil); return }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
                 if expanded {
                     expanded = false
@@ -945,14 +950,16 @@ struct VoiceSearchAssistant: View {
                 }
             }
         } label: {
-            Image(systemName: listening ? "waveform" : (paused ? "pause.fill" : "mic.fill"))
-                .font(.system(size: 19, weight: .bold))
-                .foregroundStyle(.white)
-                .frame(width: 52, height: 52)
-                .background(LinearGradient(colors: listening ? [Butter.coral, Color.red] : (paused ? [Color.orange, Butter.coral] : [Butter.cocoa, Butter.cocoa.opacity(0.8)]), startPoint: .topLeading, endPoint: .bottomTrailing), in: Circle())
-                .overlay(Circle().stroke(.white.opacity(0.82), lineWidth: 2))
-                .overlay(Circle().stroke(Butter.coral.opacity(listening ? 0.4 : 0), lineWidth: 2).scaleEffect(1 + (listening ? voice.level * 0.4 : 0)))
-                .shadow(color: Butter.coral.opacity(0.28), radius: 9, y: 3)
+            ZStack(alignment: .bottomTrailing) {
+                KeyDoVoiceIcon(kind: .one, size: 58, active: listening || form.active)
+                if paused {
+                    Image(systemName: "pause.fill").font(.system(size: 9, weight: .heavy)).foregroundStyle(.white)
+                        .frame(width: 20, height: 20).background(Circle().fill(Color.orange)).overlay(Circle().stroke(.white, lineWidth: 1.5))
+                        .offset(x: 4, y: 4)
+                }
+            }
+            .scaleEffect(1 + (listening ? voice.level * 0.10 : 0))
+            .shadow(color: Butter.coral.opacity(listening ? 0.45 : 0.25), radius: 10, y: 3)
         }
         .buttonStyle(.plain)
         .help(voice.phase == .off ? "Voice commands" : "Voice commands · \(voice.phase == .listening ? "listening" : "paused")")
@@ -989,6 +996,21 @@ struct VoiceSearchAssistant: View {
                         withAnimation { expanded = false }
                     }.font(.caption).buttonStyle(.bordered)
                 }
+                Button {
+                    withAnimation { expanded = false }
+                    DispatchQueue.main.async { FormVoice.shared.start() }
+                } label: {
+                    HStack(spacing: 8) {
+                        KeyDoVoiceIcon(kind: .one, size: 24)
+                        Text("Fill this screen by voice").font(.system(size: 12.5, weight: .semibold)).foregroundStyle(Butter.cocoa)
+                        Spacer()
+                        Text("or say \u{201C}Fill by voice\u{201D}").font(.system(size: 11)).foregroundStyle(Color.secondary)
+                    }
+                    .padding(.horizontal, 10).padding(.vertical, 7)
+                    .background(Butter.cream, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Butter.honey, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
                 Text("Say a shortcut name, then “enter”. “Scroll down” shows more. Or say “open dashboard”, “my shortcuts”, “collections” or “browser”.")
                     .font(.system(size: 10)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
