@@ -698,6 +698,8 @@ struct EzMeCloudSignInView: View {
     @State private var password = ""
     @State private var creating = false
 
+    @State private var showPassword = false
+
     private func submit() { cloud.signIn(email: email, password: password, create: creating, onSignedIn: onSignedIn) }
 
     var body: some View {
@@ -715,8 +717,29 @@ struct EzMeCloudSignInView: View {
             }
             .pickerStyle(.segmented).frame(width: 280).labelsHidden()
             VStack(spacing: 10) {
-                TextField("Email", text: $email).textFieldStyle(.roundedBorder).textContentType(.username).onSubmit(submit)
-                SecureField(creating ? "Password (at least 8 characters)" : "Password", text: $password).textFieldStyle(.roundedBorder).onSubmit(submit)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Username (your email)").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    TextField("you@example.com", text: $email).textFieldStyle(.roundedBorder).textContentType(.username).onSubmit(submit)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Password").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+                    ZStack(alignment: .trailing) {
+                        Group {
+                            if showPassword {
+                                TextField(creating ? "At least 8 characters" : "Your password", text: $password)
+                            } else {
+                                SecureField(creating ? "At least 8 characters" : "Your password", text: $password)
+                            }
+                        }
+                        .textFieldStyle(.roundedBorder).textContentType(.password).onSubmit(submit)
+                        Button { showPassword.toggle() } label: {
+                            Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
+                                .font(.system(size: 13)).foregroundStyle(.secondary).frame(width: 28, height: 22).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain).padding(.trailing, 4)
+                        .help(showPassword ? "Hide password" : "Show password")
+                    }
+                }
             }
             .frame(width: 320)
             Button(action: submit) {

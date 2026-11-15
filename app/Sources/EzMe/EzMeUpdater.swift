@@ -120,11 +120,11 @@ final class EzMeUpdater: ObservableObject {
             var notes: String?; var minimum_system_version: String?; var published_at: String?
         }
         guard let url = URL(string: supabaseURL + "/rest/v1/app_releases?select=version,build,url,sha256,notes,minimum_system_version,published_at&channel=eq.stable&order=build.desc&limit=1") else { return nil }
-        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 8)
         request.setValue(supabaseKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer " + supabaseKey, forHTTPHeaderField: "Authorization")
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        guard let result = try? await URLSession.shared.data(for: request),
+        guard let result = try? await fastSession.data(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200,
               let row = (try? JSONDecoder().decode([Row].self, from: result.0))?.first else { return nil }
         return EzMeUpdateManifest(version: row.version, build: row.build, url: row.url, sha256: row.sha256,
@@ -133,9 +133,9 @@ final class EzMeUpdater: ObservableObject {
 
     /// update/latest.json on the website (fallback when the database can't be reached).
     nonisolated static func fetchFromWebsite(_ feed: URL) async -> EzMeUpdateManifest? {
-        var request = URLRequest(url: feed, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 15)
+        var request = URLRequest(url: feed, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 8)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        guard let result = try? await URLSession.shared.data(for: request),
+        guard let result = try? await fastSession.data(for: request),
               (result.1 as? HTTPURLResponse)?.statusCode == 200 else { return nil }
         return try? JSONDecoder().decode(EzMeUpdateManifest.self, from: result.0)
     }
@@ -188,18 +188,22 @@ final class EzMeUpdater: ObservableObject {
             try await download(url, to: zip)
 
             phase = .installing
-            let digest = SHA256.hash(data: try Data(contentsOf: zip, options: .mappedIfSafe)).map { String(format: "%02x", $0) }.joined()
-            guard digest.caseInsensitiveCompare(manifest.sha256.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame else {
-                throw EzMeUpdateError.message("The download was damaged (checksum mismatch). Nothing was changed.")
-            }
-
-            let extracted = work.appendingPathComponent("extracted", isDirectory: true)
-            try fm.createDirectory(at: extracted, withIntermediateDirectories: true)
-            try Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, extracted.path])
-            guard let newApp = try fm.contentsOfDirectory(at: extracted, includingPropertiesForKeys: nil).first(where: { $0.pathExtension == "app" }) else {
-                throw EzMeUpdateError.message("The download did not contain the KeyDo app.")
-            }
-            try verify(newApp: newApp, manifest: manifest)
+            // Checking, unpacking and verifying are heavy: do them off the main thread so the window stays smooth.
+            let build = currentBuild
+            let newApp: URL = try await Task.detached(priority: .userInitiated) {
+                let digest = SHA256.hash(data: try Data(contentsOf: zip, options: .mappedIfSafe)).map { String(format: "%02x", $0) }.joined()
+                guard digest.caseInsensitiveCompare(manifest.sha256.trimmingCharacters(in: .whitespacesAndNewlines)) == .orderedSame else {
+                    throw EzMeUpdateError.message("The download was damaged (checksum mismatch). Nothing was changed.")
+                }
+                let extracted = work.appendingPathComponent("extracted", isDirectory: true)
+                try FileManager.default.createDirectory(at: extracted, withIntermediateDirectories: true)
+                try Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, extracted.path])
+                guard let app = try FileManager.default.contentsOfDirectory(at: extracted, includingPropertiesForKeys: nil).first(where: { $0.pathExtension == "app" }) else {
+                    throw EzMeUpdateError.message("The download did not contain the KeyDo app.")
+                }
+                try Self.verify(newApp: app, manifest: manifest, currentBuild: build)
+                return app
+            }.value
 
             let current = Bundle.main.bundleURL
             let parent = current.deletingLastPathComponent()
@@ -233,9 +237,123 @@ final class EzMeUpdater: ObservableObject {
         }
     }
 
+    /// One session for every update request: no waiting for connectivity, no cache, several connections.
+    nonisolated static let fastSession: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpMaximumConnectionsPerHost = 6
+        configuration.waitsForConnectivity = false
+        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForResource = 900
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.httpAdditionalHeaders = ["User-Agent": userAgent]
+        return URLSession(configuration: configuration)
+    }()
+
+    private func setProgress(_ value: Double) {
+        if case .downloading = phase { phase = .downloading(min(1, max(0, value))) }
+    }
+
+    /// Downloads in four pieces at once when the server allows it, which is much faster than one connection.
+    /// Falls back to a single download if anything about that fails.
     private func download(_ url: URL, to destination: URL) async throws {
+        let report: @Sendable (Double) -> Void = { [weak self] value in
+            Task { @MainActor in self?.setProgress(value) }
+        }
+        if !Self.isLocalTestURL(url), let total = await Self.contentLength(of: url), total > 1_500_000 {
+            do {
+                try await Self.downloadInParts(url, total: total, to: destination, report: report)
+                return
+            } catch {
+                try? FileManager.default.removeItem(at: destination)
+            }
+        }
+        try await Self.downloadWhole(url, to: destination, report: report)
+    }
+
+    /// The size of the file, read with a one-byte range request (works with signed download links).
+    nonisolated private static func contentLength(of url: URL) async -> Int64? {
+        var request = URLRequest(url: url, timeoutInterval: 10)
+        request.setValue("bytes=0-0", forHTTPHeaderField: "Range")
+        guard let result = try? await fastSession.data(for: request),
+              let http = result.1 as? HTTPURLResponse, http.statusCode == 206,
+              let range = http.value(forHTTPHeaderField: "Content-Range"),
+              let size = range.split(separator: "/").last.flatMap({ Int64($0) }), size > 0 else { return nil }
+        return size
+    }
+
+    private final class PartProgress: @unchecked Sendable {
+        private let lock = NSLock()
+        private var done: [Double]
+        private let sizes: [Double]
+        init(sizes: [Int64]) { self.sizes = sizes.map { Double($0) }; done = Array(repeating: 0, count: sizes.count) }
+        func set(_ index: Int, _ fraction: Double) -> Double {
+            lock.lock(); defer { lock.unlock() }
+            done[index] = fraction
+            let finished = zip(done, sizes).reduce(0) { $0 + $1.0 * $1.1 }
+            return finished / max(1, sizes.reduce(0, +))
+        }
+    }
+
+    private final class ObservationBox: @unchecked Sendable { var value: NSKeyValueObservation? }
+
+    nonisolated private static func downloadInParts(_ url: URL, total: Int64, to destination: URL, report: @escaping @Sendable (Double) -> Void) async throws {
+        let pieces: Int64 = 4
+        let size = (total + pieces - 1) / pieces
+        var ranges: [ClosedRange<Int64>] = []
+        var start: Int64 = 0
+        while start < total { ranges.append(start...min(total - 1, start + size - 1)); start += size }
+        let progress = PartProgress(sizes: ranges.map { $0.upperBound - $0.lowerBound + 1 })
+        var parts = [URL?](repeating: nil, count: ranges.count)
+        try await withThrowingTaskGroup(of: (Int, URL).self) { group in
+            for (index, range) in ranges.enumerated() {
+                group.addTask { (index, try await fetchPart(url, range: range, index: index, progress: progress, report: report)) }
+            }
+            for try await (index, part) in group { parts[index] = part }
+        }
+        let manager = FileManager.default
+        manager.createFile(atPath: destination.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: destination)
+        defer { try? handle.close() }
+        for part in parts {
+            guard let part else { throw EzMeUpdateError.message("The download failed. Try again later.") }
+            try handle.write(contentsOf: Data(contentsOf: part, options: .mappedIfSafe))
+            try? manager.removeItem(at: part)
+        }
+    }
+
+    nonisolated private static func fetchPart(_ url: URL, range: ClosedRange<Int64>, index: Int, progress: PartProgress, report: @escaping @Sendable (Double) -> Void) async throws -> URL {
+        var request = URLRequest(url: url)
+        request.setValue("bytes=\(range.lowerBound)-\(range.upperBound)", forHTTPHeaderField: "Range")
+        let box = ObservationBox()
+        defer { box.value = nil }
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<URL, Error>) in
+            let task = fastSession.downloadTask(with: request) { location, response, error in
+                if let error { continuation.resume(throwing: error); return }
+                guard let location, let http = response as? HTTPURLResponse, http.statusCode == 206 else {
+                    continuation.resume(throwing: EzMeUpdateError.message("The download failed. Try again later."))
+                    return
+                }
+                let part = FileManager.default.temporaryDirectory.appendingPathComponent("EzMePart-\(UUID().uuidString)")
+                do {
+                    try FileManager.default.moveItem(at: location, to: part)
+                    continuation.resume(returning: part)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+            box.value = task.progress.observe(\.fractionCompleted) { value, _ in
+                report(progress.set(index, value.fractionCompleted))
+            }
+            task.resume()
+        }
+    }
+
+    nonisolated private static func downloadWhole(_ url: URL, to destination: URL, report: @escaping @Sendable (Double) -> Void) async throws {
+        let box = ObservationBox()
+        defer { box.value = nil }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            let task = URLSession.shared.downloadTask(with: url) { location, response, error in
+            let session = isLocalTestURL(url) ? URLSession.shared : fastSession
+            let task = session.downloadTask(with: url) { location, response, error in
                 if let error { continuation.resume(throwing: error); return }
                 guard let location, let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                     continuation.resume(throwing: EzMeUpdateError.message("The download failed. Try again later."))
@@ -249,20 +367,14 @@ final class EzMeUpdater: ObservableObject {
                     continuation.resume(throwing: error)
                 }
             }
-            progressObservation = task.progress.observe(\.fractionCompleted) { [weak self] progress, _ in
-                let value = progress.fractionCompleted
-                Task { @MainActor in
-                    if case .downloading = self?.phase { self?.phase = .downloading(value) }
-                }
-            }
+            box.value = task.progress.observe(\.fractionCompleted) { value, _ in report(value.fractionCompleted) }
             task.resume()
         }
-        progressObservation = nil
     }
 
     /// Checks the new bundle is EzMe, is newer, has a valid signature, and (when this copy is signed
     /// with a real identity) is signed by the same identity.
-    private func verify(newApp: URL, manifest: EzMeUpdateManifest) throws {
+    nonisolated private static func verify(newApp: URL, manifest: EzMeUpdateManifest, currentBuild: Int) throws {
         guard let info = NSDictionary(contentsOf: newApp.appendingPathComponent("Contents/Info.plist")),
               let bundleID = info["CFBundleIdentifier"] as? String,
               bundleID == Bundle.main.bundleIdentifier else {
@@ -325,7 +437,7 @@ final class EzMeUpdater: ObservableObject {
 
     // MARK: - Helpers
 
-    private static func run(_ tool: String, _ arguments: [String]) throws {
+    nonisolated private static func run(_ tool: String, _ arguments: [String]) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: tool)
         process.arguments = arguments
