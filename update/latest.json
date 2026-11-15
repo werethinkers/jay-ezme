@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 321,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build321/EzMe-3.44-macOS.zip",
-  "sha256": "1ef3629786d8464153a94e95ebe03c2a4eb5dcdad7fb9d7e8717e00b6414c27c",
-  "notes": "## A calmer, cleaner Prompt Builder and Collection Builder\n\n- **One look for both builders:** warm cream cards, a coral accent, numbered steps and one header style, matching the rest of KeyDo.\n- **Prompt Builder:** three clear steps, Write, Check, Send, with a progress strip at the top. The editor is bigger with a word count, the insert buttons (Collections, Media, Apps, Functions) are tidy chips, the checked prompt sits beside it, and each AI site is a tile with its own colour and a clear \"Sending\u2026\" state. Add site and Edit links moved to the Send card's top right. Sending with an empty prompt now says what to do instead of doing nothing.\n- **Collection Builder:** its step cards and step strip use the same components, so the two builders feel like one product.",
-  "published": "2026-11-15T04:24:24Z",
+  "build": 323,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build323/EzMe-3.44-macOS.zip",
+  "sha256": "5641a2c65da2126c68c3bb3f73c4b314a24dd9bb4fffdbaedd5fb35fbe177f16",
+  "notes": "## Browser tab icons stay put\n\n- **Icons are saved:** each site's icon is remembered on this Mac, so tabs show it the moment they appear, including after you restart KeyDo. Incognito and Private Mode keep icons in memory only.\n- **No more late pop-in:** until an icon is found, the tab shows the first letter of the site's name instead of a blank globe, and the tab takes the site's name as soon as the page starts loading. The icon you had is kept when a page reloads or an icon fails to load, and is dropped only when you close the tab.\n- **Faster fetch:** icons are requested as the page starts, not only after it has fully loaded.",
+  "published": "2026-11-15T04:39:13Z",
   "minimumSystemVersion": "14.0"
 }
