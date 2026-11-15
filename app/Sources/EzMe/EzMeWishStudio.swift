@@ -848,8 +848,21 @@ final class WishStudioModel: ObservableObject {
         return WishExport.image(of: canvas, scale: 2)
     }
 
+    /// The card drawn on the photo template linked to this app, or nil when none is linked.
+    var linkedTemplate: ImageTemplate? { TemplateStore.shared.template(id: TemplateStore.wishTemplateID(appID: app.id)) }
+
+    func templateCardImage(_ template: ImageTemplate, maxSide: CGFloat?) -> NSImage? {
+        var extra: [String: NSImage] = [:]
+        for item in card.media ?? [] where item.kind == "image" {
+            if let url = store.mediaURL(item.file), let image = NSImage(contentsOf: url), let key = template.imageKeys.first(where: { extra[TemplateFill.normal($0)] == nil }) { extra[key] = image }
+        }
+        return TemplateFill.render(template, values: context.variables, extraImages: extra, clips: [], maxSide: maxSide)
+    }
+
     private func snapshotImage(_ done: @escaping (NSImage?) -> Void) {
-        if isOnApp {
+        if let template = linkedTemplate {
+            done(templateCardImage(template, maxSide: nil))
+        } else if isOnApp {
             web.snapshot { [weak self] image in
                 done(image ?? self?.fallbackImage())
             }
@@ -1541,8 +1554,14 @@ struct WishStudioView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
 
-            WishWebView(stateJSON: model.stateJSON, controller: model.web) { key in
-                model.select(key.isEmpty ? nil : key)
+            Group {
+                if let template = model.linkedTemplate {
+                    WishTemplateCard(model: model, template: template)
+                } else {
+                    WishWebView(stateJSON: model.stateJSON, controller: model.web) { key in
+                        model.select(key.isEmpty ? nil : key)
+                    }
+                }
             }
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(WishTheme.line, lineWidth: 1))
