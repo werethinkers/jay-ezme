@@ -33,7 +33,7 @@ enum VoiceKeys {
 }
 
 enum VoiceCommand: Equatable {
-    case start, pause, stop, enter, scrollDown, scrollUp, clear, closePopup, openPopup
+    case start, pause, stop, enter, scrollDown, scrollUp, clear, closePopup, openPopup, fillForm
 }
 
 /// The words KeyDo listens for. Plain data and functions, so it is not tied to the main actor.
@@ -52,12 +52,13 @@ enum VoiceGrammar {
         (["enter"], .enter), (["select", "it"], .enter), (["paste", "it"], .enter), (["insert", "it"], .enter),
         (["clear", "search"], .clear), (["clear", "all"], .clear), (["start", "over"], .clear),
         (["close", "popup"], .closePopup), (["close", "panel"], .closePopup),
+        (["fill", "by", "voice"], .fillForm), (["fill", "this", "form"], .fillForm), (["fill", "the", "form"], .fillForm), (["fill", "form"], .fillForm), (["start", "filling"], .fillForm), (["fill", "this", "page"], .fillForm),
         (["open", "popup"], .openPopup), (["show", "popup"], .openPopup), (["show", "shortcuts"], .openPopup),
         (["keydo"], .openPopup), (["hey", "keydo"], .openPopup), (["hey", "kiddo"], .openPopup), (["kiddo"], .openPopup), (["keydough"], .openPopup), (["key", "dough"], .openPopup), (["hey", "key", "dough"], .openPopup), (["hi", "keydo"], .openPopup), (["okay", "keydo"], .openPopup), (["hey", "kido"], .openPopup), (["a", "keydo"], .openPopup), (["key", "do"], .openPopup), (["hey", "key", "do"], .openPopup), (["kido"], .openPopup), (["keido"], .openPopup), (["keyedo"], .openPopup), (["kiado"], .openPopup),
     ]
 
     /// Words that begin a longer command. They are held back until the next word arrives.
-    static let starters: Set<String> = ["start", "resume", "pause", "stop", "scroll", "page", "select", "paste", "insert", "clear", "close", "open", "show"]
+    static let starters: Set<String> = ["start", "resume", "pause", "stop", "scroll", "page", "select", "paste", "insert", "clear", "close", "open", "show", "fill"]
 
     static func match(_ words: [String], at index: Int) -> (VoiceCommand, Int)? {
         for entry in phrases.sorted(by: { $0.words.count > $1.words.count }) {
@@ -107,6 +108,8 @@ final class KeyDoVoice: ObservableObject {
     /// True while the mic only waits for the wake phrase and ignores everything else that is said.
     @Published private(set) var wakeOnly = false
     private var watchdog: Timer?
+    /// Fill by voice has the microphone: do not wake or restart here until it lets go.
+    var suspended = false
     private var lastWakeAttempt = Date.distantPast
     private var observingEngine = false
 
@@ -129,7 +132,7 @@ final class KeyDoVoice: ObservableObject {
     }
 
     private func watchdogTick() {
-        guard wakeAlways else { return }
+        guard wakeAlways, !suspended else { return }
         if phase == .off {
             if errorMessage.isEmpty, Date().timeIntervalSince(lastWakeAttempt) > 20 { startWakeIfNeeded() }
         } else if !running, !authorizing, Date().timeIntervalSince(lastStart) > 8 {
@@ -143,7 +146,7 @@ final class KeyDoVoice: ObservableObject {
     }
 
     func startWakeIfNeeded() {
-        guard wakeAlways, phase == .off else { return }
+        guard wakeAlways, !suspended, phase == .off else { return }
         lastWakeAttempt = Date()
         context = .app
         wakeOnly = true
@@ -474,7 +477,7 @@ final class KeyDoVoice: ObservableObject {
     }
 
     private func contextualWords() -> [String] {
-        var words = ["enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup", "hey keydo", "keydo"]
+        var words = ["enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup", "fill by voice", "hey keydo", "keydo"]
         words += (handlers?.vocabulary() ?? []).prefix(120)
         return words
     }
@@ -497,7 +500,7 @@ final class KeyDoVoice: ObservableObject {
             var at = 0
             while at < fresh.count {
                 if let (command, length) = VoiceGrammar.match(fresh, at: at) {
-                    if command == .openPopup { run(command); return }
+                    if command == .openPopup || command == .fillForm { run(command); return }
                     at += length
                 } else { at += 1 }
             }
@@ -546,7 +549,7 @@ final class KeyDoVoice: ObservableObject {
         case .pause:
             pause()
         default:
-            guard phase == .listening, !wakeOnly || command == .openPopup else { return }
+            guard phase == .listening, !wakeOnly || command == .openPopup || command == .fillForm else { return }
             switch command {
             case .enter:
                 say("Enter", sound: .enter)
@@ -568,6 +571,9 @@ final class KeyDoVoice: ObservableObject {
                 say("Cleared", sound: nil)
             case .closePopup:
                 if context == .popup { say("Closing", sound: nil); handlers?.close() }
+            case .fillForm:
+                say("Fill by voice", sound: .enter)
+                Task { @MainActor in FormVoice.shared.start() }
             case .openPopup:
                 touch()
                 if context == .popup { say("I\u{2019}m listening", sound: nil) }

@@ -1,7 +1,15 @@
-## One prompt for apps, plus MyDatabase upgrades
+## Voice everywhere, and a tidier browser
 
-- **App Builder prompt box:** at the top of App Builder, type or say what you want, for example "Send Diwali greetings to Rohit". KeyDo finds the app, fills in the details and runs it. It looks across your own apps, Wish Studio apps and Ezyourlife apps. When several fit, your own apps come first (no credits), then the cheapest Ezyourlife app, then the first match, and the other matches stay as buttons so you can switch. `=date` and similar functions work inside the sentence. If an app needs a missing detail it opens, ready to fill. Ezyourlife apps always open for you to confirm before any credits are used.
-- **MyDatabase, LinkedIn:** a "LinkedIn export" button in Contacts takes the ZIP or Connections.csv LinkedIn sends you. Name, company, position, email and profile link are kept, tagged linkedin, and re-importing does not duplicate people.
-- **MyDatabase, Media:** a new Media category for photos, videos and audio, with previews, drag and drop, rename and Make shortcuts, like Files.
-- **MyDatabase, tables:** build a table from a screenshot or photo of one (the Mac reads the text), from a saved web page, or by pasting a table copied from a web page or sheet, or a screenshot on the clipboard.
-- **Collection Builder:** now has the File Renamer as an optional step, as well as in MyDatabase and its own screen.
+**Fill by voice, on every screen**
+- New **Fill by voice** icon in the top bar (next to the new **Voice command** icon), and in the AppBuilder app bar. It is the same icon and the same behaviour everywhere, including the Ezyourlife apps.
+- It reads the boxes on the screen you are looking at, top to bottom, and walks through them. Say the answer; say "next", "back", "clear" or "done", or "box name is answer" to jump to a box.
+- Works in AppBuilder apps, Collection Builder, Prompt Builder, MyDatabase, settings and any other form. Passwords are never filled by voice.
+- You can start it by saying "Fill by voice" or "Fill this form". It turns off after 20 quiet seconds, with a 3-second countdown, and has an English / Hindi switch.
+
+**Choices you can speak**
+- When Fill by voice reaches a menu, a tab bar or a switch, it opens the list of options. Say "scroll down" or "scroll up" to see more, then say the option's name or number to pick it.
+- MyDatabase tabs and the AppBuilder app switcher can be chosen by voice too ("Media", "Collection Builder").
+
+**Browser**
+- The Home button is now an icon, in the address bar and in the tab row.
+- Saved links, bookmarks, collections and Start page cards open in a new tab. Links that ask for a new window, and Cmd-clicked links, open in a new tab too.
