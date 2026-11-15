@@ -22,6 +22,8 @@ struct DBRecord: Identifiable, Codable, Hashable {
     var collection = "General"
     var notes = ""
     var created = Date()
+    /// Files and media are both direct links to something on this Mac.
+    var isFileLike: Bool { kind == "file" || kind == "media" }
 }
 
 struct DBTable: Identifiable, Codable, Hashable {
@@ -106,9 +108,12 @@ struct DBTable: Identifiable, Codable, Hashable {
             let name = contact.displayName
             guard !name.isEmpty else { continue }
             let mobile = contact.mobile.isEmpty ? (contact.phones.first ?? "") : contact.mobile
-            let duplicate = records.contains { $0.kind == "contact" && ((!mobile.isEmpty && $0.value == mobile) || (!contact.email.isEmpty && $0.email.caseInsensitiveCompare(contact.email) == .orderedSame)) }
+            let duplicate = records.contains { $0.kind == "contact" && ((!mobile.isEmpty && $0.value == mobile) || (!contact.email.isEmpty && $0.email.caseInsensitiveCompare(contact.email) == .orderedSame) || (!contact.url.isEmpty && $0.notes.contains(contact.url))) }
             if duplicate { continue }
-            records.insert(DBRecord(kind: "contact", title: name, value: mobile, email: contact.email, company: contact.company, address: contact.address, collection: collection), at: 0)
+            var record = DBRecord(kind: "contact", title: name, value: mobile, email: contact.email, company: contact.company, address: contact.address, collection: collection)
+            record.notes = [contact.title, contact.url].filter { !$0.isEmpty }.joined(separator: " · ")
+            record.tags = contact.source.lowercased()
+            records.insert(record, at: 0)
             added += 1
         }
         save()
@@ -130,12 +135,12 @@ struct DBTable: Identifiable, Codable, Hashable {
         return added
     }
 
-    @discardableResult func addFiles(_ urls: [URL], collection: String) -> Int {
+    @discardableResult func addFiles(_ urls: [URL], collection: String, kind: String = "file") -> Int {
         var added = 0
         for url in urls {
             let path = url.standardizedFileURL.path
-            if records.contains(where: { $0.kind == "file" && $0.value == path }) { continue }
-            records.insert(DBRecord(kind: "file", title: url.lastPathComponent, value: path, collection: collection), at: 0)
+            if records.contains(where: { $0.kind == kind && $0.value == path }) { continue }
+            records.insert(DBRecord(kind: kind, title: url.lastPathComponent, value: path, collection: collection), at: 0)
             added += 1
         }
         save()
@@ -147,7 +152,7 @@ struct DBTable: Identifiable, Codable, Hashable {
         var changed = false
         for pair in pairs {
             let old = pair.from.standardizedFileURL.path
-            for index in records.indices where records[index].kind == "file" && records[index].value == old {
+            for index in records.indices where records[index].isFileLike && records[index].value == old {
                 records[index].value = pair.to.standardizedFileURL.path
                 records[index].title = pair.to.lastPathComponent
                 changed = true
@@ -227,12 +232,12 @@ struct MyDatabaseView: View {
     @State private var showBulkRename = false
 
     private let tabs: [(String, String)] = [
-        ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"),
+        ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
         ("Tables", "tablecells"), ("Shortcuts", "bolt.fill"), ("File Renamer", "doc.badge.gearshape")
     ]
 
-    private var kind: String { tab == "Contacts" ? "contact" : tab == "Links" ? "link" : "file" }
-    private var isRecordTab: Bool { ["Contacts", "Links", "Files"].contains(tab) }
+    private var kind: String { tab == "Contacts" ? "contact" : tab == "Links" ? "link" : tab == "Media" ? "media" : "file" }
+    private var isRecordTab: Bool { ["Contacts", "Links", "Files", "Media"].contains(tab) }
 
     private var visible: [DBRecord] {
         store.records.filter { record in
@@ -286,10 +291,10 @@ struct MyDatabaseView: View {
             }
         } message: { Text("Selected items move into this collection.") }
         .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
-            guard tab == "Files" else { return false }
+            guard tab == "Files" || tab == "Media" else { return false }
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    if let url { DispatchQueue.main.async { _ = store.addFiles([url], collection: currentCollection) } }
+                    if let url { DispatchQueue.main.async { _ = store.addFiles([url], collection: currentCollection, kind: kind) } }
                 }
             }
             return true
@@ -305,7 +310,7 @@ struct MyDatabaseView: View {
         var renamedFiles = 0, failed = 0
         for index in store.records.indices {
             guard let newName = names[store.records[index].id], !newName.isEmpty, newName != store.records[index].title else { continue }
-            if onDisk && store.records[index].kind == "file" {
+            if onDisk && store.records[index].isFileLike {
                 let source = URL(fileURLWithPath: store.records[index].value)
                 let destination = source.deletingLastPathComponent().appendingPathComponent(newName)
                 if FileManager.default.fileExists(atPath: destination.path) || (try? FileManager.default.moveItem(at: source, to: destination)) == nil {
@@ -373,10 +378,18 @@ struct MyDatabaseView: View {
             HStack(spacing: 8) {
                 Button { editing = DBRecord(kind: kind, title: "", value: "", collection: currentCollection) } label: { Label("Add", systemImage: "plus") }
                     .buttonStyle(.borderedProminent).tint(Butter.coral)
-                if tab == "Contacts" { Button { importContacts() } label: { Label("Import VCF or CSV", systemImage: "square.and.arrow.down") }.buttonStyle(.bordered) }
+                if tab == "Contacts" {
+                    Button { importContacts() } label: { Label("Import VCF or CSV", systemImage: "square.and.arrow.down") }.buttonStyle(.bordered)
+                    Button { importContacts(linkedIn: true) } label: { Label("LinkedIn export", systemImage: "person.2.badge.plus") }.buttonStyle(.bordered)
+                        .help("Upload the ZIP or Connections.csv you get from LinkedIn (Settings, Data privacy, Get a copy of your data)")
+                }
                 if tab == "Links" {
                     Button { pasteText = ""; showPasteLinks = true } label: { Label("Paste links", systemImage: "doc.on.clipboard") }.buttonStyle(.bordered)
                     Button { importLinksCSV() } label: { Label("Import CSV", systemImage: "square.and.arrow.down") }.buttonStyle(.bordered)
+                }
+                if tab == "Media" {
+                    Button { chooseFiles(media: true) } label: { Label("Add photos, videos, audio", systemImage: "photo.badge.plus") }.buttonStyle(.bordered)
+                    Button { checkFiles() } label: { Label("Check links", systemImage: "checkmark.seal") }.buttonStyle(.bordered)
                 }
                 if tab == "Files" {
                     Button { chooseFiles() } label: { Label("Add files", systemImage: "doc.badge.plus") }.buttonStyle(.bordered)
@@ -398,7 +411,7 @@ struct MyDatabaseView: View {
                     Button(role: .destructive) { store.remove(ids: selection); selection = [] } label: { Label("Delete", systemImage: "trash") }
                 }
             }
-            if tab == "Files" { Text("Drop files here to save a direct link to them. The file stays where it is.").font(.caption).foregroundStyle(.secondary) }
+            if tab == "Files" || tab == "Media" { Text("Drop \(tab == "Media" ? "photos, videos or audio" : "files") here to save a direct link to them. The file stays where it is.").font(.caption).foregroundStyle(.secondary) }
         }
     }
 
@@ -435,22 +448,27 @@ struct MyDatabaseView: View {
         switch tab {
         case "Contacts": return "Add a contact or import a VCF or CSV file from Google Contacts, Zoho or your phone."
         case "Links": return "Add a link, paste a list of links, or import a CSV."
+        case "Media": return "Add photos, videos or audio, or drop them here, to keep direct links with a preview."
         default: return "Add files or drop them here to keep direct links to them."
         }
     }
 
     private func recordRow(_ record: DBRecord) -> some View {
-        let missing = record.kind == "file" && !FileManager.default.fileExists(atPath: record.value)
+        let missing = record.isFileLike && !FileManager.default.fileExists(atPath: record.value)
         return HStack(alignment: .top, spacing: 10) {
             Toggle("", isOn: Binding(get: { selection.contains(record.id) }, set: { on in if on { selection.insert(record.id) } else { selection.remove(record.id) } }))
                 .toggleStyle(.checkbox).labelsHidden().padding(.top, 2)
-            Image(systemName: record.kind == "contact" ? "person.crop.circle" : record.kind == "link" ? "link" : (missing ? "exclamationmark.triangle.fill" : "doc"))
-                .foregroundStyle(missing ? Color.orange : Butter.coral).frame(width: 22).padding(.top, 2)
+            if record.kind == "media", !missing {
+                DBMediaThumb(path: record.value).padding(.top, 1)
+            } else {
+                Image(systemName: record.kind == "contact" ? "person.crop.circle" : record.kind == "link" ? "link" : (missing ? "exclamationmark.triangle.fill" : "doc"))
+                    .foregroundStyle(missing ? Color.orange : Butter.coral).frame(width: 22).padding(.top, 2)
+            }
             VStack(alignment: .leading, spacing: 3) {
                 Text(record.title.isEmpty ? "Untitled" : record.title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
                 Text(record.value).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
                 if record.kind == "contact" {
-                    let extra = [record.email, record.company, record.address].filter { !$0.isEmpty }.joined(separator: "  ·  ")
+                    let extra = [record.email, record.company, record.address, record.notes].filter { !$0.isEmpty }.joined(separator: "  ·  ")
                     if !extra.isEmpty { Text(extra).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
                 }
                 if missing { Text("File not found at this path. It may have been moved or renamed.").font(.system(size: 11)).foregroundStyle(.orange) }
@@ -466,7 +484,7 @@ struct MyDatabaseView: View {
                     iconButton("safari", "Open link") { NSWorkspace.shared.open(url) }
                     iconButton("doc.on.doc", "Copy link") { copy(record.value) }
                 }
-                if record.kind == "file" {
+                if record.isFileLike {
                     iconButton("arrow.up.forward.app", "Open file") { NSWorkspace.shared.open(URL(fileURLWithPath: record.value)) }.disabled(missing)
                     iconButton("folder", "Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: record.value)]) }.disabled(missing)
                     iconButton("doc.on.doc", "Copy path") { copy(record.value) }
@@ -495,10 +513,10 @@ struct MyDatabaseView: View {
 
     // MARK: Actions
 
-    private func importContacts() {
+    private func importContacts(linkedIn: Bool = false) {
         let panel = NSOpenPanel()
-        panel.title = "Choose a VCF or CSV contacts file"
-        panel.allowedContentTypes = [UTType(filenameExtension: "vcf") ?? .data, .commaSeparatedText, .plainText]
+        panel.title = linkedIn ? "Choose your LinkedIn export (ZIP or Connections.csv)" : "Choose a VCF or CSV contacts file"
+        panel.allowedContentTypes = linkedIn ? [.zip, .commaSeparatedText, .plainText] : [UTType(filenameExtension: "vcf") ?? .data, .commaSeparatedText, .plainText]
         panel.allowsMultipleSelection = true
         guard panel.runModal() == .OK else { return }
         var total = 0, found = 0
@@ -510,6 +528,39 @@ struct MyDatabaseView: View {
             } catch { store.message = "Could not read \(url.lastPathComponent): \(error.localizedDescription)"; return }
         }
         store.message = "Added \(total) contact(s). \(found - total) already saved or without a name."
+    }
+
+    private func openImported(_ table: TableImport.Table, name: String, source: String) {
+        store.addTable(DBTable(name: name, headers: table.headers, rows: table.rows, collection: currentCollection))
+        openTableID = store.tables.first?.id
+        page = 0
+        store.message = "Built a table with \(table.rows.count) rows and \(table.headers.count) columns from the \(source). Check the headers and fix any misread cells."
+    }
+
+    private func importTableFromPicture() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a picture of a table, or a saved web page"
+        panel.allowedContentTypes = [.image, .html, .plainText]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        store.message = "Reading \(url.lastPathComponent)…"
+        Task { @MainActor in
+            if let table = await TableImport.fromFile(url) {
+                openImported(table, name: (url.lastPathComponent as NSString).deletingPathExtension, source: url.pathExtension.lowercased().hasPrefix("htm") ? "page" : "picture")
+            } else {
+                store.message = "No table found in that file. Try a sharper picture, crop to just the table, or paste the table instead."
+            }
+        }
+    }
+
+    private func pasteTable() {
+        store.message = "Reading the clipboard…"
+        Task { @MainActor in
+            if let found = await TableImport.fromClipboard() {
+                openImported(found.table, name: "Pasted table", source: found.source)
+            } else {
+                store.message = "The clipboard has no table. Copy a table from a web page or sheet, or take a screenshot of it, then try again."
+            }
+        }
     }
 
     private func importLinksCSV() {
@@ -529,18 +580,19 @@ struct MyDatabaseView: View {
         } catch { store.message = "Could not read that file: \(error.localizedDescription)" }
     }
 
-    private func chooseFiles() {
+    private func chooseFiles(media: Bool = false) {
         let panel = NSOpenPanel()
-        panel.title = "Choose files or folders to link"
+        panel.title = media ? "Choose photos, videos or audio to link" : "Choose files or folders to link"
         panel.canChooseFiles = true
-        panel.canChooseDirectories = true
+        panel.canChooseDirectories = !media
+        if media { panel.allowedContentTypes = [.image, .movie, .audio] }
         panel.allowsMultipleSelection = true
         guard panel.runModal() == .OK else { return }
-        store.message = "Added \(store.addFiles(panel.urls, collection: currentCollection)) file link(s)."
+        store.message = "Added \(store.addFiles(panel.urls, collection: currentCollection, kind: media ? "media" : "file")) \(media ? "media" : "file") link(s)."
     }
 
     private func checkFiles() {
-        let files = store.records.filter { $0.kind == "file" }
+        let files = store.records.filter { $0.isFileLike }
         let missing = files.filter { !FileManager.default.fileExists(atPath: $0.value) }
         store.message = missing.isEmpty ? "All \(files.count) file links work." : "\(missing.count) of \(files.count) file links point to a missing file (marked with a warning)."
     }
@@ -587,6 +639,10 @@ struct MyDatabaseView: View {
             } else {
                 HStack(spacing: 8) {
                     Button { importTable() } label: { Label("Upload CSV", systemImage: "square.and.arrow.down") }.buttonStyle(.borderedProminent).tint(Butter.coral)
+                    Button { importTableFromPicture() } label: { Label("From picture or HTML", systemImage: "text.viewfinder") }.buttonStyle(.bordered)
+                        .help("Upload a screenshot or photo of a table, or a saved web page (.html). KeyDo reads the text and builds the rows.")
+                    Button { pasteTable() } label: { Label("Paste table", systemImage: "doc.on.clipboard") }.buttonStyle(.bordered)
+                        .help("Paste a table copied from a web page or sheet, or a screenshot on the clipboard")
                     Button {
                         store.addTable(DBTable(name: "New table", headers: ["Name", "Details"], rows: [["", ""]]))
                         openTableID = store.tables.first?.id
@@ -846,6 +902,7 @@ struct DBMakeShortcutsSheet: View {
         case "contact": defaultName = "Contacts"
         case "link": defaultName = "Links"
         case "file": defaultName = "Files"
+        case "media": defaultName = "Media"
         default: defaultName = source.table?.name ?? "Table"
         }
         _collection = State(initialValue: defaultName)
@@ -870,7 +927,7 @@ struct DBMakeShortcutsSheet: View {
 
     /// The first part of a code for a link or file, built the way the person chose.
     private func wordStem(for record: DBRecord) -> String {
-        let title = record.title.isEmpty ? record.value : (record.kind == "file" ? (record.title as NSString).deletingPathExtension : record.title)
+        let title = record.title.isEmpty ? record.value : (record.isFileLike ? (record.title as NSString).deletingPathExtension : record.title)
         let words = title.split(whereSeparator: { !$0.isLetter && !$0.isNumber }).map { dbSlug(String($0), limit: 30) }.filter { !$0.isEmpty }
         switch wordStyle {
         case "short": return String(words.map { String($0.prefix(3)) }.joined().prefix(18))
@@ -954,7 +1011,7 @@ struct DBMakeShortcutsSheet: View {
                 }
                 Toggle("Short codes (first 3 letters of each word)", isOn: $shortWords).toggleStyle(.checkbox).font(.system(size: 12))
             }
-            if source.kind == "link" || source.kind == "file" {
+            if source.kind == "link" || source.kind == "file" || source.kind == "media" {
                 Picker("Code from", selection: $wordStyle) {
                     Text("Full name").tag("name")
                     Text("First 3 letters of each word").tag("short")
@@ -997,7 +1054,7 @@ struct DBBulkRenameSheet: View {
     @State private var renameOnDisk = false
     private let modes = ["Add prefix", "Add suffix", "Replace prefix", "Replace suffix", "Find & replace", "Lowercase", "UPPERCASE", "Title Case", "Spaces to hyphens"]
 
-    private var hasFiles: Bool { records.contains { $0.kind == "file" } }
+    private var hasFiles: Bool { records.contains { $0.isFileLike } }
 
     private func transform(_ value: String) -> String {
         switch mode {
@@ -1015,7 +1072,7 @@ struct DBBulkRenameSheet: View {
 
     /// Files keep their extension; the rule applies to the name only.
     private func newTitle(_ record: DBRecord) -> String {
-        guard record.kind == "file" else { return transform(record.title) }
+        guard record.isFileLike else { return transform(record.title) }
         let ext = (record.title as NSString).pathExtension
         let base = (record.title as NSString).deletingPathExtension
         return transform(base) + (ext.isEmpty ? "" : "." + ext)
@@ -1059,5 +1116,42 @@ struct DBBulkRenameSheet: View {
             }
         }
         .padding(20).frame(width: 500)
+    }
+}
+
+
+/// A small preview for a media row: the picture itself, or an icon for video and audio.
+struct DBMediaThumb: View {
+    var path: String
+    @State private var image: NSImage?
+
+    private var ext: String { (path as NSString).pathExtension.lowercased() }
+    private var isPicture: Bool { ["jpg", "jpeg", "png", "gif", "heic", "webp", "tiff", "bmp"].contains(ext) }
+
+    var body: some View {
+        Group {
+            if let image {
+                Image(nsImage: image).resizable().scaledToFill()
+            } else {
+                Image(systemName: isPicture ? "photo" : ["mp3", "m4a", "wav", "aac", "flac"].contains(ext) ? "waveform" : "film")
+                    .foregroundStyle(Butter.coral)
+            }
+        }
+        .frame(width: 44, height: 44)
+        .background(Butter.butter.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .task(id: path) {
+            guard isPicture else { return }
+            let loaded = await Task.detached(priority: .utility) { () -> NSImage? in
+                guard let source = NSImage(contentsOfFile: path) else { return nil }
+                let target = NSSize(width: 88, height: 88)
+                let thumb = NSImage(size: target)
+                thumb.lockFocus()
+                source.draw(in: NSRect(origin: .zero, size: target), from: .zero, operation: .copy, fraction: 1)
+                thumb.unlockFocus()
+                return thumb
+            }.value
+            image = loaded
+        }
     }
 }
