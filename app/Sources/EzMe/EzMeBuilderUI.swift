@@ -156,3 +156,20 @@ struct BuilderSiteTile: View {
         .onHover { hovering = $0 }
     }
 }
+
+/// The Desktop File Renamer inside Collection Builder, so files can be tidied before a collection is built from them.
+struct CollectionFileRenamerBox: View {
+    @State private var open = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $open) {
+            FileRenamerView().padding(.top, 8)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Give a batch of files clear names first").font(.system(size: 13, weight: .semibold))
+                Text("The same File Renamer as in the Files area and MyDatabase: pick files, choose a rule, preview, rename.")
+                    .font(.system(size: 11.5)).foregroundStyle(.secondary)
+            }
+        }
+    }
+}

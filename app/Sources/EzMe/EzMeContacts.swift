@@ -52,6 +52,8 @@ struct EzContact: Identifiable {
     var address = ""
     var company = ""
     var title = ""
+    var url = ""
+    var source = ""
 
     var displayName: String {
         if !full.isEmpty { return full }
@@ -156,8 +158,31 @@ enum EzContactImport {
             throw NSError(domain: "EzMeContacts", code: 1, userInfo: [NSLocalizedDescriptionKey: "That file could not be read as text."])
         }
         let ext = url.pathExtension.lowercased()
+        if ext == "zip" { return try parseLinkedInZip(url) }
         let contacts = (ext == "csv" || (ext != "vcf" && !text.contains("BEGIN:VCARD"))) ? parseCSV(text) : parseVCF(text)
         return Array(contacts.map(cleaned).filter { !$0.displayName.isEmpty }.prefix(maxContacts))
+    }
+
+    /// LinkedIn's data export is a ZIP. Connections.csv has your connections; Contacts.csv has imported address books.
+    static func parseLinkedInZip(_ zip: URL) throws -> [EzContact] {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("KeyDoLinkedIn-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        process.arguments = ["-o", "-q", zip.path, "Connections.csv", "connections.csv", "Contacts.csv", "-d", folder.path]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        var all: [EzContact] = []
+        for name in ["Connections.csv", "connections.csv", "Contacts.csv"] {
+            let file = folder.appendingPathComponent(name)
+            guard let data = try? Data(contentsOf: file), let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else { continue }
+            all += parseCSV(text).map { var c = $0; c.source = "LinkedIn"; return c }
+        }
+        if all.isEmpty { throw NSError(domain: "EzMeContacts", code: 2, userInfo: [NSLocalizedDescriptionKey: "No Connections.csv was found in that ZIP. LinkedIn sends it a few minutes after you ask for \"Connections\" in Get a copy of your data."]) }
+        return Array(all.map(cleaned).filter { !$0.displayName.isEmpty }.prefix(maxContacts))
     }
 
     /// Text on the left of a | sign. Some address books store "Name | Company | City" in the name.
@@ -287,22 +312,29 @@ enum EzContactImport {
     }
 
     static func parseCSV(_ text: String) -> [EzContact] {
-        let rows = csvRows(text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text)
+        var rows = csvRows(text.hasPrefix("\u{FEFF}") ? String(text.dropFirst()) : text)
+        // LinkedIn's Connections.csv starts with a few lines of notes before the real header row.
+        if let start = rows.firstIndex(where: { row in
+            let lower = row.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+            return (lower.contains("first name") || lower.contains("firstname")) && (lower.contains("last name") || lower.contains("lastname")) && lower.count >= 3
+        }), start > 0 { rows.removeFirst(start) }
         guard let header = rows.first else { return [] }
         let names = header.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+        let linkedIn = names.contains("connected on") || (names.contains("url") && names.contains("position"))
         func index(_ options: [String]) -> Int? { options.compactMap { names.firstIndex(of: $0) }.first }
         func value(_ row: [String], _ i: Int?) -> String {
             guard let i, i < row.count else { return "" }
             return row[i].trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        let firstI = index(["first name", "given name"])
-        let lastI = index(["last name", "family name", "surname"])
-        let fullI = index(["name", "full name", "display name", "file as"])
-        let emailI = index(["e-mail 1 - value", "email", "email address", "e-mail address", "e-mail", "secondary email"])
-        let companyI = index(["organization name", "organization 1 - name", "company", "account name", "organization"])
-        let titleI = index(["job title", "organization title", "organization 1 - title", "title"])
+        let firstI = index(["first name", "given name", "firstname"])
+        let lastI = index(["last name", "family name", "surname", "lastname"])
+        let fullI = index(["name", "full name", "display name", "file as", "fullname"])
+        let emailI = index(["e-mail 1 - value", "email", "email address", "e-mail address", "e-mail", "secondary email", "emailaddress"])
+        let companyI = index(["organization name", "organization 1 - name", "company", "account name", "organization", "companies"])
+        let titleI = index(["job title", "organization title", "organization 1 - title", "title", "position"])
+        let profileI = index(["url", "profile url", "linkedin url", "linkedin profile"])
         let mobileI = index(["mobile", "mobile phone", "cell", "cell phone"])
-        let phoneI = index(["phone", "home phone", "work phone", "business phone", "other phone"])
+        let phoneI = index(["phone", "home phone", "work phone", "business phone", "other phone", "phonenumbers", "phone numbers"])
         let formattedAddressI = index(["address 1 - formatted", "address", "mailing address"])
         let streetI = index(["mailing street", "address 1 - street", "street"])
         let cityI = index(["mailing city", "address 1 - city", "city"])
@@ -321,6 +353,8 @@ enum EzContactImport {
             contact.email = value(row, emailI).components(separatedBy: " ::: ").first ?? ""
             contact.company = value(row, companyI)
             contact.title = value(row, titleI)
+            contact.url = value(row, profileI)
+            if linkedIn { contact.source = "LinkedIn" }
             contact.mobile = value(row, mobileI)
             let phone = value(row, phoneI)
             if !phone.isEmpty { contact.phones.append(phone) }

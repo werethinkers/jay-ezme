@@ -1,5 +1,7 @@
-## Browser tab icons stay put
+## One prompt for apps, plus MyDatabase upgrades
 
-- **Icons are saved:** each site's icon is remembered on this Mac, so tabs show it the moment they appear, including after you restart KeyDo. Incognito and Private Mode keep icons in memory only.
-- **No more late pop-in:** until an icon is found, the tab shows the first letter of the site's name instead of a blank globe, and the tab takes the site's name as soon as the page starts loading. The icon you had is kept when a page reloads or an icon fails to load, and is dropped only when you close the tab.
-- **Faster fetch:** icons are requested as the page starts, not only after it has fully loaded.
+- **App Builder prompt box:** at the top of App Builder, type or say what you want, for example "Send Diwali greetings to Rohit". KeyDo finds the app, fills in the details and runs it. It looks across your own apps, Wish Studio apps and Ezyourlife apps. When several fit, your own apps come first (no credits), then the cheapest Ezyourlife app, then the first match, and the other matches stay as buttons so you can switch. `=date` and similar functions work inside the sentence. If an app needs a missing detail it opens, ready to fill. Ezyourlife apps always open for you to confirm before any credits are used.
+- **MyDatabase, LinkedIn:** a "LinkedIn export" button in Contacts takes the ZIP or Connections.csv LinkedIn sends you. Name, company, position, email and profile link are kept, tagged linkedin, and re-importing does not duplicate people.
+- **MyDatabase, Media:** a new Media category for photos, videos and audio, with previews, drag and drop, rename and Make shortcuts, like Files.
+- **MyDatabase, tables:** build a table from a screenshot or photo of one (the Mac reads the text), from a saved web page, or by pasting a table copied from a web page or sheet, or a screenshot on the clipboard.
+- **Collection Builder:** now has the File Renamer as an optional step, as well as in MyDatabase and its own screen.
