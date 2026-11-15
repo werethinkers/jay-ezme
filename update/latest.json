@@ -1,9 +1,9 @@
 {
   "version": "3.44",
-  "build": 323,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build323/EzMe-3.44-macOS.zip",
-  "sha256": "5641a2c65da2126c68c3bb3f73c4b314a24dd9bb4fffdbaedd5fb35fbe177f16",
-  "notes": "## Browser tab icons stay put\n\n- **Icons are saved:** each site's icon is remembered on this Mac, so tabs show it the moment they appear, including after you restart KeyDo. Incognito and Private Mode keep icons in memory only.\n- **No more late pop-in:** until an icon is found, the tab shows the first letter of the site's name instead of a blank globe, and the tab takes the site's name as soon as the page starts loading. The icon you had is kept when a page reloads or an icon fails to load, and is dropped only when you close the tab.\n- **Faster fetch:** icons are requested as the page starts, not only after it has fully loaded.",
-  "published": "2026-11-15T04:39:13Z",
+  "build": 325,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.44-build325/EzMe-3.44-macOS.zip",
+  "sha256": "144f8aa233d1b82a2f7a1f046c5e0ff5fc2243dcd5221ce67874a14e8a409422",
+  "notes": "## One prompt for apps, plus MyDatabase upgrades\n\n- **App Builder prompt box:** at the top of App Builder, type or say what you want, for example \"Send Diwali greetings to Rohit\". KeyDo finds the app, fills in the details and runs it. It looks across your own apps, Wish Studio apps and Ezyourlife apps. When several fit, your own apps come first (no credits), then the cheapest Ezyourlife app, then the first match, and the other matches stay as buttons so you can switch. `=date` and similar functions work inside the sentence. If an app needs a missing detail it opens, ready to fill. Ezyourlife apps always open for you to confirm before any credits are used.\n- **MyDatabase, LinkedIn:** a \"LinkedIn export\" button in Contacts takes the ZIP or Connections.csv LinkedIn sends you. Name, company, position, email and profile link are kept, tagged linkedin, and re-importing does not duplicate people.\n- **MyDatabase, Media:** a new Media category for photos, videos and audio, with previews, drag and drop, rename and Make shortcuts, like Files.\n- **MyDatabase, tables:** build a table from a screenshot or photo of one (the Mac reads the text), from a saved web page, or by pasting a table copied from a web page or sheet, or a screenshot on the clipboard.\n- **Collection Builder:** now has the File Renamer as an optional step, as well as in MyDatabase and its own screen.",
+  "published": "2026-11-15T06:26:51Z",
   "minimumSystemVersion": "14.0"
 }
