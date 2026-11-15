@@ -347,6 +347,9 @@ struct WishApplicationStep: View {
             }
             Text("The prompt is kept with the app. Step 2 can suggest fields from the words in it.")
                 .font(.system(size: 11)).foregroundStyle(WishTheme.muted)
+            WishTemplatePicker(appID: app.id, existingFieldKeys: app.fields.map { $0.key }) { keys in
+                for key in keys { app.fields.append(WishField(key: key, label: key.prefix(1).uppercased() + key.dropFirst())) }
+            }
             labelled("Menu icon") {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 12), spacing: 6) {
                     ForEach(WishArtwork.choices, id: \.symbol) { choice in
