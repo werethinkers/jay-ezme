@@ -1,9 +1,9 @@
 {
   "version": "3.45",
-  "build": 327,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.45-build327/EzMe-3.45-macOS.zip",
-  "sha256": "aa3690a22a5f3fd13e19f40c4c3c38e7778163dfb82a0ca3f6d1fb7612a4cc54",
-  "notes": "## Voice everywhere, and a tidier browser\n\n**Fill by voice, on every screen**\n- New **Fill by voice** icon in the top bar (next to the new **Voice command** icon), and in the AppBuilder app bar. It is the same icon and the same behaviour everywhere, including the Ezyourlife apps.\n- It reads the boxes on the screen you are looking at, top to bottom, and walks through them. Say the answer; say \"next\", \"back\", \"clear\" or \"done\", or \"box name is answer\" to jump to a box.\n- Works in AppBuilder apps, Collection Builder, Prompt Builder, MyDatabase, settings and any other form. Passwords are never filled by voice.\n- You can start it by saying \"Fill by voice\" or \"Fill this form\". It turns off after 20 quiet seconds, with a 3-second countdown, and has an English / Hindi switch.\n\n**Choices you can speak**\n- When Fill by voice reaches a menu, a tab bar or a switch, it opens the list of options. Say \"scroll down\" or \"scroll up\" to see more, then say the option's name or number to pick it.\n- MyDatabase tabs and the AppBuilder app switcher can be chosen by voice too (\"Media\", \"Collection Builder\").\n\n**Browser**\n- The Home button is now an icon, in the address bar and in the tab row.\n- Saved links, bookmarks, collections and Start page cards open in a new tab. Links that ask for a new window, and Cmd-clicked links, open in a new tab too.",
-  "published": "2026-11-15T06:50:56Z",
+  "build": 329,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.45-build329/EzMe-3.45-macOS.zip",
+  "sha256": "05cf7646bffefead20cad3ab28f5463956026c3974793d5ad7919251d4e1e7be",
+  "notes": "## Fill by voice is easier to read\n\n- The Fill by voice panel now always uses dark text on a light card, so the hints and instructions are clear in light and dark mode.\n- Larger hint text, a stronger heading and clearer Back, Next, Options and Done buttons.",
+  "published": "2026-11-15T11:51:01Z",
   "minimumSystemVersion": "14.0"
 }
