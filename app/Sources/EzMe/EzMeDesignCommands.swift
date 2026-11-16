@@ -26,9 +26,9 @@ import AppKit
     }
 
     /// The command words already taken by other apps.
-    private static func taken(except designID: String) -> Set<String> {
+    private static func taken(except ownID: String) -> Set<String> {
         var words = Set<String>()
-        for app in builderApps() where designID(forApp: app) != designID {
+        for app in builderApps() where designID(forApp: app) != ownID {
             let prefix = UserDefaults.standard.string(forKey: "ezmeBuilderPrefix." + app) ?? String(app.lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression).prefix(12))
             words.insert(prefix.lowercased())
         }
@@ -76,16 +76,16 @@ import AppKit
         if let old = map[design.id], old != name { remove(app: old, from: &apps) }
         if !apps.contains(name) { apps.append(name) }
         map[design.id] = name
-        let word = word(for: design)
+        let command = word(for: design)
         let slotNames = slots(for: design).map { $0.label }
-        defaults.set(word, forKey: "ezmeBuilderPrefix." + name)
+        defaults.set(command, forKey: "ezmeBuilderPrefix." + name)
         defaults.set("design:" + design.id, forKey: "ezmeBuilderPhotoTemplate." + name)
         defaults.set(slotNames.joined(separator: ","), forKey: "ezmeBuilderVariables." + name)
         defaults.set("", forKey: "ezmeBuilderCollections." + name)
         defaults.set(popupFormat(design), forKey: "ezmeBuilderFormat." + name)
         if let data = try? JSONEncoder().encode(apps) { defaults.set(String(decoding: data, as: UTF8.self), forKey: listKey) }
         defaults.set(map, forKey: mapKey)
-        return word
+        return command
     }
 
     static func unregister(designID: String) {

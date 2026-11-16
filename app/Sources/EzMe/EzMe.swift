@@ -2979,7 +2979,7 @@ func keydoSpokenAppCommand(_ spoken:String,clips:[Clip],records:[CollectionRecor
 func customBuilderCommand(_ raw:String,clips:[Clip]=[],records:[CollectionRecord]=[])->CustomBuilderCommand?{
  var command=raw.trimmingCharacters(in:.whitespacesAndNewlines);if command.first=="\\" || command.first=="/"{command.removeFirst()}
  let names=(try? JSONDecoder().decode([String].self,from:Data((UserDefaults.standard.string(forKey:"ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
- if let sentence=BuilderPhrases.rewrite(command,apps:names){command=sentence};command=DesignCommands.arrange(command)
+ if let sentence=BuilderPhrases.rewrite(command,apps:names){command=sentence};let arranged=MainActor.assumeIsolated{DesignCommands.arrange(command)};command=arranged
  for app in names {
   migrateLegacyBillBuilderSchema(app)
   let defaultPrefix=String(app.lowercased().replacingOccurrences(of:"[^a-z0-9]+",with:"-",options:.regularExpression).prefix(12))
