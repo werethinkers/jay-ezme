@@ -556,16 +556,10 @@ enum DesignCommand {
 
 struct AppDesignerView: View {
     var wishDirectory: URL? = nil
-    /// The live library. When set, the lists below always read from it, so every entry point sees everything.
-    weak var db: DB?
-    private var storedClips: [Clip] = []
-    private var storedRecords: [CollectionRecord] = []
-    private var storedCollections: [String] = []
-    private var storedDefinitions: [CollectionDefinition] = []
-    var clips: [Clip] { get { db?.clips ?? storedClips } set { storedClips = newValue } }
-    var records: [CollectionRecord] { get { db?.collectionRecords ?? storedRecords } set { storedRecords = newValue } }
-    var collections: [String] { get { db?.visibleCollections ?? storedCollections } set { storedCollections = newValue } }
-    var definitions: [CollectionDefinition] { get { db?.collectionDefinitions ?? storedDefinitions } set { storedDefinitions = newValue } }
+    var clips: [Clip] = []
+    var records: [CollectionRecord] = []
+    var collections: [String] = []
+    var definitions: [CollectionDefinition] = []
     @ObservedObject private var designs = AppDesignStore.shared
     @ObservedObject private var templates = TemplateStore.shared
     @State private var tab = 0
