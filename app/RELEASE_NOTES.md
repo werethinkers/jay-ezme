@@ -1,9 +1,9 @@
-## AppDesigner: design apps by voice
+## AppDesigner: split screen, drag and drop, more outputs, apps that run from one form
 
-- **New under Create: AppDesigner** (also in AppBuilder and from WishBuilder step 1). It builds on Template Designer and goes further: a design has many pages.
-- **Start from anything:** a bill, invoice or frame picture, a blank page, or an uploaded **NDA, agreement or letter** (PDF, Word, RTF or text). Documents are laid out on A4 pages, one text box per paragraph.
-- **Live content in every box.** Instead of filler text, a box can hold variables, collection items, shortcut text, functions (like today's date) or, in picture boxes, a shortcut's picture, a picture file or a video (its first frame). Text always shrinks to fit its box.
-- **Variables.** Turn any text into a variable, give it a starting value, and apps fill it by field name. "Replace Acme Ltd with variable company" does it on every page at once.
-- **Change it by speaking or typing.** Press the mic (or type) in the bar under the page: "go to page 3", "make the text pink", "background black", "pink theme", "font Georgia", "bold", "make it a circle", "rotate 15", "add text box called amount", "put function date", "undo", "release".
-- **Release.** Say "release" or press Release to freeze the pages. Apps that use the design switch to that released version. Keep editing, release again for a new version.
-- **Use in apps.** In AppDesigner choose "Use in apps", or pick a design in WishBuilder step 1. AppBuilder apps with a design that has more than one page make a PDF; one page makes a picture.
+- **Split screen.** The library and box settings are on the left, your page is in the middle, and the **live preview** is on the right, updating as you change anything. A form under the preview lets you try real values, and you can pick the output format there.
+- **Drag and drop.** Drag variables, functions, collection items (by category and collection), shortcuts, pictures, videos and logos onto a box on the page. Drop on empty space to make a new box. Drag pictures and videos from Finder straight onto the page. Drop a picture, PDF or Word file on the AppDesigner home screen to start a design from it.
+- **Font size fixed.** Text boxes have an automatic fit or a real size in points with a stepper and slider. Say "font size 18", "bigger text" or "smaller text".
+- **Five outputs.** Image (PNG), animated GIF (the boxes appear one by one), PDF, Word document and HTML page. Say "output PDF", or pick it above the preview.
+- **Ready layouts:** Greeting maker (image or GIF), NDA / agreement (PDF or Word) and Catalog maker (PDF, image or HTML). These are sample layouts to change. Have a lawyer review any legal wording before using it.
+- **Publish.** Press Publish (or say "publish"). The app appears under **Your apps** on the Home page and opens one form: describe everything in one sentence, or fill the form, then press Make. Results can be saved, copied, shared or opened.
+- **Collections** now list categories first, with the collections inside each category and their shortcuts. This also fixes a crash that could stop collections from loading when two collections differed only by capital letters.
