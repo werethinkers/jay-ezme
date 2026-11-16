@@ -856,8 +856,7 @@ final class WishStudioModel: ObservableObject {
         for item in card.media ?? [] where item.kind == "image" {
             if let url = store.mediaURL(item.file), let image = NSImage(contentsOf: url), let key = template.imageKeys.first(where: { extra[TemplateFill.normal($0)] == nil }) { extra[key] = image }
         }
-        var values = TemplateLinks.variables(for: TemplateStore.wishTemplateID(appID: app.id))
-        for (key, value) in context.variables where !value.isEmpty { values[key] = value }
+        let values = DesignFill.merge(TemplateLinks.variables(for: TemplateStore.wishTemplateID(appID: app.id)), context.variables.filter { !$0.value.isEmpty })
         return TemplateFill.render(template, values: values, extraImages: extra, clips: AppDesignContext.shared.clips, maxSide: maxSide)
     }
 

@@ -14,6 +14,26 @@ import UniformTypeIdentifiers
     static let shared = AppDesignContext()
     var clips: [Clip] = []
     var records: [CollectionRecord] = []
+    var collections: [String] = []
+    var definitions: [CollectionDefinition] = []
+
+    /// Collections grouped by category: category, then the collections in it.
+    var collectionTree: [CollectionGroup] {
+        var order: [String] = []
+        var map: [String: [String]] = [:]
+        for name in collections {
+            let category = collectionCategory(name, definition: definitions.first { $0.name.caseInsensitiveCompare(name) == .orderedSame })
+            if map[category] == nil { order.append(category) }
+            map[category, default: []].append(name)
+        }
+        return order.sorted { $0.localizedStandardCompare($1) == .orderedAscending }.map { CollectionGroup(category: $0, names: (map[$0] ?? []).sorted { $0.localizedStandardCompare($1) == .orderedAscending }) }
+    }
+}
+
+struct CollectionGroup: Identifiable {
+    let category: String
+    let names: [String]
+    var id: String { category }
 }
 
 enum DesignContent {
@@ -80,6 +100,9 @@ struct AppDesign: Codable, Identifiable, Hashable {
     var variables: [String: String] = [:]
     var version: Int = 0
     var releasedAt: Date? = nil
+    /// png, gif, pdf, docx or html: what a published app delivers.
+    var outputFormat: String? = nil
+    var appTitle: String? = nil
     var created: Date = Date()
 }
 
@@ -178,7 +201,7 @@ struct AppDesign: Codable, Identifiable, Hashable {
         design.version += 1
         design.releasedAt = Date()
         save(design)
-        return "Released version \(design.version). Apps that use \u{201C}\(design.name)\u{201D} now use it."
+        return "Published version \(design.version). It is on your Home page, and apps that use \u{201C}\(design.name)\u{201D} now use it."
     }
 
     func activePages(_ design: AppDesign) -> [ImageTemplate] {
@@ -216,28 +239,21 @@ enum TemplateLinks {
 }
 
 enum DesignFill {
-    /// The finished picture of an app that uses a template or design. One page gives a PNG, more give a PDF.
+    /// Combines values so that a later layer replaces an earlier one with the same name, however it is spelled.
+    static func merge(_ layers: [String: String]...) -> [String: String] {
+        var result: [String: String] = [:]
+        for layer in layers { for (key, value) in layer { result[TemplateFill.normal(key)] = value } }
+        return result
+    }
+
+    /// The finished file of an app that uses a template or design, in the design's output format.
     @MainActor static func renderFile(link: String, values: [String: String], clips: [Clip], directory: URL, stem: String) throws -> URL {
         let pages = TemplateLinks.pages(for: link)
         guard !pages.isEmpty else { throw NSError(domain: "KeyDoTemplates", code: 3, userInfo: [NSLocalizedDescriptionKey: "The template is missing."]) }
-        var merged: [String: String] = [:]
-        for (key, value) in TemplateLinks.variables(for: link) { merged[key] = value }
-        for (key, value) in values where !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { merged[key] = value }
-        if pages.count == 1 {
-            let file = directory.appendingPathComponent(stem + ".png")
-            try TemplateFill.renderFile(pages[0], values: merged, clips: clips, to: file)
-            return file
-        }
-        let document = PDFDocument()
-        for page in pages {
-            guard let image = TemplateFill.render(page, values: merged, clips: clips, maxSide: 2400), let pdfPage = PDFPage(image: image) else { continue }
-            document.insert(pdfPage, at: document.pageCount)
-        }
-        let file = directory.appendingPathComponent(stem + ".pdf")
-        guard document.pageCount > 0, document.write(to: file) else {
-            throw NSError(domain: "KeyDoTemplates", code: 4, userInfo: [NSLocalizedDescriptionKey: "The pages could not be made into a PDF."])
-        }
-        return file
+        let design = TemplateLinks.design(link)
+        let merged = merge(TemplateLinks.variables(for: link), values.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+        let format = DesignFormat.from(design?.outputFormat) ?? (pages.count > 1 ? .pdf : .png)
+        return try DesignOutput.write(format: format, pages: pages, values: merged, clips: clips, title: design?.appTitle ?? design?.name ?? "Design", directory: directory, stem: stem)
     }
 }
 
@@ -339,6 +355,9 @@ enum DesignAction {
     case variable(String, String)
     case makeVariable(String)
     case imageFrom(String)
+    case fontSize(Double), fontScale(Double)
+    case outputFormat(DesignFormat)
+    case appName(String)
     case unknown(String)
 }
 
@@ -396,7 +415,9 @@ enum DesignCommand {
         let l = s.lowercased()
 
         if l == "undo" || l == "go back" || l == "revert" || l.hasPrefix("undo ") { return .undo }
-        if l.contains("release") { return .release }
+        if l.contains("release") || l.contains("publish") { return .release }
+        if let format = DesignFormat.spoken(l), match("\\b(output|export|deliver|format|download)\\b|save as|make it a|make it an", l) != nil { return .outputFormat(format) }
+        if let m = match("^(?:rename|call)\\s+(?:this\\s+|the\\s+)?(?:app|design)\\s+(?:to\\s+|as\\s+)?(.+)$", s) ?? match("^app name\\s+(?:is\\s+)?(.+)$", s) { return .appName(m[1].trimmingCharacters(in: .whitespaces)) }
         if l == "save" || l.hasPrefix("save ") { return .save }
         if l.hasPrefix("try ") || l == "preview" || l.contains("try it") || l == "test it" { return .tryIt }
         if l.contains("design mode") || l == "edit mode" || l == "edit" { return .designMode }
@@ -484,6 +505,9 @@ enum DesignCommand {
             return .color(hex, target)
         }
 
+        if let m = match("(?:font\\s*size|text\\s*size|size)\\s*(?:to|of|is)?\\s*(\\d+)", l) ?? match("(\\d+)\\s*(?:pt|point|points)\\b", l) { return .fontSize(Double(m[1]) ?? 12) }
+        if (l.contains("font") || l.contains("text") || l.contains("letter")) && match("\\b(bigger|larger|increase|enlarge)\\b", l) != nil { return .fontScale(1.15) }
+        if (l.contains("font") || l.contains("text") || l.contains("letter")) && match("\\b(smaller|decrease|reduce|shrink)\\b", l) != nil { return .fontScale(0.87) }
         if l.contains("same font") || l.contains("fix font") || l.contains("correct font") || l.contains("fix the font") { return .font("", all: true) }
         if let m = match("(?:font|typeface)\\s+(?:to\\s+|as\\s+|is\\s+)?(.+)$", s) { return .font(m[1].trimmingCharacters(in: .whitespaces), all: l.contains("all") || l.contains("every")) }
         if let m = match("(?:use|change to|switch to|make it)\\s+(.+?)\\s+font", s) { return .font(m[1].trimmingCharacters(in: .whitespaces), all: l.contains("all") || l.contains("every")) }
@@ -519,7 +543,7 @@ enum DesignCommand {
         return .unknown(s)
     }
 
-    static let help = "Try: \u{201C}go to page 2\u{201D}, \u{201C}make the text pink\u{201D}, \u{201C}background black\u{201D}, \u{201C}font Georgia\u{201D}, \u{201C}add text box called amount\u{201D}, \u{201C}make it a circle\u{201D}, \u{201C}rotate 15\u{201D}, \u{201C}replace Acme Ltd with variable company\u{201D}, \u{201C}put function date\u{201D}, \u{201C}release\u{201D}."
+    static let help = "Try: \u{201C}go to page 2\u{201D}, \u{201C}make the text pink\u{201D}, \u{201C}background black\u{201D}, \u{201C}font Georgia\u{201D}, \u{201C}add text box called amount\u{201D}, \u{201C}make it a circle\u{201D}, \u{201C}rotate 15\u{201D}, \u{201C}replace Acme Ltd with variable company\u{201D}, \u{201C}put function date\u{201D}, \u{201C}font size 18\u{201D}, \u{201C}output PDF\u{201D}, \u{201C}publish\u{201D}."
 }
 
 // MARK: - AppDesigner screens
@@ -528,6 +552,8 @@ struct AppDesignerView: View {
     var wishDirectory: URL? = nil
     var clips: [Clip] = []
     var records: [CollectionRecord] = []
+    var collections: [String] = []
+    var definitions: [CollectionDefinition] = []
     @ObservedObject private var designs = AppDesignStore.shared
     @ObservedObject private var templates = TemplateStore.shared
     @State private var tab = 0
@@ -535,6 +561,7 @@ struct AppDesignerView: View {
     @State private var pageIndex = 0
     @State private var usingID: String?
     @State private var deleteID: String?
+    @State private var runningID: String?
     @State private var message = ""
 
     var body: some View {
@@ -553,6 +580,8 @@ struct AppDesignerView: View {
     private func sync() {
         if !clips.isEmpty { AppDesignContext.shared.clips = clips }
         if !records.isEmpty { AppDesignContext.shared.records = records }
+        if !collections.isEmpty { AppDesignContext.shared.collections = collections }
+        if !definitions.isEmpty { AppDesignContext.shared.definitions = definitions }
     }
 
     private var gallery: some View {
@@ -576,6 +605,12 @@ struct AppDesignerView: View {
                 BuilderHeader(symbol: "paintpalette.fill", title: "AppDesigner",
                               subtitle: "Design apps by voice. Start from a picture, a bill, or an NDA or agreement, then put variables, shortcuts, collections, functions and media in its boxes.") {
                     HStack(spacing: 8) {
+                        Menu {
+                            ForEach(StarterLayouts.Kind.allCases) { kind in
+                                Button { startLayout(kind) } label: { Label(kind.title + ": " + kind.detail, systemImage: kind.symbol) }
+                            }
+                        } label: { Label("Ready layouts", systemImage: "sparkles.rectangle.stack") }
+                            .menuStyle(.borderlessButton).fixedSize()
                         Button { fromDocument() } label: { Label("From document", systemImage: "doc.text") }
                             .buttonStyle(.borderedProminent).tint(Butter.coral)
                         Button { fromPicture() } label: { Label("From picture", systemImage: "photo") }.buttonStyle(.bordered)
@@ -611,6 +646,10 @@ struct AppDesignerView: View {
         .sheet(item: Binding(get: { usingID.map { DesignSheetID(id: $0) } }, set: { usingID = $0?.id })) { item in
             TemplateUseSheet(templateID: item.id, wishDirectory: wishDirectory)
         }
+        .sheet(item: Binding(get: { runningID.map { DesignSheetID(id: $0) } }, set: { runningID = $0?.id })) { item in
+            AppDesignRunView(designID: item.id, onClose: { runningID = nil }).frame(minWidth: 940, minHeight: 640)
+        }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in dropFiles(providers) }
         .alert("Delete this design?", isPresented: Binding(get: { deleteID != nil }, set: { if !$0 { deleteID = nil } })) {
             Button("Delete", role: .destructive) { if let id = deleteID { designs.delete(id) }; deleteID = nil }
             Button("Cancel", role: .cancel) { deleteID = nil }
@@ -634,6 +673,7 @@ struct AppDesignerView: View {
                 .font(.system(size: 11)).foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 Button("Design") { open(design) }.buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                if design.version > 0 { Button("Run") { runningID = design.id }.buttonStyle(.bordered).controlSize(.small) }
                 Button("Use in apps") { usingID = "design:" + design.id }.buttonStyle(.bordered).controlSize(.small)
                 Spacer()
                 Button { deleteID = design.id } label: { Image(systemName: "trash") }.buttonStyle(.plain).foregroundStyle(.red.opacity(0.8))
@@ -645,6 +685,31 @@ struct AppDesignerView: View {
     }
 
     private func open(_ design: AppDesign) { pageIndex = 0; editingID = design.id }
+
+    private func startLayout(_ kind: StarterLayouts.Kind) {
+        if let made = StarterLayouts.make(kind) { open(made) } else { message = "That layout could not be made." }
+    }
+
+    /// Dropping a picture or a document anywhere on the gallery starts a design from it.
+    private func dropFiles(_ providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) else { return false }
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            var url: URL?
+            if let data = item as? Data { url = URL(dataRepresentation: data, relativeTo: nil) } else if let direct = item as? URL { url = direct }
+            guard let url else { return }
+            DispatchQueue.main.async {
+                let ext = url.pathExtension.lowercased()
+                if ["png", "jpg", "jpeg", "heic", "webp", "tiff", "gif"].contains(ext), let image = NSImage(contentsOf: url) {
+                    if let made = designs.newFromPicture(image, name: url.deletingPathExtension().lastPathComponent) { open(made) }
+                } else if let paragraphs = DocumentImporter.paragraphs(from: url) {
+                    if let made = designs.newFromDocument(name: url.deletingPathExtension().lastPathComponent, paragraphs: paragraphs) { open(made) }
+                } else {
+                    message = "That file could not be used. Drop a picture, PDF, Word or text file."
+                }
+            }
+        }
+        return true
+    }
 
     private func blank(_ name: String, _ width: Int, _ height: Int) {
         if let made = designs.newBlank(name: name, width: width, height: height) { open(made) } else { message = "The page could not be made." }
@@ -712,7 +777,32 @@ struct AppDesignEditor: View {
                         }
                         return changed
                     },
-                    designTitle: design.name
+                    designTitle: design.appTitle ?? design.name,
+                    outputFormat: design.outputFormat,
+                    onOutputFormatChange: { format in
+                        if var current = designs.design(id: designID) { current.outputFormat = format; designs.save(current) }
+                    },
+                    onMakeFile: { values in
+                        guard let current = designs.design(id: designID) else { return "The design is missing." }
+                        let drafts = current.pages.compactMap { templates.template(id: $0) }
+                        guard !drafts.isEmpty else { return "The design has no pages." }
+                        let format = DesignFormat.from(current.outputFormat) ?? (drafts.count > 1 ? .pdf : .png)
+                        let merged = DesignFill.merge(current.variables, values.filter { !$0.value.isEmpty })
+                        let stem = current.name.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: "-")
+                        do {
+                            let file = try DesignOutput.write(format: format, pages: drafts, values: merged, clips: AppDesignContext.shared.clips, title: current.name,
+                                                              directory: FileManager.default.temporaryDirectory, stem: (stem.isEmpty ? "Design" : stem) + "-" + String(UUID().uuidString.prefix(4)))
+                            let panel = NSSavePanel()
+                            panel.nameFieldStringValue = file.lastPathComponent
+                            guard panel.runModal() == .OK, let destination = panel.url else { return "Cancelled." }
+                            try? FileManager.default.removeItem(at: destination)
+                            try FileManager.default.copyItem(at: file, to: destination)
+                            return "Saved \(destination.lastPathComponent)."
+                        } catch { return error.localizedDescription }
+                    },
+                    onRename: { name in
+                        if var current = designs.design(id: designID) { current.name = name; current.appTitle = name; designs.save(current) }
+                    }
                 )
                 .id(page.id)
             } else {

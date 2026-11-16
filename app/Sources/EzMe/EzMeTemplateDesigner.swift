@@ -348,6 +348,15 @@ struct TemplateDesignerView: View {
     var onVariablesChange: (([String: String]) -> Void)? = nil
     var onReplaceElsewhere: ((String, String) -> Int)? = nil
     var designTitle: String? = nil
+    var onOutputFormatChange: ((String) -> Void)? = nil
+    var onMakeFile: (([String: String]) -> String)? = nil
+    var onRename: ((String) -> Void)? = nil
+    enum SideTab: Hashable { case library, box, page }
+    @State private var sideTab: SideTab = .library
+    @State private var formValues: [String: String] = [:]
+    @State private var livePreview: NSImage?
+    @State private var librarySearch = ""
+    @State private var outputFormat: String
     @State private var vars: [String: String]
     @State private var commandText = ""
     @State private var heard = ""
@@ -358,7 +367,9 @@ struct TemplateDesignerView: View {
     init(template: ImageTemplate, onClose: @escaping () -> Void, pageInfo: (index: Int, count: Int)? = nil,
          onGoToPage: ((Int) -> Void)? = nil, onAddPage: (() -> Void)? = nil, onRelease: (() -> String)? = nil,
          variables: [String: String] = [:], onVariablesChange: (([String: String]) -> Void)? = nil,
-         onReplaceElsewhere: ((String, String) -> Int)? = nil, designTitle: String? = nil) {
+         onReplaceElsewhere: ((String, String) -> Int)? = nil, designTitle: String? = nil,
+         outputFormat: String? = nil, onOutputFormatChange: ((String) -> Void)? = nil,
+         onMakeFile: (([String: String]) -> String)? = nil, onRename: ((String) -> Void)? = nil) {
         _template = State(initialValue: template)
         _base = State(initialValue: TemplateStore.shared.basePicture(for: template) ?? NSImage(size: NSSize(width: 100, height: 100)))
         _vars = State(initialValue: variables)
@@ -370,6 +381,10 @@ struct TemplateDesignerView: View {
         self.onVariablesChange = onVariablesChange
         self.onReplaceElsewhere = onReplaceElsewhere
         self.designTitle = designTitle
+        _outputFormat = State(initialValue: outputFormat ?? (pageInfo != nil && (pageInfo?.count ?? 1) > 1 ? DesignFormat.pdf.rawValue : DesignFormat.png.rawValue))
+        self.onOutputFormatChange = onOutputFormatChange
+        self.onMakeFile = onMakeFile
+        self.onRename = onRename
     }
 
     // MARK: Layout
@@ -379,6 +394,8 @@ struct TemplateDesignerView: View {
             topBar
             Divider()
             HStack(spacing: 0) {
+                sidebar
+                Divider()
                 VStack(spacing: 0) {
                     canvas.frame(maxWidth: .infinity, maxHeight: .infinity)
                     Divider()
@@ -386,7 +403,7 @@ struct TemplateDesignerView: View {
                 }
                 .background(Color(white: 0.9))
                 Divider()
-                ScrollView { inspector.padding(14) }.frame(width: 350).background(Color(nsColor: .windowBackgroundColor))
+                previewPane
             }
         }
         .onAppear { refresh() }
@@ -395,6 +412,8 @@ struct TemplateDesignerView: View {
         .onChange(of: testTexts) { _, _ in refresh() }
         .onChange(of: testVersion) { _, _ in refresh() }
         .onChange(of: vars) { _, _ in refresh() }
+        .onChange(of: formValues) { _, _ in refresh() }
+        .onChange(of: selectedID) { _, value in if value != nil { sideTab = .box } }
         .onDisappear { speech.stop(); store.save(template) }
     }
 
@@ -412,13 +431,13 @@ struct TemplateDesignerView: View {
                 }
                 .buttonStyle(.bordered).controlSize(.small)
             }
-            Picker("", selection: $mode) { ForEach(Mode.allCases, id: \.self) { Text($0.rawValue).tag($0) } }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 230)
+            Picker("", selection: $mode) { ForEach([Mode.design, Mode.erase], id: \.self) { Text($0.rawValue).tag($0) } }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 150)
             if let busy { ProgressView().controlSize(.small); Text(busy).font(.system(size: 12)).foregroundStyle(.secondary) }
             else if !message.isEmpty { Text(message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)).lineLimit(1) }
             Spacer()
             if onRelease != nil {
-                Button { message = perform(.release) } label: { Label("Release", systemImage: "paperplane.fill") }.buttonStyle(.bordered)
+                Button { message = perform(.release) } label: { Label("Publish", systemImage: "paperplane.fill") }.buttonStyle(.borderedProminent).tint(.green)
             }
             Button { finish() } label: { Label("Save and close", systemImage: "checkmark") }
                 .buttonStyle(.borderedProminent).tint(Butter.coral)
@@ -447,6 +466,9 @@ struct TemplateDesignerView: View {
             }
             .frame(width: width, height: height)
             .coordinateSpace(name: "canvas")
+            .onDrop(of: [.plainText, .fileURL], delegate: SlotDropDelegate(size: CGSize(width: width, height: height)) { payload, point in
+                _ = applyPayload(payload, at: point)
+            })
             .position(x: geo.size.width / 2, y: geo.size.height / 2)
         }
     }
@@ -601,29 +623,36 @@ struct TemplateDesignerView: View {
 
     // MARK: Inspector
 
-    @ViewBuilder private var inspector: some View {
-        switch mode {
-        case .design:
-            VStack(alignment: .leading, spacing: 14) {
-                if onVariablesChange != nil { variablesCard }
-                pictureCard
-                addCard
-                boxesCard
-                if let index = selectedIndex { boxEditor(index) } else {
-                    hint("Click a box on the picture to edit it. Drag it to move, drag the dots to resize, and drag the round arrow to turn it.")
+    @ViewBuilder private var sidebar: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $sideTab) {
+                Text("Library").tag(SideTab.library)
+                Text("Box").tag(SideTab.box)
+                Text("Page").tag(SideTab.page)
+            }
+            .pickerStyle(.segmented).labelsHidden().padding(10)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    switch sideTab {
+                    case .library:
+                        libraryPanel
+                    case .box:
+                        if let index = selectedIndex { boxEditor(index) } else {
+                            hint("Click a box on the page to edit it. Drag it to move, drag the dots to resize, and drag the round arrow to turn it.")
+                            boxesCard
+                        }
+                    case .page:
+                        if mode == .erase { hint("Drag a rectangle over any text, mark or stamp on the page to remove it.") }
+                        if onVariablesChange != nil { variablesCard }
+                        addCard
+                        boxesCard
+                        pictureCard
+                    }
                 }
-            }
-        case .erase:
-            VStack(alignment: .leading, spacing: 14) {
-                hint("Drag a rectangle over any text, mark or stamp on the picture to remove it. The colours around it fill the space.")
-                pictureCard
-            }
-        case .fill:
-            VStack(alignment: .leading, spacing: 14) {
-                if onVariablesChange != nil { variablesCard }
-                fillCard
+                .padding(.horizontal, 12).padding(.bottom, 14)
             }
         }
+        .frame(width: 320).background(Color(nsColor: .windowBackgroundColor))
     }
 
     private func card<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
@@ -768,13 +797,16 @@ struct TemplateDesignerView: View {
             Picker("Font", selection: $template.slots[index].fontName) {
                 ForEach(TemplateFonts.all, id: \.self) { Text($0).tag($0) }
             }
-            Toggle("Make the text as large as fits", isOn: Binding(get: { slot.fontSize == 0 }, set: { template.slots[index].fontSize = $0 ? 0 : 0.04 }))
+            Toggle("Fit the text to the box automatically", isOn: Binding(get: { slot.fontSize == 0 }, set: { template.slots[index].fontSize = $0 ? 0 : max(0.008, min(0.1, template.slots[index].h * 0.6)) }))
                 .toggleStyle(.checkbox).font(.system(size: 12))
             if slot.fontSize > 0 {
-                HStack {
-                    Text("Largest size").font(.system(size: 12))
-                    Slider(value: $template.slots[index].fontSize, in: 0.01...0.2)
+                let points = Binding<Double>(get: { (template.slots[index].fontSize * 842).rounded() }, set: { template.slots[index].fontSize = max(0.004, min(0.4, $0 / 842)) })
+                HStack(spacing: 8) {
+                    Text("Size").font(.system(size: 12, weight: .semibold))
+                    Stepper(value: points, in: 4...300, step: 1) { Text("\(Int(points.wrappedValue)) pt").font(.system(size: 12, design: .monospaced)) }
                 }
+                Slider(value: points, in: 6...160, step: 1)
+                hint("This is the biggest the text gets. It still shrinks if it does not fit the box. (Points on an A4 page.)")
             }
             HStack(spacing: 10) {
                 Toggle("Bold", isOn: $template.slots[index].bold).toggleStyle(.checkbox)
@@ -863,6 +895,7 @@ struct TemplateDesignerView: View {
     private func testInputs() -> (texts: [String: String], images: [String: NSImage]) {
         var texts: [String: String] = [:]
         var images: [String: NSImage] = [:]
+        for (key, value) in formValues where !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { texts[TemplateFill.normal(key)] = value }
         for slot in template.slots {
             if let value = testTexts[slot.id], !value.isEmpty { texts[TemplateFill.normal(slot.key)] = value }
             if let image = testImages[slot.id] { images[TemplateFill.normal(slot.key)] = image }
@@ -887,8 +920,10 @@ struct TemplateDesignerView: View {
     // MARK: Actions
 
     private func refresh() {
-        let made = resolvedInputs(designing: mode != .fill)
-        preview = TemplateRenderer.render(template, base: base, texts: made.texts, images: made.images, useSamples: mode != .fill, maxSide: 1500)
+        let made = resolvedInputs(designing: true)
+        preview = TemplateRenderer.render(template, base: base, texts: made.texts, images: made.images, useSamples: true, maxSide: 1500)
+        let live = resolvedInputs(designing: false)
+        livePreview = TemplateRenderer.render(template, base: base, texts: live.texts, images: live.images, useSamples: true, maxSide: 1000)
     }
 
     private func uniqueKey(_ stem: String) -> String {
@@ -1063,9 +1098,7 @@ extension TemplateDesignerView {
     /// Text and pictures for every box: what an app would give it, or its live content worked out.
     func resolvedInputs(designing: Bool) -> (texts: [String: String], images: [String: NSImage]) {
         let inputs = testInputs()
-        var values: [String: String] = [:]
-        for (key, value) in vars { values[key] = value }
-        for (key, value) in inputs.texts { values[key] = value }
+        let values = DesignFill.merge(vars, inputs.texts)
         let made = TemplateFill.resolved(template, values: values, clips: AppDesignContext.shared.clips, designing: designing)
         var images = made.images
         for (key, image) in inputs.images { images[key] = image }
@@ -1281,8 +1314,25 @@ extension TemplateDesignerView {
             store.save(template)
             return "Saved."
         case .tryIt:
-            mode = .fill
-            return "Showing the finished result."
+            return "The live result is on the right. Fill the form there to try it."
+        case .fontSize(let points):
+            pushUndo()
+            for index in textTargets() { template.slots[index].fontSize = max(0.004, min(0.4, points / 842)) }
+            return "Font size \(Int(points)) pt."
+        case .fontScale(let factor):
+            pushUndo()
+            for index in textTargets() {
+                let base = template.slots[index].fontSize > 0 ? template.slots[index].fontSize : min(0.06, template.slots[index].h * 0.6)
+                template.slots[index].fontSize = max(0.004, min(0.4, base * factor))
+            }
+            return "Font size changed."
+        case .outputFormat(let format):
+            outputFormat = format.rawValue
+            onOutputFormatChange?(format.rawValue)
+            return "The app will make \(format.title)."
+        case .appName(let name):
+            onRename?(name)
+            return "Named \u{201C}\(name)\u{201D}."
         case .designMode:
             mode = .design
             return "Back to designing."
@@ -1469,5 +1519,301 @@ extension TemplateDesignerView {
         case .unknown(let text):
             return "I did not understand \u{201C}\(text)\u{201D}. " + DesignCommand.help
         }
+    }
+}
+
+// MARK: - Library (drag and drop), live preview and drop handling
+
+struct SlotDropDelegate: DropDelegate {
+    var size: CGSize
+    var handle: (String, CGPoint) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool { info.hasItemsConforming(to: [.plainText, .fileURL]) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard size.width > 0, size.height > 0 else { return false }
+        let point = CGPoint(x: info.location.x / size.width, y: info.location.y / size.height)
+        let handler = handle
+        let files = info.itemProviders(for: [.fileURL])
+        if !files.isEmpty {
+            for provider in files {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    var url: URL?
+                    if let data = item as? Data { url = URL(dataRepresentation: data, relativeTo: nil) } else if let direct = item as? URL { url = direct }
+                    guard let url else { return }
+                    DispatchQueue.main.async { handler("keydo-media:" + url.path, point) }
+                }
+            }
+            return true
+        }
+        let texts = info.itemProviders(for: [.plainText])
+        for provider in texts {
+            provider.loadObject(ofClass: NSString.self) { object, _ in
+                guard let string = object as? NSString else { return }
+                let value = string as String
+                DispatchQueue.main.async { handler(value, point) }
+            }
+        }
+        return !texts.isEmpty
+    }
+}
+
+extension TemplateDesignerView {
+    // MARK: Putting things on the page
+
+    func slotIndex(at point: CGPoint) -> Int? {
+        let width = CGFloat(template.pixelWidth), height = CGFloat(template.pixelHeight)
+        for index in template.slots.indices.reversed() {
+            let slot = template.slots[index]
+            let dx = (point.x - CGFloat(slot.cx)) * width, dy = (point.y - CGFloat(slot.cy)) * height
+            let local = rotated(CGPoint(x: dx, y: dy), -slot.angle * .pi / 180)
+            if abs(local.x) <= CGFloat(slot.w) * width / 2, abs(local.y) <= CGFloat(slot.h) * height / 2 { return index }
+        }
+        return nil
+    }
+
+    /// A dragged or clicked library item: a {{token}} for text, "keydo-media:<shortcut or file>" for pictures and videos,
+    /// "keydo-logo:<name>" for logos. With a point it goes onto the box there (or makes a new box); without one it goes
+    /// onto the selected box.
+    @discardableResult func applyPayload(_ payload: String, at point: CGPoint?) -> String {
+        var target: Int?
+        if let point { target = slotIndex(at: point) } else { target = selectedIndex }
+        let spot = point ?? CGPoint(x: 0.5, y: 0.5)
+        let aspect = Double(template.pixelWidth) / Double(max(1, template.pixelHeight))
+        if payload.hasPrefix("keydo-logo:") {
+            let name = String(payload.dropFirst("keydo-logo:".count))
+            pushUndo()
+            if let index = target, template.slots[index].kind == .logo {
+                template.slots[index].logo = name
+                message = "Logo changed."
+                return message
+            }
+            var box = TemplateSlot(key: uniqueKey("logo"), kind: .logo)
+            box.logo = name
+            box.cx = Double(spot.x); box.cy = Double(spot.y); box.w = 0.14; box.h = 0.14 * aspect
+            template.slots.append(box)
+            selectedID = box.id
+            message = "Added a logo."
+            return message
+        }
+        if payload.hasPrefix("keydo-media:") {
+            let media = String(payload.dropFirst("keydo-media:".count))
+            if media.hasPrefix("/") {
+                let ext = URL(fileURLWithPath: media).pathExtension.lowercased()
+                let usable = ["png", "jpg", "jpeg", "heic", "webp", "gif", "tiff"] + TemplateFill.videoTypes
+                guard usable.contains(ext) else { message = "Drop a picture or video file here."; return message }
+            }
+            pushUndo()
+            if let index = target, template.slots[index].kind != .logo {
+                template.slots[index].kind = .image
+                template.slots[index].content = media
+                selectedID = template.slots[index].id
+                message = "That box now shows the picture or video."
+                return message
+            }
+            var box = TemplateSlot(key: uniqueKey("photo"), kind: .image)
+            box.content = media
+            box.sample = ""
+            box.cx = Double(spot.x); box.cy = Double(spot.y); box.w = 0.3; box.h = 0.3 * aspect
+            template.slots.append(box)
+            selectedID = box.id
+            message = "Added a picture box."
+            return message
+        }
+        if let index = target, template.slots[index].kind != .logo {
+            addToken(index, payload)
+            selectedID = template.slots[index].id
+            message = "Added to \(template.slots[index].key)."
+            return message
+        }
+        pushUndo()
+        let stem = String(payload.filter { $0.isLetter || $0.isNumber }.prefix(12))
+        var box = TemplateSlot(key: uniqueKey(stem.isEmpty ? "text" : stem), kind: .text)
+        box.content = payload
+        box.sample = payload
+        box.cx = Double(spot.x); box.cy = Double(spot.y); box.w = 0.5; box.h = 0.08
+        template.slots.append(box)
+        selectedID = box.id
+        message = "Added a new box."
+        return message
+    }
+
+    // MARK: Library
+
+    func chip(_ title: String, _ symbol: String, _ payload: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol).font(.system(size: 10))
+            Text(title).font(.system(size: 11, weight: .medium)).lineLimit(1)
+        }
+        .padding(.horizontal, 8).padding(.vertical, 5)
+        .background(Capsule().fill(Color.white))
+        .overlay(Capsule().stroke(Butter.honey, lineWidth: 1))
+        .foregroundStyle(Butter.cocoa)
+        .onDrag { NSItemProvider(object: payload as NSString) }
+        .onTapGesture { applyPayload(payload, at: nil) }
+        .help("Drag onto the page, or click to add to the selected box")
+    }
+
+    private func chipGrid<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 84), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) { content() }
+    }
+
+    func shortcutChip(_ clip: Clip) -> some View {
+        let isMedia = !clip.files.isEmpty
+        return chip(clip.name.isEmpty ? clip.key : clip.name, isMedia ? "photo" : "text.quote", isMedia ? "keydo-media:" + clip.key : "{{shortcut:\(clip.key)}}")
+    }
+
+    var libraryPanel: some View {
+        let context = AppDesignContext.shared
+        return VStack(alignment: .leading, spacing: 10) {
+            hint("Drag any item onto a box on the page, or onto empty space to make a new box. You can also select a box and click an item.")
+            TextField("Search shortcuts and collection items", text: $librarySearch).textFieldStyle(.roundedBorder)
+            if !librarySearch.trimmingCharacters(in: .whitespaces).isEmpty {
+                let term = librarySearch.lowercased()
+                let clips = context.clips.filter { $0.name.lowercased().contains(term) || $0.key.lowercased().contains(term) }
+                let records = context.records.filter { $0.name.lowercased().contains(term) || $0.alias.lowercased().contains(term) }
+                chipGrid {
+                    ForEach(Array(clips.prefix(40)), id: \.id) { shortcutChip($0) }
+                    ForEach(Array(records.prefix(20)), id: \.id) { record in
+                        chip(record.name, "person.text.rectangle", "{{@\(record.collection)/\(record.alias.isEmpty ? record.name : record.alias)}}")
+                    }
+                }
+                if clips.isEmpty && records.isEmpty { hint("Nothing matches.") }
+            } else {
+                libraryGroups(context)
+            }
+        }
+    }
+
+    @ViewBuilder private func libraryGroups(_ context: AppDesignContext) -> some View {
+        DisclosureGroup("Variables") {
+            VStack(alignment: .leading, spacing: 6) {
+                chipGrid { ForEach(vars.keys.sorted(), id: \.self) { chip($0, "curlybraces", "{{\($0)}}") } }
+                if vars.isEmpty { hint("No variables yet. Add one below, or say \u{201C}make this a variable called name\u{201D}.") }
+                if onVariablesChange != nil {
+                    HStack {
+                        TextField("New variable", text: $newVariable).textFieldStyle(.roundedBorder)
+                        Button("Add") {
+                            let name = newVariable.trimmingCharacters(in: .whitespaces)
+                            guard !name.isEmpty else { return }
+                            vars[name] = vars[name] ?? ""
+                            onVariablesChange?(vars)
+                            newVariable = ""
+                        }.buttonStyle(.bordered).controlSize(.small)
+                    }
+                }
+            }
+        }
+        DisclosureGroup("Functions") {
+            chipGrid { ForEach(DesignFunction.items) { chip($0.title, "function", $0.token) } }
+        }
+        DisclosureGroup("Collections") {
+            if context.collectionTree.isEmpty { hint("Open the AppDesigner from the main app to see your collections here.") }
+            ForEach(context.collectionTree) { group in
+                DisclosureGroup(group.category) {
+                    ForEach(group.names, id: \.self) { name in
+                        DisclosureGroup(name) { collectionContents(name, context) }
+                    }
+                }
+            }
+        }
+        DisclosureGroup("Pictures and videos") {
+            VStack(alignment: .leading, spacing: 6) {
+                Button { chooseNewMedia() } label: { Label("Add a picture or video\u{2026}", systemImage: "photo.badge.plus") }.buttonStyle(.bordered).controlSize(.small)
+                hint("Or drag files from Finder onto the page.")
+                chipGrid { ForEach(Array(context.clips.filter { !$0.files.isEmpty }.prefix(40)), id: \.id) { shortcutChip($0) } }
+            }
+        }
+        DisclosureGroup("Logos") {
+            chipGrid {
+                chip("KeyDo", "key.fill", "keydo-logo:KeyDo")
+                ForEach(TemplateLogos.builtIn, id: \.name) { chip($0.name, $0.symbol, "keydo-logo:" + $0.name) }
+                ForEach(TemplateStore.shared.uploadedLogos, id: \.self) { chip($0, "photo", "keydo-logo:file:" + $0) }
+            }
+        }
+    }
+
+    @ViewBuilder private func collectionContents(_ name: String, _ context: AppDesignContext) -> some View {
+        let records = context.records.filter { $0.collection.caseInsensitiveCompare(name) == .orderedSame }
+        let variable = TemplateFill.normal(name)
+        let fields = Array(Set(records.prefix(20).flatMap { $0.values.keys })).sorted()
+        let clips = context.clips.filter { $0.allGroups.contains { $0.caseInsensitiveCompare(name) == .orderedSame } }
+        VStack(alignment: .leading, spacing: 6) {
+            if !records.isEmpty {
+                Text("Chosen when the app runs").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+                chipGrid {
+                    chip("name", "person.text.rectangle", "{{@\(name)/$\(variable)/name}}")
+                    ForEach(fields, id: \.self) { chip($0, "tag", "{{@\(name)/$\(variable)/\($0)}}") }
+                }
+                DisclosureGroup("Fixed items (\(records.count))") {
+                    chipGrid {
+                        ForEach(Array(records.prefix(30)), id: \.id) { record in
+                            chip(record.name, "person.crop.rectangle", "{{@\(name)/\(record.alias.isEmpty ? record.name : record.alias)}}")
+                        }
+                    }
+                }
+            }
+            if !clips.isEmpty {
+                Text("Shortcuts (\(clips.count))").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+                chipGrid { ForEach(Array(clips.prefix(40)), id: \.id) { shortcutChip($0) } }
+            }
+            if records.isEmpty && clips.isEmpty { hint("Empty collection.") }
+        }
+    }
+
+    func chooseNewMedia() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a picture or video"
+        panel.allowedContentTypes = [.image, .movie]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        applyPayload("keydo-media:" + url.path, at: nil)
+    }
+
+    // MARK: Live preview
+
+    var previewFields: [DesignField] { DesignFields.fields(pages: [template], variables: vars) }
+
+    var previewPane: some View {
+        let format = DesignFormat.from(outputFormat) ?? .png
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("LIVE PREVIEW").font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(.secondary)
+                Spacer()
+                Menu {
+                    ForEach(DesignFormat.allCases) { option in
+                        Button { outputFormat = option.rawValue; onOutputFormatChange?(option.rawValue) } label: { Label(option.title, systemImage: option.symbol) }
+                    }
+                } label: { Label("Output: " + format.title, systemImage: format.symbol).font(.system(size: 12, weight: .semibold)) }
+                    .menuStyle(.borderlessButton).fixedSize()
+            }
+            ZStack {
+                Rectangle().fill(Color(white: 0.95))
+                if let livePreview { Image(nsImage: livePreview).resizable().interpolation(.high).scaledToFit().padding(6) }
+            }
+            .frame(maxHeight: .infinity).clipShape(RoundedRectangle(cornerRadius: 10))
+            Text("Try it").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    if previewFields.isEmpty { hint("Nothing to fill in yet. Add boxes or variables.") }
+                    ForEach(previewFields) { field in
+                        DesignFieldRow(field: field, text: Binding(get: { formValues[field.key] ?? "" }, set: { formValues[field.key] = $0 }))
+                    }
+                }
+            }
+            .frame(maxHeight: 230)
+            HStack {
+                Button { makeFile() } label: { Label("Make \(format.title)", systemImage: "square.and.arrow.down") }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral)
+                Button { copyPNG() } label: { Label("Copy image", systemImage: "doc.on.doc") }.buttonStyle(.bordered)
+            }
+            .controlSize(.small)
+        }
+        .padding(12).frame(width: 360).background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    func makeFile() {
+        store.save(template)
+        if let onMakeFile { message = onMakeFile(formValues) } else { exportPNG() }
     }
 }
