@@ -86,22 +86,26 @@ struct DesignFieldRow: View {
             Text(field.label).font(.system(size: 12, weight: .semibold)).foregroundStyle(FormVoiceInk.main)
             switch field.kind {
             case .text:
-                TextField(field.defaultValue.isEmpty ? field.label : field.defaultValue, text: $text).textFieldStyle(.roundedBorder)
+                TextField(field.label, text: $text).textFieldStyle(.roundedBorder)
+                    .accessibilityLabel(field.label).help(field.label)
             case .long:
                 TextEditor(text: $text).font(.system(size: 13)).frame(minHeight: 70, maxHeight: 130).padding(4)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white)).overlay(RoundedRectangle(cornerRadius: 8).stroke(Butter.honey, lineWidth: 1))
+                    .accessibilityLabel(field.label).help(field.label)
             case .image:
                 HStack(spacing: 6) {
-                    TextField("Shortcut name or file", text: $text).textFieldStyle(.roundedBorder)
-                    Button { choose() } label: { Label("Choose", systemImage: "photo") }.buttonStyle(.bordered).controlSize(.small)
+                    TextField(field.label + " (shortcut name or file)", text: $text).textFieldStyle(.roundedBorder)
+                        .accessibilityLabel(field.label).help(field.label)
+                    SourcePickerButton(title: "Shortcuts", symbol: "bolt", mediaOnly: true) { text = $0 }.buttonStyle(.bordered).controlSize(.small)
+                    Button { choose() } label: { Label("File", systemImage: "photo") }.buttonStyle(.bordered).controlSize(.small)
                 }
             case .choice:
                 let options = AppDesignContext.shared.records.filter { $0.collection.caseInsensitiveCompare(field.collection ?? "") == .orderedSame }
-                Picker("", selection: $text) {
+                Picker(field.label, selection: $text) {
                     Text("Choose\u{2026}").tag("")
                     ForEach(options, id: \.id) { record in Text(record.name).tag(record.alias.isEmpty ? record.name : record.alias) }
                 }
-                .labelsHidden()
+                .labelsHidden().accessibilityLabel(field.label).help(field.label)
             }
         }
     }
@@ -120,7 +124,11 @@ struct DesignFieldRow: View {
 struct AppDesignRunView: View {
     var designID: String
     var onClose: (() -> Void)? = nil
+    /// A sentence to fill the form from as soon as it opens (from the Home command box or a spoken command).
+    var startPrompt: String? = nil
     @ObservedObject private var designs = AppDesignStore.shared
+    @StateObject private var speech = EzMeSpeechDictation()
+    @State private var heardLive = ""
     @State private var values: [String: String] = [:]
     @State private var prompt = ""
     @State private var preview: NSImage?
@@ -144,8 +152,54 @@ struct AppDesignRunView: View {
             }
         }
         .background(Butter.butter)
-        .onAppear { refreshPreview() }
+        .onAppear {
+            refreshPreview()
+            if let startPrompt, !startPrompt.trimmingCharacters(in: .whitespaces).isEmpty, prompt.isEmpty {
+                prompt = startPrompt
+                applyVoice(startPrompt)
+            }
+        }
+        .onDisappear { speech.stop() }
         .onChange(of: values) { _, _ in refreshPreview() }
+    }
+
+    private func toggleVoice() {
+        if speech.isListening {
+            speech.stop()
+            heardLive = ""
+            return
+        }
+        message = "Listening. Say things like \u{201C}\(fields.first?.label ?? "name") Rahul\u{201D}, then \u{201C}make it\u{201D}."
+        speech.startContinuous(onTranscript: { text in
+            heardLive = ""
+            applyVoice(text)
+        }, onPartial: { heardLive = $0 })
+    }
+
+    /// Fills what the sentence names; falls back to the AI, then to the first empty field.
+    private func applyVoice(_ sentence: String) {
+        let text = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        if DesignVoiceFill.isMakeCommand(text) { make(); return }
+        let found = DesignVoiceFill.parse(text, fields: fields)
+        if !found.isEmpty {
+            for (key, value) in found { values[key] = value }
+            let names = fields.filter { found[$0.key] != nil }.map { $0.label }
+            message = "Filled " + names.joined(separator: ", ") + "."
+            return
+        }
+        prompt = prompt.isEmpty ? text : prompt + " " + text
+        let profiles = AIModelProfileStore.load()
+        let selectedID = UserDefaults.standard.string(forKey: "ezmeSelectedAIModelProfile") ?? UserDefaults.standard.string(forKey: "ezmeCollectionSelectedProfile") ?? CollectionAIModelProfile.starter.id
+        let profile = profiles.first(where: { $0.id == selectedID }) ?? .starter
+        if !(KeyStore.load(account: profile.keyAccount) ?? "").isEmpty && text.split(separator: " ").count > 3 {
+            fillFromPrompt()
+        } else if let field = DesignVoiceFill.firstEmpty(fields, values: values) {
+            values[field.key] = text
+            message = "Put that in \(field.label)."
+        } else {
+            message = "I did not catch a field name. Say the field name first, like \u{201C}\(fields.first?.label ?? "name") Rahul\u{201D}."
+        }
     }
 
     private var header: some View {
@@ -169,7 +223,9 @@ struct AppDesignRunView: View {
                 TextEditor(text: $prompt).font(.system(size: 13)).frame(height: 64).padding(4)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white)).overlay(RoundedRectangle(cornerRadius: 8).stroke(Butter.honey, lineWidth: 1))
                 HStack {
-                    VoiceDictationButton(onTranscript: { text in prompt = prompt.isEmpty ? text : prompt + " " + text })
+                    Button { toggleVoice() } label: { Label(speech.isListening ? "Stop listening" : "Fill by voice", systemImage: speech.isListening ? "waveform.circle.fill" : "mic.fill") }
+                        .buttonStyle(.borderedProminent).tint(speech.isListening ? .red : Butter.coral)
+                    if speech.isListening && !heardLive.isEmpty { Text(heardLive).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
                     Button { fillFromPrompt() } label: { Label(aiBusy ? "Reading\u{2026}" : "Fill the form from this", systemImage: "wand.and.stars") }
                         .buttonStyle(.bordered).disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty || aiBusy)
                 }
@@ -190,6 +246,7 @@ struct AppDesignRunView: View {
                 Button { make() } label: { Label(busy ? "Making\u{2026}" : "Make \(format.title)", systemImage: "sparkle") }
                     .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(busy)
                 if !message.isEmpty { Text(message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)) }
+                if !speech.errorMessage.isEmpty { Text(speech.errorMessage).font(.system(size: 12)).foregroundStyle(.red) }
             }
         }
     }
@@ -321,6 +378,7 @@ struct PublishedAppsStrip: View {
                 Spacer()
                 Button { onOpenDesigner() } label: { Label("AppDesigner", systemImage: "wand.and.stars") }.buttonStyle(.bordered).controlSize(.small)
             }
+            LaunchBox()
             if published.isEmpty {
                 Text("Design an app (greeting maker, NDA, catalog and more) in AppDesigner and publish it. It appears here to launch in one click.")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
@@ -468,5 +526,72 @@ enum StarterLayouts {
             store.save(design)
             return design
         }
+    }
+}
+
+
+// MARK: - One box for apps, people and everything else
+
+/// $ looks at apps only, @ at people only, anything else at everything. Words like create, make or send open the app named in the sentence.
+struct LaunchBox: View {
+    @State private var text = ""
+    @State private var items: [LaunchSuggestion] = []
+    @State private var note = ""
+    @StateObject private var speech = EzMeSpeechDictation()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                TextField("Say or type: $app, @person, or \u{201C}make a greeting for Rahul\u{201D}", text: $text)
+                    .textFieldStyle(.plain)
+                    .accessibilityLabel("Find an app or person")
+                    .onSubmit { go() }
+                Button { toggleMic() } label: {
+                    Image(systemName: speech.isListening ? "waveform.circle.fill" : "mic.fill").foregroundStyle(speech.isListening ? Color.red : Butter.coral)
+                }
+                .buttonStyle(.plain).help("Speak a command")
+            }
+            .padding(.horizontal, 10).padding(.vertical, 8)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color.white))
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Butter.honey.opacity(0.7), lineWidth: 1))
+            if !items.isEmpty && !text.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(items) { item in
+                        Button { AppLauncher.shared.act(item); text = ""; items = [] } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: item.symbol).foregroundStyle(Butter.coral).frame(width: 18)
+                                Text(item.title).font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.cocoa).lineLimit(1)
+                                Text(item.subtitle).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                                Spacer()
+                            }
+                            .padding(.vertical, 5).padding(.horizontal, 8).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.85)))
+            }
+            if !note.isEmpty { Text(note).font(.system(size: 11)).foregroundStyle(.secondary) }
+            if !speech.errorMessage.isEmpty { Text(speech.errorMessage).font(.system(size: 11)).foregroundStyle(.red) }
+        }
+        .onChange(of: text) { _, value in items = AppLauncher.shared.suggestions(for: value) }
+    }
+
+    private func go() {
+        let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !line.isEmpty else { return }
+        if AppLauncher.shared.handle(line) { text = ""; items = []; note = "" }
+        else { note = "Nothing matched. Try $ for apps, @ for people, or name the app after create, make or send." }
+    }
+
+    private func toggleMic() {
+        if speech.isListening { speech.stop(); return }
+        note = "Listening\u{2026}"
+        speech.start(onTranscript: { spoken in
+            text = spoken
+            if AppLauncher.shared.handle(spoken, spoken: true) { text = ""; items = []; note = "" }
+            else { items = AppLauncher.shared.suggestions(for: spoken); note = items.isEmpty ? "I did not find an app or person in that." : "Pick one below." }
+        })
     }
 }
