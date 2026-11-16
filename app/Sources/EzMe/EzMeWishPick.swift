@@ -63,6 +63,16 @@ import SwiftUI
         return all.first(where: { $0.name.localizedCaseInsensitiveContains(q) }) ?? all.first(where: { $0.text.localizedCaseInsensitiveContains(q) })
     }
 
+    /// Only a key or a number in range, so ordinary words in a typed command are never taken for a wish.
+    static func findStrict(_ query: String, in collection: String) -> Clip? {
+        let all = clips(in: collection)
+        let compact = plain(query)
+        guard !compact.isEmpty else { return nil }
+        if let hit = all.first(where: { plain($0.key) == compact }) { return hit }
+        if compact.count <= 3, let number = Int(compact), number >= 1, number <= all.count { return all[number - 1] }
+        return nil
+    }
+
     /// A shortcut key said somewhere in a sentence ("send ss10 to Rahul"). Spaces are ignored so "s s 10" works.
     static func spotted(in sentence: String, collection: String) -> Clip? {
         let collapsed = plain(sentence)

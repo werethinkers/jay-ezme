@@ -165,10 +165,10 @@ enum LaunchScope { case apps, contacts, everything }
         return true
     }
 
-    func open(design: AppDesign, prompt: String) {
+    func open(design: AppDesign, prompt: String, values: [String: String] = [:]) {
         let id = design.id
         present(title: design.appTitle ?? design.name, size: NSSize(width: 980, height: 680)) { close in
-            AnyView(AppDesignRunView(designID: id, onClose: { close() }, startPrompt: prompt.isEmpty ? nil : prompt))
+            AnyView(AppDesignRunView(designID: id, onClose: { close() }, startPrompt: prompt.isEmpty ? nil : prompt, startValues: values))
         }
     }
 

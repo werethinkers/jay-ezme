@@ -115,6 +115,8 @@ struct AppDesign: Codable, Identifiable, Hashable {
     /// png, gif, pdf, docx or html: what a published app delivers.
     var outputFormat: String? = nil
     var appTitle: String? = nil
+    /// The one word that runs the app from the backslash popup, like hbd in \\hbd-rohit.
+    var command: String? = nil
     var created: Date = Date()
 }
 
@@ -193,6 +195,7 @@ struct AppDesign: Codable, Identifiable, Hashable {
         for page in design.pages + (design.releasedPages ?? []) { TemplateStore.shared.delete(page) }
         designs.removeAll { $0.id == id }
         persist()
+        DesignCommands.unregister(designID: id)
     }
 
     /// Freezes the pages as they are now. Apps that use this design switch to the frozen copy.
@@ -213,7 +216,8 @@ struct AppDesign: Codable, Identifiable, Hashable {
         design.version += 1
         design.releasedAt = Date()
         save(design)
-        return "Published version \(design.version). It is on your Home page, and apps that use \u{201C}\(design.name)\u{201D} now use it."
+        let word = DesignCommands.register(design)
+        return "Published version \(design.version). Type \\\(word)- and a name anywhere to use it, or find it on your Home page. Apps that use \u{201C}\(design.name)\u{201D} now use it."
     }
 
     func activePages(_ design: AppDesign) -> [ImageTemplate] {
@@ -370,6 +374,7 @@ enum DesignAction {
     case fontSize(Double), fontScale(Double)
     case outputFormat(DesignFormat)
     case appName(String)
+    case commandWord(String)
     case unknown(String)
 }
 
@@ -429,6 +434,7 @@ enum DesignCommand {
         if l == "undo" || l == "go back" || l == "revert" || l.hasPrefix("undo ") { return .undo }
         if l.contains("release") || l.contains("publish") { return .release }
         if let format = DesignFormat.spoken(l), match("\\b(output|export|deliver|format|download)\\b|save as|make it a|make it an", l) != nil { return .outputFormat(format) }
+        if let m = match("^(?:set\\s+)?(?:the\\s+)?(?:command|command word|activation word|activate with|shortcut word)\\s+(?:is\\s+|to\\s+|as\\s+)?(.+)$", s) ?? match("^call\\s+(?:the\\s+)?command\\s+(.+)$", s) { return .commandWord(m[1].trimmingCharacters(in: .whitespaces)) }
         if let m = match("^(?:rename|call)\\s+(?:this\\s+|the\\s+)?(?:app|design)\\s+(?:to\\s+|as\\s+)?(.+)$", s) ?? match("^app name\\s+(?:is\\s+)?(.+)$", s) { return .appName(m[1].trimmingCharacters(in: .whitespaces)) }
         if l == "save" || l.hasPrefix("save ") { return .save }
         if l.hasPrefix("try ") || l == "preview" || l.contains("try it") || l == "test it" { return .tryIt }
@@ -819,7 +825,18 @@ struct AppDesignEditor: View {
                         } catch { return error.localizedDescription }
                     },
                     onRename: { name in
-                        if var current = designs.design(id: designID) { current.name = name; current.appTitle = name; designs.save(current) }
+                        if var current = designs.design(id: designID) {
+                            current.name = name; current.appTitle = name; designs.save(current)
+                            if current.version > 0 { DesignCommands.register(current) }
+                        }
+                    },
+                    command: design.command ?? DesignCommands.word(for: design),
+                    onCommandChange: { word in
+                        guard var current = designs.design(id: designID) else { return "" }
+                        let clean = DesignCommands.sanitize(word)
+                        current.command = clean.isEmpty ? nil : clean
+                        designs.save(current)
+                        return current.version > 0 ? DesignCommands.register(current) : DesignCommands.word(for: current)
                     }
                 )
                 .id(page.id)

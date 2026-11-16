@@ -1,6 +1,7 @@
-## Pick a wish from a collection, the WishBuilder way
+## AppDesigner apps run from the backslash popup, and Fill by voice works like Ezyourlife
 
-- **Collections now work as pick-lists in AppDesigner.** In the picker, open a collection such as HBD wishes and choose **Let the person pick a wish when the app runs**. The box shows a sample wish while you design.
-- **In the published app,** that box becomes a **wish chooser**. Type a shortcut (ss10), a number (3), or a few words from the wish, or press **Choose** to scroll and search every wish in the collection with its full text. The chosen wish shows underneath, and the page uses its full expanded text, resized to fit the box.
-- **By voice.** In the designer say "use HBD wishes" or "pick from birthday wishes" with a box selected. In the app say "ss10", "wish 3", or "wish ss10 name Rahul", then "make it". It also works from the Home box and from spoken commands, for example "make a birthday card ss10 for Rahul".
-- With an AI key, a one-sentence request also picks the best-fitting wish in the collection.
+- **One word runs your app.** Every published app gets a command word (the first word of its name, like hbd or greeting). Change it in the preview column ("Type \ ___ -name") or say "command word hbd". Then type `\hbd-rohit.media-pink` in the popup, in any app: the HBD app runs, uses the shortcut rohit.media as its picture, and fills the rest. Parts can come in any order. Pictures, wish shortcuts (ss10) and collection items are put in the right box, and everything else goes to the text boxes in order.
+- **Instant result.** When every box is covered, the file is made and delivered the same way as your other AppBuilder apps. When something is missing the popup asks for it, and **Open the full form** opens the app's whole form with what you typed already filled in.
+- **Fill by voice, the Ezyourlife way.** Pressing Fill by voice (in the published app and in the designer's Try it panel) points at one box at a time. Say the answer and it moves on, or say several boxes at once ("name Rahul photo rohit dot media wish ss10"). Say next, back, clear, "make it" or done. It shows what it hears and highlights the box it is waiting for, with English and Hindi.
+- Design changes still only change the design (style, position, fonts, picking from collections). The published version is what the command uses, so press Publish to update it.
+- Published apps no longer appear in the AppBuilder list of your apps, because they are managed in AppDesigner.
