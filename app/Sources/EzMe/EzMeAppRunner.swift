@@ -132,9 +132,10 @@ struct AppDesignRunView: View {
     var onClose: (() -> Void)? = nil
     /// A sentence to fill the form from as soon as it opens (from the Home command box or a spoken command).
     var startPrompt: String? = nil
+    /// Boxes to start with filled in (from a backslash command that was missing something).
+    var startValues: [String: String] = [:]
     @ObservedObject private var designs = AppDesignStore.shared
-    @StateObject private var speech = EzMeSpeechDictation()
-    @State private var heardLive = ""
+    @StateObject private var guide = DesignVoiceGuide()
     @State private var values: [String: String] = [:]
     @State private var prompt = ""
     @State private var preview: NSImage?
@@ -159,27 +160,19 @@ struct AppDesignRunView: View {
         }
         .background(Butter.butter)
         .onAppear {
+            guide.fields = { fields }
+            guide.values = { values }
+            guide.setValue = { key, value in values[key] = value }
+            guide.make = { make() }
+            for (key, value) in startValues { values[key] = value }
             refreshPreview()
             if let startPrompt, !startPrompt.trimmingCharacters(in: .whitespaces).isEmpty, prompt.isEmpty {
                 prompt = startPrompt
                 applyVoice(startPrompt)
             }
         }
-        .onDisappear { speech.stop() }
+        .onDisappear { guide.stop() }
         .onChange(of: values) { _, _ in refreshPreview() }
-    }
-
-    private func toggleVoice() {
-        if speech.isListening {
-            speech.stop()
-            heardLive = ""
-            return
-        }
-        message = "Listening. Say things like \u{201C}\(fields.first?.label ?? "name") Rahul\u{201D}, then \u{201C}make it\u{201D}."
-        speech.startContinuous(onTranscript: { text in
-            heardLive = ""
-            applyVoice(text)
-        }, onPartial: { heardLive = $0 })
     }
 
     /// Fills what the sentence names; falls back to the AI, then to the first empty field.
@@ -225,13 +218,11 @@ struct AppDesignRunView: View {
     private var form: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
+                DesignVoiceBar(guide: guide, voice: guide.voice)
                 Label("Say it in one go (optional)", systemImage: "sparkles").font(.system(size: 12, weight: .bold)).foregroundStyle(FormVoiceInk.main)
                 TextEditor(text: $prompt).font(.system(size: 13)).frame(height: 64).padding(4)
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white)).overlay(RoundedRectangle(cornerRadius: 8).stroke(Butter.honey, lineWidth: 1))
                 HStack {
-                    Button { toggleVoice() } label: { Label(speech.isListening ? "Stop listening" : "Fill by voice", systemImage: speech.isListening ? "waveform.circle.fill" : "mic.fill") }
-                        .buttonStyle(.borderedProminent).tint(speech.isListening ? .red : Butter.coral)
-                    if speech.isListening && !heardLive.isEmpty { Text(heardLive).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1) }
                     Button { fillFromPrompt() } label: { Label(aiBusy ? "Reading\u{2026}" : "Fill the form from this", systemImage: "wand.and.stars") }
                         .buttonStyle(.bordered).disabled(prompt.trimmingCharacters(in: .whitespaces).isEmpty || aiBusy)
                 }
@@ -244,6 +235,9 @@ struct AppDesignRunView: View {
                 if fields.isEmpty { Text("This app needs nothing from you. Press Make.").font(.system(size: 12)).foregroundStyle(.secondary) }
                 ForEach(fields) { field in
                     DesignFieldRow(field: field, text: Binding(get: { values[field.key] ?? "" }, set: { values[field.key] = $0 }))
+                        .padding(6)
+                        .background(RoundedRectangle(cornerRadius: 10).stroke(guide.active && guide.current?.key == field.key ? Butter.coral : Color.clear, lineWidth: 2))
+                        .simultaneousGesture(TapGesture().onEnded { guide.select(field.key) })
                 }
             }
             .padding(12).background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.7)))
@@ -252,7 +246,6 @@ struct AppDesignRunView: View {
                 Button { make() } label: { Label(busy ? "Making\u{2026}" : "Make \(format.title)", systemImage: "sparkle") }
                     .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(busy)
                 if !message.isEmpty { Text(message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)) }
-                if !speech.errorMessage.isEmpty { Text(speech.errorMessage).font(.system(size: 12)).foregroundStyle(.red) }
             }
         }
     }

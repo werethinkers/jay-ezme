@@ -356,6 +356,9 @@ struct TemplateDesignerView: View {
     enum SideTab: Hashable { case library, box, page }
     @State private var sideTab: SideTab = .library
     @State private var formValues: [String: String] = [:]
+    @State private var commandWord = ""
+    @StateObject private var tryGuide = DesignVoiceGuide()
+    var onCommandChange: ((String) -> String)? = nil
     @State private var livePreview: NSImage?
     @State private var librarySearch = ""
     @State private var outputFormat: String
@@ -371,7 +374,10 @@ struct TemplateDesignerView: View {
          variables: [String: String] = [:], onVariablesChange: (([String: String]) -> Void)? = nil,
          onReplaceElsewhere: ((String, String) -> Int)? = nil, designTitle: String? = nil,
          outputFormat: String? = nil, onOutputFormatChange: ((String) -> Void)? = nil,
-         onMakeFile: (([String: String]) -> String)? = nil, onRename: ((String) -> Void)? = nil) {
+         onMakeFile: (([String: String]) -> String)? = nil, onRename: ((String) -> Void)? = nil,
+         command: String? = nil, onCommandChange: ((String) -> String)? = nil) {
+        _commandWord = State(initialValue: command ?? "")
+        self.onCommandChange = onCommandChange
         _template = State(initialValue: template)
         _base = State(initialValue: TemplateStore.shared.basePicture(for: template) ?? NSImage(size: NSSize(width: 100, height: 100)))
         _vars = State(initialValue: variables)
@@ -416,7 +422,14 @@ struct TemplateDesignerView: View {
         .onChange(of: vars) { _, _ in refresh() }
         .onChange(of: formValues) { _, _ in refresh() }
         .onChange(of: selectedID) { _, value in if value != nil { sideTab = .box } }
-        .onDisappear { voice.stop(); store.save(template) }
+        .onAppear {
+            tryGuide.fields = { previewFields }
+            tryGuide.values = { formValues }
+            tryGuide.setValue = { key, value in formValues[key] = value }
+            tryGuide.make = { makeFile() }
+            tryGuide.onStart = { voice.stop() }
+        }
+        .onDisappear { voice.stop(); tryGuide.stop(); store.save(template) }
     }
 
     private var topBar: some View {
@@ -1447,6 +1460,10 @@ extension TemplateDesignerView {
         case .appName(let name):
             onRename?(name)
             return "Named \u{201C}\(name)\u{201D}."
+        case .commandWord(let word):
+            guard let onCommandChange else { return "Commands are set from inside an app design." }
+            commandWord = onCommandChange(word)
+            return "Type \\\(commandWord)- and a name in any app to run this app."
         case .designMode:
             mode = .design
             return "Back to designing."
@@ -1906,12 +1923,25 @@ extension TemplateDesignerView {
                 if let livePreview { Image(nsImage: livePreview).resizable().interpolation(.high).scaledToFit().padding(6) }
             }
             .frame(maxHeight: .infinity).clipShape(RoundedRectangle(cornerRadius: 10))
+            if onCommandChange != nil {
+                HStack(spacing: 4) {
+                    Text("Type").font(.system(size: 11)).foregroundStyle(.secondary)
+                    Text("\\").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(Butter.coral)
+                    TextField("hbd", text: $commandWord).textFieldStyle(.roundedBorder).frame(width: 90)
+                        .onSubmit { commandWord = onCommandChange?(commandWord) ?? commandWord }
+                    Text("-name to run this app anywhere").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+            }
+            DesignVoiceBar(guide: tryGuide, voice: tryGuide.voice)
             Text("Try it").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     if previewFields.isEmpty { hint("Nothing to fill in yet. Add boxes or variables.") }
                     ForEach(previewFields) { field in
                         DesignFieldRow(field: field, text: Binding(get: { formValues[field.key] ?? "" }, set: { formValues[field.key] = $0 }))
+                            .padding(4)
+                            .background(RoundedRectangle(cornerRadius: 9).stroke(tryGuide.active && tryGuide.current?.key == field.key ? Butter.coral : Color.clear, lineWidth: 2))
+                            .simultaneousGesture(TapGesture().onEnded { tryGuide.select(field.key) })
                     }
                 }
             }
