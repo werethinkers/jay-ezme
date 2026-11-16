@@ -1,7 +1,6 @@
-## AppDesigner polish: collections tree, shape erasing, better voice, $ and @
+## Pick a wish from a collection, the WishBuilder way
 
-- **Collections and shortcuts picker.** Every box and every picture field now opens one searchable picker: category, then collection, then its items, fields and shortcuts. It works from any screen, including when AppDesigner is opened from AppBuilder. Picture boxes and picture fields list only pictures and videos from your shortcuts and collections.
-- **Erase stays inside your selection.** Hand erasing no longer spreads past what you drew. Pick a shape at the top of the page: rectangle, square, circle, triangle, points (click corners, click the first point to finish) or free hand. Undo brings it back.
-- **Smoother voice in the designer.** The designer microphone now uses the same engine as WishBuilder: one command per sentence, a live level ring and clear permission messages.
-- **Fill by voice works in published apps.** Form boxes now carry their names, so Fill by voice finds them. Each app also has its own **Fill by voice** button: say "name Rahul amount 5000", then "make it". Names from a pick-list are understood too.
-- **$, @ and action words.** On the Home page, the new box under Your apps takes `$` (apps only), `@` (people only) or plain words (everything). Saying or typing create, make, generate, send, design and similar words with an app name opens that app and puts the rest of the sentence in the form. The same works when spoken to KeyDo. The typed backslash popup does not use `$` and `@` yet.
+- **Collections now work as pick-lists in AppDesigner.** In the picker, open a collection such as HBD wishes and choose **Let the person pick a wish when the app runs**. The box shows a sample wish while you design.
+- **In the published app,** that box becomes a **wish chooser**. Type a shortcut (ss10), a number (3), or a few words from the wish, or press **Choose** to scroll and search every wish in the collection with its full text. The chosen wish shows underneath, and the page uses its full expanded text, resized to fit the box.
+- **By voice.** In the designer say "use HBD wishes" or "pick from birthday wishes" with a box selected. In the app say "ss10", "wish 3", or "wish ss10 name Rahul", then "make it". It also works from the Home box and from spoken commands, for example "make a birthday card ss10 for Rahul".
+- With an AI key, a one-sentence request also picks the best-fitting wish in the collection.

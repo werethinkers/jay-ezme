@@ -92,6 +92,9 @@ struct SourcePickerView: View {
         row(name, symbol: "square.stack.3d.up", count: shortcuts.count + records.count, open: isOpen(key)) { toggle(key) }
         if isOpen(key) {
             VStack(alignment: .leading, spacing: 2) {
+                if !mediaOnly && !shortcuts.isEmpty {
+                    leaf("Let the person pick a wish when the app runs", symbol: "list.bullet.rectangle") { onPick(WishPick.token(collection: name)) }
+                }
                 if !mediaOnly && !records.isEmpty {
                     let variable = TemplateFill.normal(name)
                     leaf("Choose when the app runs", symbol: "person.crop.circle.badge.questionmark") { onPick("{{@\(name)/$\(variable)/name}}") }

@@ -1278,9 +1278,19 @@ extension TemplateDesignerView {
         }
     }
 
-    func addToken(_ index: Int, _ token: String) {
+    func addToken(_ index: Int, _ rawToken: String) {
         guard index < template.slots.count else { return }
+        var token = rawToken
+        var replaces = false
+        if let pick = WishPick.parse(String(rawToken.dropFirst(2).dropLast(2))) {
+            token = WishPick.token(collection: WishPick.canonicalCollection(pick.collection), variable: rawToken.contains("/$") ? pick.variable : nil)
+            replaces = true
+        }
         pushUndo()
+        if replaces && template.slots[index].kind != .image {
+            template.slots[index].content = token
+            return
+        }
         if template.slots[index].kind == .image {
             template.slots[index].content = token
         } else {

@@ -84,6 +84,12 @@ enum DesignContent {
             if let found = record.values.first(where: { $0.key.lowercased() == field }) { return found.value }
             return missing
         }
+        if let pick = WishPick.parse(inner) {
+            let chosen = values[pick.variable] ?? ""
+            if let clip = WishPick.find(chosen, in: pick.collection) { return resolve(clip.text, values: values, designing: designing) }
+            if designing, chosen.isEmpty, let sample = WishPick.clips(in: pick.collection).first { return sample.text }
+            return missing
+        }
         if inner.lowercased().hasPrefix("shortcut:") {
             let name = String(inner.dropFirst("shortcut:".count)).trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: "\\", with: "")
             if let clip = shared.clips.first(where: { $0.key.lowercased().replacingOccurrences(of: "\\", with: "") == name }) { return clip.text }
@@ -450,6 +456,12 @@ enum DesignCommand {
         if let m = match("^replace\\s+(.+?)\\s+with\\s+(.+)$", s) { return .replace(m[1], m[2], variable: nil) }
         if let m = match("^(?:make|turn)\\s+(?:this|it|that|selected|the box)\\s+(?:into\\s+)?(?:a\\s+)?variable\\s+(?:called\\s+|named\\s+)?(.+)$", s) { return .makeVariable(m[1].trimmingCharacters(in: .whitespaces)) }
         if let m = match("^(?:set\\s+)?variable\\s+(.+?)\\s+(?:to|is|equals|=)\\s+(.+)$", s) { return .variable(m[1].trimmingCharacters(in: .whitespaces), m[2]) }
+        if let m = match("^(?:use|pick|choose|select|put|insert|add)\\s+(?:a\\s+|the\\s+|any\\s+)?(?:wish|wishes|message|messages)\\s+(?:from\\s+)?(?:the\\s+)?(.+?)(?:\\s+(?:collection|wishes|messages))?$", s), !m[1].lowercased().hasPrefix("variable") {
+            return .insertToken("{{wish:\(m[1].trimmingCharacters(in: .whitespaces))}}")
+        }
+        if let m = match("^(?:use|pick|choose|select)\\s+(?:from\\s+)?(?:the\\s+)?(.+?)\\s+(?:wishes|messages|collection)$", s) {
+            return .insertToken("{{wish:\(m[1].trimmingCharacters(in: .whitespaces))}}")
+        }
         if let m = match("^(?:put|insert|add|use)\\s+(?:the\\s+)?variable\\s+(.+)$", s) { return .insertToken("{{\(m[1].trimmingCharacters(in: .whitespaces))}}") }
         if let m = match("^(?:put|insert|add|use)\\s+(?:the\\s+)?(?:function|formula)\\s+(.+)$", s) { return .insertToken(functionToken(m[1])) }
         if let m = match("^(?:put|insert|add|use)\\s+(?:the\\s+)?collection\\s+(.+?)\\s+(?:item|record|row|entry)\\s+(.+?)(?:\\s+(?:field|value)\\s+(.+))?$", s) {
