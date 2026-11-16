@@ -921,6 +921,8 @@ struct VoiceSearchAssistant: View {
         model.afterOpen = { withAnimation(.easeInOut(duration: 0.2)) { expandedBinding.wrappedValue = false } }
         var handlers = KeyDoVoice.Handlers()
         handlers.search = { [weak model] text in
+            let typing = (NSApp.keyWindow?.firstResponder as? NSTextView)?.isEditable == true
+            if (!typing || text.hasPrefix("$") || text.hasPrefix("@")) && AppLauncher.shared.handle(text, spoken: true) { return }
             if FormVoice.dictateIntoFocus(text) { return }
             model?.setQuery(text)
         }

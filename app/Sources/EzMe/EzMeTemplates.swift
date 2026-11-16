@@ -740,7 +740,14 @@ enum TemplateEraser {
 
     /// Paints over each rectangle with the colours around it, so the picture looks as if the text was never there.
     static func erase(_ image: NSImage, rects: [CGRect]) -> NSImage {
-        guard !rects.isEmpty, let cg = TemplateImages.cgImage(image) else { return image }
+        erase(image, shapes: rects.map { [CGPoint(x: $0.minX, y: $0.minY), CGPoint(x: $0.maxX, y: $0.minY), CGPoint(x: $0.maxX, y: $0.maxY), CGPoint(x: $0.minX, y: $0.maxY)] }, pad: true)
+    }
+
+    /// Paints over the inside of each shape (points are fractions of the picture, top-left origin). With `pad` off the
+    /// paint stays exactly inside the shape; with it on, a little margin is added so no letter edges are left behind.
+    static func erase(_ image: NSImage, shapes: [[CGPoint]], pad: Bool) -> NSImage {
+        let shapes = shapes.filter { $0.count >= 3 }
+        guard !shapes.isEmpty, let cg = TemplateImages.cgImage(image) else { return image }
         let width = cg.width, height = cg.height
         let source = NSBitmapImageRep(cgImage: cg)
         guard let rep = TemplateImages.bitmap(width: width, height: height), let graphics = NSGraphicsContext(bitmapImageRep: rep) else { return image }
@@ -751,11 +758,24 @@ enum TemplateEraser {
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
         image.draw(in: NSRect(x: 0, y: 0, width: width, height: height), from: .zero, operation: .copy, fraction: 1, respectFlipped: true, hints: nil)
 
-        for fraction in rects {
-            var area = CGRect(x: fraction.minX * CGFloat(width), y: fraction.minY * CGFloat(height), width: fraction.width * CGFloat(width), height: fraction.height * CGFloat(height))
-            let padX = max(3, area.height * 0.18), padY = max(3, area.height * 0.2)
-            area = area.insetBy(dx: -padX, dy: -padY).intersection(CGRect(x: 0, y: 0, width: width, height: height)).integral
+        for shape in shapes {
+            let pixels = shape.map { CGPoint(x: $0.x * CGFloat(width), y: $0.y * CGFloat(height)) }
+            let xs = pixels.map { $0.x }, ys = pixels.map { $0.y }
+            var area = CGRect(x: xs.min() ?? 0, y: ys.min() ?? 0, width: (xs.max() ?? 0) - (xs.min() ?? 0), height: (ys.max() ?? 0) - (ys.min() ?? 0))
+            var outline = pixels
+            if pad {
+                let padX = max(3, area.height * 0.18), padY = max(3, area.height * 0.2)
+                area = area.insetBy(dx: -padX, dy: -padY)
+                outline = [CGPoint(x: area.minX, y: area.minY), CGPoint(x: area.maxX, y: area.minY), CGPoint(x: area.maxX, y: area.maxY), CGPoint(x: area.minX, y: area.maxY)]
+            }
+            area = area.intersection(CGRect(x: 0, y: 0, width: width, height: height)).integral
             guard area.width > 1, area.height > 1 else { continue }
+            context.saveGState()
+            let clip = CGMutablePath()
+            clip.addLines(between: outline)
+            clip.closeSubpath()
+            context.addPath(clip)
+            context.clip()
             let band: CGFloat = 4
             let size = CGSize(width: width, height: height)
             let left = average(source, CGRect(x: area.minX - band - 1, y: area.minY, width: band, height: area.height), size)
@@ -785,6 +805,7 @@ enum TemplateEraser {
                 }
                 y += cell
             }
+            context.restoreGState()
         }
         NSGraphicsContext.restoreGraphicsState()
         let result = NSImage(size: NSSize(width: width, height: height))

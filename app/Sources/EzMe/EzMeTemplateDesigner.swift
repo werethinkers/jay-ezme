@@ -337,6 +337,8 @@ struct TemplateDesignerView: View {
     @State private var resizeStart: TemplateSlot?
     @State private var eraseStart: CGPoint?
     @State private var eraseNow: CGPoint?
+    @State private var eraseTool: EraseTool = .rectangle
+    @State private var erasePoints: [CGPoint] = []
     @State private var testTexts: [String: String] = [:]
     @State private var testImages: [String: NSImage] = [:]
     @State private var testVersion = 0
@@ -361,7 +363,7 @@ struct TemplateDesignerView: View {
     @State private var commandText = ""
     @State private var heard = ""
     @State private var newVariable = ""
-    @StateObject private var speech = EzMeSpeechDictation()
+    @StateObject private var voice = WishVoiceController()
     @FocusState private var commandFocused: Bool
 
     init(template: ImageTemplate, onClose: @escaping () -> Void, pageInfo: (index: Int, count: Int)? = nil,
@@ -414,7 +416,7 @@ struct TemplateDesignerView: View {
         .onChange(of: vars) { _, _ in refresh() }
         .onChange(of: formValues) { _, _ in refresh() }
         .onChange(of: selectedID) { _, value in if value != nil { sideTab = .box } }
-        .onDisappear { speech.stop(); store.save(template) }
+        .onDisappear { voice.stop(); store.save(template) }
     }
 
     private var topBar: some View {
@@ -597,25 +599,120 @@ struct TemplateDesignerView: View {
 
     // MARK: Erasing by hand
 
+    enum EraseTool: String, CaseIterable, Identifiable {
+        case rectangle = "Rectangle", square = "Square", circle = "Circle", triangle = "Triangle", polygon = "Points", freehand = "Free hand"
+        var id: String { rawValue }
+        var symbol: String {
+            switch self {
+            case .rectangle: return "rectangle"
+            case .square: return "square"
+            case .circle: return "circle"
+            case .triangle: return "triangle"
+            case .polygon: return "hexagon"
+            case .freehand: return "scribble"
+            }
+        }
+    }
+
+    /// The outline of a dragged shape, in canvas points.
+    private func eraseOutline(_ tool: EraseTool, from start: CGPoint, to now: CGPoint) -> [CGPoint] {
+        var dx = now.x - start.x, dy = now.y - start.y
+        if tool == .square { let side = max(abs(dx), abs(dy)); dx = dx < 0 ? -side : side; dy = dy < 0 ? -side : side }
+        let rect = CGRect(x: min(start.x, start.x + dx), y: min(start.y, start.y + dy), width: abs(dx), height: abs(dy))
+        switch tool {
+        case .circle:
+            return (0..<64).map { step in
+                let angle = Double(step) / 64 * 2 * Double.pi
+                return CGPoint(x: rect.midX + cos(angle) * rect.width / 2, y: rect.midY + sin(angle) * rect.height / 2)
+            }
+        case .triangle:
+            return [CGPoint(x: rect.midX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)]
+        default:
+            return [CGPoint(x: rect.minX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.minY), CGPoint(x: rect.maxX, y: rect.maxY), CGPoint(x: rect.minX, y: rect.maxY)]
+        }
+    }
+
+    private func outlinePath(_ points: [CGPoint], closed: Bool) -> Path {
+        var path = Path()
+        guard let first = points.first else { return path }
+        path.move(to: first)
+        for point in points.dropFirst() { path.addLine(to: point) }
+        if closed { path.closeSubpath() }
+        return path
+    }
+
+    private func finishErase(_ points: [CGPoint], width: CGFloat, height: CGFloat) {
+        let normal = points.map { CGPoint(x: min(max($0.x / width, 0), 1), y: min(max($0.y / height, 0), 1)) }
+        erasePoints = []
+        eraseStart = nil; eraseNow = nil
+        eraseShape(normal)
+    }
+
     private func eraseLayer(width: CGFloat, height: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
             Color.black.opacity(0.001)
-            if let start = eraseStart, let now = eraseNow {
-                Rectangle().fill(Color.red.opacity(0.25))
-                    .overlay(Rectangle().stroke(Color.red, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
-                    .frame(width: abs(now.x - start.x), height: abs(now.y - start.y))
-                    .offset(x: min(start.x, now.x), y: min(start.y, now.y))
+            if let start = eraseStart, let now = eraseNow, eraseTool != .freehand, eraseTool != .polygon {
+                let outline = eraseOutline(eraseTool, from: start, to: now)
+                outlinePath(outline, closed: true).fill(Color.red.opacity(0.25))
+                outlinePath(outline, closed: true).stroke(Color.red, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
             }
+            if !erasePoints.isEmpty {
+                let closed = eraseTool == .freehand
+                if closed { outlinePath(erasePoints, closed: true).fill(Color.red.opacity(0.25)) }
+                outlinePath(erasePoints, closed: closed).stroke(Color.red, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                if eraseTool == .polygon, let first = erasePoints.first {
+                    Circle().stroke(Color.red, lineWidth: 2).frame(width: 12, height: 12).position(first)
+                }
+            }
+            HStack(spacing: 4) {
+                ForEach(EraseTool.allCases) { tool in
+                    Button { eraseTool = tool; erasePoints = []; eraseStart = nil; eraseNow = nil } label: {
+                        Image(systemName: tool.symbol).font(.system(size: 13, weight: .semibold)).frame(width: 28, height: 24)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(eraseTool == tool ? Butter.coral : Color.white.opacity(0.92)))
+                            .foregroundStyle(eraseTool == tool ? Color.white : Butter.cocoa)
+                    }
+                    .buttonStyle(.plain).help(tool.rawValue)
+                }
+                if eraseTool == .polygon && erasePoints.count >= 3 {
+                    Button("Erase it") { finishErase(erasePoints, width: width, height: height) }.buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                }
+                if !erasePoints.isEmpty { Button("Cancel") { erasePoints = [] }.buttonStyle(.bordered).controlSize(.small) }
+            }
+            .padding(6).background(RoundedRectangle(cornerRadius: 9).fill(Color.black.opacity(0.35))).padding(8)
         }
         .frame(width: width, height: height)
         .gesture(
-            DragGesture(minimumDistance: 4, coordinateSpace: .named("canvas"))
-                .onChanged { value in eraseStart = value.startLocation; eraseNow = value.location }
+            DragGesture(minimumDistance: 0, coordinateSpace: .named("canvas"))
+                .onChanged { value in
+                    switch eraseTool {
+                    case .freehand:
+                        if erasePoints.isEmpty { erasePoints = [value.startLocation] }
+                        if let last = erasePoints.last, hypot(last.x - value.location.x, last.y - value.location.y) > 2 { erasePoints.append(value.location) }
+                    case .polygon:
+                        break
+                    default:
+                        guard hypot(value.location.x - value.startLocation.x, value.location.y - value.startLocation.y) > 3 else { return }
+                        eraseStart = value.startLocation; eraseNow = value.location
+                    }
+                }
                 .onEnded { value in
-                    let rect = CGRect(x: min(value.startLocation.x, value.location.x) / width, y: min(value.startLocation.y, value.location.y) / height,
-                                      width: abs(value.location.x - value.startLocation.x) / width, height: abs(value.location.y - value.startLocation.y) / height)
-                    eraseStart = nil; eraseNow = nil
-                    eraseArea(rect)
+                    switch eraseTool {
+                    case .freehand:
+                        let points = erasePoints
+                        erasePoints = []
+                        if points.count >= 3 { finishErase(points, width: width, height: height) }
+                    case .polygon:
+                        if hypot(value.location.x - value.startLocation.x, value.location.y - value.startLocation.y) > 6 { return }
+                        if erasePoints.count >= 3, let first = erasePoints.first, hypot(first.x - value.location.x, first.y - value.location.y) < 12 {
+                            finishErase(erasePoints, width: width, height: height)
+                        } else {
+                            erasePoints.append(value.location)
+                        }
+                    default:
+                        guard let start = eraseStart, let now = eraseNow else { return }
+                        let outline = eraseOutline(eraseTool, from: start, to: now)
+                        finishErase(outline, width: width, height: height)
+                    }
                 }
         )
         .onHover { inside in if inside { NSCursor.crosshair.push() } else { NSCursor.pop() } }
@@ -642,7 +739,7 @@ struct TemplateDesignerView: View {
                             boxesCard
                         }
                     case .page:
-                        if mode == .erase { hint("Drag a rectangle over any text, mark or stamp on the page to remove it.") }
+                        if mode == .erase { hint("Pick a shape at the top of the page (rectangle, square, circle, triangle, points or free hand), then draw around what to remove. Only the inside of the shape is erased.") }
                         if onVariablesChange != nil { variablesCard }
                         addCard
                         boxesCard
@@ -1023,6 +1120,15 @@ struct TemplateDesignerView: View {
         message = "Picture replaced. Your boxes stayed where they were."
     }
 
+    /// Erases exactly inside the shape the person drew. Nothing outside it is touched.
+    private func eraseShape(_ points: [CGPoint]) {
+        let xs = points.map { $0.x }, ys = points.map { $0.y }
+        guard points.count >= 3, let minX = xs.min(), let maxX = xs.max(), let minY = ys.min(), let maxY = ys.max(), maxX - minX > 0.002, maxY - minY > 0.002 else { return }
+        pushUndo()
+        applyBase(TemplateEraser.erase(base, shapes: [points], pad: false))
+        message = "Erased inside the shape. Undo brings it back."
+    }
+
     private func eraseArea(_ rect: CGRect) {
         guard rect.width > 0.002, rect.height > 0.002 else { return }
         pushUndo()
@@ -1111,21 +1217,23 @@ extension TemplateDesignerView {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 Button { toggleListening() } label: {
-                    Image(systemName: speech.isListening ? "mic.fill" : "mic")
-                        .foregroundStyle(speech.isListening ? Color.white : Butter.coral)
+                    Image(systemName: voice.isListening ? "mic.fill" : "mic")
+                        .foregroundStyle(voice.isListening ? Color.white : Butter.coral)
                         .frame(width: 32, height: 32)
-                        .background(Circle().fill(speech.isListening ? Butter.coral : Color.white))
-                        .overlay(Circle().stroke(Butter.coral, lineWidth: 1.5))
+                        .background(Circle().fill(voice.isListening ? Butter.coral : Color.white))
+                        .overlay(Circle().stroke(Butter.coral.opacity(voice.isListening ? 0.4 + voice.level * 0.6 : 1), lineWidth: 1.5 + CGFloat(voice.level) * 4))
                 }
-                .buttonStyle(.plain).help(speech.isListening ? "Stop listening" : "Listen: say what to change")
+                .buttonStyle(.plain).help(voice.isListening ? "Stop listening" : "Listen: say what to change")
                 TextField("Say or type a change, like \u{201C}make the text pink\u{201D} or \u{201C}go to page 2\u{201D}", text: $commandText)
                     .textFieldStyle(.roundedBorder).focused($commandFocused)
                     .onSubmit { submitCommand() }
                 Button("Do it") { submitCommand() }.buttonStyle(.borderedProminent).tint(Butter.coral).disabled(commandText.trimmingCharacters(in: .whitespaces).isEmpty)
                 Button { undoLast() } label: { Image(systemName: "arrow.uturn.backward") }.buttonStyle(.bordered).disabled(undo.isEmpty).help("Undo")
             }
-            if speech.isListening || !heard.isEmpty {
-                Text(speech.isListening ? "Listening\u{2026} \(heard)" : "Heard: \(heard)").font(.system(size: 11)).foregroundStyle(Butter.cocoa.opacity(0.75)).lineLimit(1)
+            if !voice.errorMessage.isEmpty {
+                Text(voice.errorMessage).font(.system(size: 11)).foregroundStyle(.red)
+            } else if voice.isListening || !heard.isEmpty {
+                Text(voice.isListening ? "Listening\u{2026} \(voice.heard.isEmpty ? heard : voice.heard)" : "Heard: \(heard)").font(.system(size: 11)).foregroundStyle(Butter.cocoa.opacity(0.75)).lineLimit(1)
             }
         }
         .padding(10).background(Color(nsColor: .windowBackgroundColor))
@@ -1139,8 +1247,9 @@ extension TemplateDesignerView {
     }
 
     func toggleListening() {
-        if speech.isListening { speech.stop(); return }
-        speech.startContinuous(onTranscript: { text in runCommand(text) }, onPartial: { partial in heard = partial })
+        if voice.isListening { voice.stop(); message = "Mic off."; return }
+        message = "Listening. Say one change at a time."
+        voice.start(localeIdentifier: EzMeSpeechDictation.chosenLocale.identifier, commitDelay: 0.9) { text in runCommand(text) }
     }
 
     // MARK: Variables and live content
@@ -1208,13 +1317,8 @@ extension TemplateDesignerView {
                         onVariablesChange?(vars)
                     }
                 }
-                Menu("Collection") { collectionMenu(index) }
+                SourcePickerButton(title: slot.kind == .image ? "Pick picture" : "Collection / shortcut", symbol: "tray.full", mediaOnly: slot.kind == .image) { addToken(index, $0) }
                 Menu("Function") { ForEach(DesignFunction.items) { item in Button(item.title) { addToken(index, item.token) } } }
-                Menu("Shortcut") {
-                    ForEach(Array(AppDesignContext.shared.clips.prefix(40)), id: \.id) { clip in
-                        Button(clip.key) { addToken(index, slot.kind == .image ? clip.key : "{{shortcut:\(clip.key)}}") }
-                    }
-                }
                 if slot.kind == .image { Button("File") { chooseSourceFile(index) } }
             }
             .menuStyle(.borderlessButton).controlSize(.small)
