@@ -49,6 +49,9 @@ enum DesignVoiceFill {
                     ?? all.first(where: { value.lowercased().contains($0.name.lowercased()) || $0.name.lowercased().contains(value.lowercased()) }) {
                     value = match.alias.isEmpty ? match.name : match.alias
                 } else { continue }
+            case .wish:
+                guard let clip = WishPick.find(value, in: hit.field.collection ?? "") else { continue }
+                value = clip.key
             default: break
             }
             result[hit.field.key] = value
@@ -57,6 +60,10 @@ enum DesignVoiceFill {
         for field in fields where field.kind == .choice && result[field.key] == nil {
             let found = options(for: field).filter { $0.name.count >= 3 && lower.contains($0.name.lowercased()) }.max { $0.name.count < $1.name.count }
             if let found { result[field.key] = found.alias.isEmpty ? found.name : found.alias }
+        }
+        // A shortcut said on its own ("ss10", "wish 3") fills the wish box even without its field name.
+        for field in fields where field.kind == .wish && result[field.key] == nil {
+            if let clip = WishPick.spotted(in: text, collection: field.collection ?? "") { result[field.key] = clip.key }
         }
         return result
     }

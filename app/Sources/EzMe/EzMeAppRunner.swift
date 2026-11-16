@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 // MARK: - The questions an app asks
 
 struct DesignField: Identifiable, Hashable {
-    enum Kind { case text, long, image, choice }
+    enum Kind { case text, long, image, choice, wish }
     var key: String
     var label: String
     var kind: Kind
@@ -45,6 +45,10 @@ enum DesignFields {
                 for match in regex.matches(in: content, range: NSRange(location: 0, length: ns.length)) {
                     let inner = ns.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
                     if inner.lowercased().hasPrefix("shortcut:") { continue }
+                    if let pick = WishPick.parse(inner) {
+                        add(DesignField(key: pick.variable, label: label(pick.collection), kind: .wish, collection: pick.collection, defaultValue: defaultFor(pick.variable)))
+                        continue
+                    }
                     if inner.hasPrefix("@") {
                         let parts = String(inner.dropFirst()).split(separator: "/", omittingEmptySubsequences: false).map { String($0) }
                         if parts.count >= 2, parts[1].hasPrefix("$") {
@@ -99,6 +103,8 @@ struct DesignFieldRow: View {
                     SourcePickerButton(title: "Shortcuts", symbol: "bolt", mediaOnly: true) { text = $0 }.buttonStyle(.bordered).controlSize(.small)
                     Button { choose() } label: { Label("File", systemImage: "photo") }.buttonStyle(.bordered).controlSize(.small)
                 }
+            case .wish:
+                WishChooserRow(field: field, text: $text)
             case .choice:
                 let options = AppDesignContext.shared.records.filter { $0.collection.caseInsensitiveCompare(field.collection ?? "") == .orderedSame }
                 Picker(field.label, selection: $text) {
@@ -335,6 +341,10 @@ struct AppDesignRunView: View {
             if field.kind == .choice, let collection = field.collection {
                 let options = AppDesignContext.shared.records.filter { $0.collection.caseInsensitiveCompare(collection) == .orderedSame }.prefix(40).map { $0.alias.isEmpty ? $0.name : $0.alias }
                 line += " (choose one of: " + options.joined(separator: ", ") + ")"
+            }
+            if field.kind == .wish, let collection = field.collection {
+                let options = WishPick.clips(in: collection).prefix(40).map { "\($0.key) = " + String($0.text.prefix(60)).replacingOccurrences(of: "\n", with: " ") }
+                line += " (reply with the shortcut key that fits best: " + options.joined(separator: "; ") + ")"
             }
             lines.append(line)
         }
