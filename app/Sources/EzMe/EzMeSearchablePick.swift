@@ -71,8 +71,8 @@ struct FunctionPickerList: View {
 
     private var shown: [WishFunctionInfo] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return Array(WishFunctionInfo.all.prefix(40)) }
-        return WishFunctionInfo.all.filter { $0.name.lowercased().contains(q) || $0.summary.lowercased().contains(q) || $0.category.lowercased().contains(q) }
+        guard !q.isEmpty else { return Array(WishFunctionCatalog.all.prefix(40)) }
+        return WishFunctionCatalog.all.filter { $0.name.lowercased().contains(q) || $0.summary.lowercased().contains(q) || $0.category.lowercased().contains(q) }
     }
 
     var body: some View {

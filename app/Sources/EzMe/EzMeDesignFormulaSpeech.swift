@@ -73,7 +73,7 @@ enum DesignFormulaSpeech {
         }
 
         // A function name first: "sum of price and tax", "round price", "upper name".
-        let ordered = WishFunctionInfo.all.sorted { $0.name.count > $1.name.count }
+        let ordered = WishFunctionCatalog.all.sorted { $0.name.count > $1.name.count }
         for info in ordered {
             let name = info.name.lowercased()
             let spoken = name.replacingOccurrences(of: "_", with: " ")
