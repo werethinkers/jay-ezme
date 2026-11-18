@@ -1,9 +1,9 @@
 {
-  "version": "3.67",
-  "build": 368,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.67-build368/EzMe-3.67-macOS.zip",
-  "sha256": "dbd240aa6b4344281f8667070697cb2d8c82788ab99ebdd222c63d90185bfd43",
-  "notes": "# KeyDo 3.67\n\n- **Voice and typed commands for App Designer apps.** A new \"Voice and typed commands\" section in the designer's side panel has the same phrase editor WishStudio apps use: add phrases like \"send birthday wishes to\" and say or type them followed by the details. The phrases stay with the app when you rename it.\n- **Typing a command is free-form.** `\\hbd-rahul`, `\\@hbd-rahul` and `\\hbd rahul` all work. After the app word, give the details in any order, each after a dash. A `#` before a collection name (`#birthday-wishes`) means \"use its first item\", and a template ends the command (`-temp2`). Anything left out uses its ready value; only a mandatory box is asked for.\n- **Rename a variable at any time.** In the designer's Variables list, click the name, type the new one and press Return. Its value, data type, mandatory mark and every box and formula that uses it (on every page) follow the new name.\n- **WishStudio: new templates and redesign.** The studio toolbar has \"New template\" (opens the same new-app wizard and links the result to this app) and \"Redesign\" (opens the linked template straight in the designer). WishBuilder's template picker has the same two buttons.",
-  "published": "2026-11-18T19:20:18Z",
+  "version": "3.68",
+  "build": 369,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.68-build369/EzMe-3.68-macOS.zip",
+  "sha256": "5ab9f9f5a9f8047f05e80d5bda011ad711b8e78480b10b7abd626cc88c1bcfc1",
+  "notes": "# KeyDo 3.68\n\n- **Every app has its own name.** App Designer apps can no longer share a name with another designed app or with another app in the backslash popup: a clash gets a number (\"Invoice 2\") when the app is created, renamed or saved. WishStudio apps already numbered new apps the same way.\n- **Duplicate an app.** App Designer: the copy icon on an app card makes a full copy (its own pages, variables and templates) named \"<name> copy\", ready to change. Release the copy to give it its own run word. WishStudio: right-click an app and choose Duplicate.",
+  "published": "2026-11-18T19:46:58Z",
   "minimumSystemVersion": "14.0"
 }
