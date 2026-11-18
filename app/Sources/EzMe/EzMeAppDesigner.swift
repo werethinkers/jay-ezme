@@ -140,6 +140,10 @@ struct AppDesign: Codable, Identifiable, Hashable {
     func design(id: String?) -> AppDesign? { id.flatMap { key in designs.first { $0.id == key } } }
 
     func save(_ design: AppDesign) {
+        var design = design
+        if !designs.contains(where: { $0.id == design.id }) {
+            design.name = DesignNames.unique(design.name, taken: designs.map { $0.name })
+        }
         if let index = designs.firstIndex(where: { $0.id == design.id }) { designs[index] = design } else { designs.append(design) }
         persist()
     }
@@ -475,6 +479,14 @@ enum DesignCommand {
             return .insertToken("{{@\(m[1])/\(m[2])\(field)}}")
         }
         if let m = match("^(?:put|insert|add|use)\\s+(?:the\\s+)?shortcut\\s+(.+)$", s) { return .insertToken("{{shortcut:\(m[1].trimmingCharacters(in: .whitespaces))}}") }
+        // Elements: a picture or video that is chosen when the app runs, and a dropdown of a collection of shortcuts or records.
+        if let m = match("^(?:add|insert|put|create|make)\\s+(?:a\\s+|an\\s+|the\\s+)?(?:media|picture|photo|image|video)\\s+(?:collection|list|dropdown|drop down|menu|choice|variable)(?:\\s+(?:of|for|called|named|from))?\\s*(.*)$", s) {
+            let name = m[1].trimmingCharacters(in: .whitespaces)
+            return .addBox(kind: .image, name: name.isEmpty ? nil : name, logo: nil)
+        }
+        if let m = match("^(?:add|insert|put|create|make)\\s+(?:a\\s+|an\\s+|the\\s+)?(?:dropdown|drop down|drop-down|menu|list|choice|collection|category|sub ?category|options?)\\s+(?:of|for|from|called|named)?\\s*(.+)$", s) {
+            return .insertToken("{{wish:\(m[1].trimmingCharacters(in: .whitespaces))}}")
+        }
         if let m = match("^(?:use|put|set)\\s+(?:the\\s+)?(?:image|picture|photo|video)\\s+(?:from\\s+)?(?:shortcut\\s+)?(.+)$", s) { return .imageFrom(m[1].trimmingCharacters(in: .whitespaces)) }
         if let m = match("^(?:set|change|make|write|type|put)\\s+(?:the\\s+)?(?:text|title|heading|content|words?)\\s+(?:to|as|with|say|says)?\\s*[:\\-]?\\s*(.+)$", s) { return .setText(m[1]) }
         if let m = match("^(?:write|type|say)\\s+(.+)$", s) { return .setText(m[1]) }
@@ -567,7 +579,7 @@ enum DesignCommand {
         return .unknown(s)
     }
 
-    static let help = "Try: \u{201C}go to page 2\u{201D}, \u{201C}make the text pink\u{201D}, \u{201C}background black\u{201D}, \u{201C}font Georgia\u{201D}, \u{201C}add text box called amount\u{201D}, \u{201C}make it a circle\u{201D}, \u{201C}rotate 15\u{201D}, \u{201C}replace Acme Ltd with variable company\u{201D}, \u{201C}put function date\u{201D}, \u{201C}font size 18\u{201D}, \u{201C}output PDF\u{201D}, \u{201C}publish\u{201D}."
+    static let help = "Try: \u{201C}go to page 2\u{201D}, \u{201C}make the text pink\u{201D}, \u{201C}background black\u{201D}, \u{201C}font Georgia\u{201D}, \u{201C}add text box called amount\u{201D}, \u{201C}make it a circle\u{201D}, \u{201C}rotate 15\u{201D}, \u{201C}replace Acme Ltd with variable company\u{201D}, \u{201C}put function date\u{201D}, \u{201C}add variable company\u{201D}, \u{201C}add dropdown of Diwali wishes\u{201D}, \u{201C}add media variable photo\u{201D}, \u{201C}font size 18\u{201D}, \u{201C}output PDF\u{201D}, \u{201C}publish\u{201D}."
 }
 
 // MARK: - AppDesigner screens
@@ -826,7 +838,8 @@ struct AppDesignEditor: View {
                     },
                     onRename: { name in
                         if var current = designs.design(id: designID) {
-                            current.name = name; current.appTitle = name; designs.save(current)
+                            let unique = DesignNames.unique(name, taken: designs.designs.filter { $0.id != current.id }.map { $0.name })
+                            current.name = unique; current.appTitle = unique; designs.save(current)
                             if current.version > 0 { DesignCommands.register(current) }
                         }
                     },

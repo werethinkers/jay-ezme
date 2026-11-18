@@ -213,20 +213,30 @@ struct TemplateUseSheet: View {
                     sectionTitle("WishBuilder apps")
                     if wishApps.isEmpty { Text("No Wish apps found yet. Open Wish Studio once to create them.").font(.system(size: 12)).foregroundStyle(.secondary) }
                     ForEach(wishApps) { app in
-                        toggleRow(app.name, isOn: TemplateStore.wishTemplateID(appID: app.id) == templateID) { on in
-                            TemplateStore.setWishTemplate(on ? templateID : "", appID: app.id); refresh += 1
+                        toggleRow(app.name, isOn: DesignSnapshots.isLinked(current: TemplateStore.wishTemplateID(appID: app.id), to: templateID, app: "wish." + app.id)) { on in
+                            if on {
+                                if let link = DesignSnapshots.makeCopy(of: templateID, app: "wish." + app.id, appName: app.name) { TemplateStore.setWishTemplate(link, appID: app.id) }
+                            } else {
+                                TemplateStore.setWishTemplate("", appID: app.id)
+                            }
+                            refresh += 1
                         }
                     }
                     sectionTitle("AppBuilder apps")
                     if builderApps.isEmpty { Text("No AppBuilder apps of your own yet.").font(.system(size: 12)).foregroundStyle(.secondary) }
                     ForEach(builderApps, id: \.self) { name in
-                        toggleRow(name, isOn: TemplateStore.builderTemplateID(app: name) == templateID) { on in
-                            TemplateStore.setBuilderTemplate(on ? templateID : "", app: name); refresh += 1
+                        toggleRow(name, isOn: DesignSnapshots.isLinked(current: TemplateStore.builderTemplateID(app: name), to: templateID, app: "builder." + name)) { on in
+                            if on {
+                                if let link = DesignSnapshots.makeCopy(of: templateID, app: "builder." + name, appName: name) { TemplateStore.setBuilderTemplate(link, app: name) }
+                            } else {
+                                TemplateStore.setBuilderTemplate("", app: name)
+                            }
+                            refresh += 1
                         }
                     }
                 }
             }
-            Text("An app fills a box when it has a field with the same name. In WishBuilder, step 1 can also create the fields from the boxes.")
+            Text("Each app gets its own saved copy with a new name, so the app's default look and this design are never changed. Switch an app off to go back to its default. An app fills a box when it has a field with the same name.")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
         .padding(20)
@@ -821,6 +831,30 @@ struct TemplateDesignerView: View {
                     .menuStyle(.borderlessButton).fixedSize()
             }
             .buttonStyle(.bordered).controlSize(.small)
+            HStack(spacing: 6) {
+                Button { let name = newVariableName(); addElementBox("{{\(name)}}", name: name) } label: { Label("Variable", systemImage: "curlybraces") }
+                Menu {
+                    ForEach(DesignElementTokens.functions) { item in
+                        Button(item.title) { addElementBox(item.token, name: "function") }
+                    }
+                } label: { Label("Function", systemImage: "function") }
+                    .menuStyle(.borderlessButton).fixedSize()
+                Menu {
+                    let tree = AppDesignContext.shared.collectionTree
+                    if tree.isEmpty { Text("No collections yet") }
+                    ForEach(tree) { group in
+                        Menu(group.category) {
+                            ForEach(group.names, id: \.self) { name in
+                                Button(name) { addElementBox(DesignElementTokens.refine("{{wish:\(name)}}"), name: name) }
+                            }
+                        }
+                    }
+                } label: { Label("Dropdown", systemImage: "list.bullet.rectangle") }
+                    .menuStyle(.borderlessButton).fixedSize()
+            }
+            .buttonStyle(.bordered).controlSize(.small)
+            Text("Or say \u{201C}add variable company\u{201D}, \u{201C}add function date\u{201D}, \u{201C}add dropdown of Diwali wishes\u{201D}. A Picture box is chosen from shortcuts or files when the app runs.")
+                .font(.system(size: 10)).foregroundStyle(.secondary)
         }
     }
 
@@ -1048,6 +1082,26 @@ struct TemplateDesignerView: View {
         if kind == .image { slot.w = 0.25; slot.h = 0.25 * CGFloat(template.pixelWidth) / max(1, CGFloat(template.pixelHeight)); slot.sample = "" }
         template.slots.append(slot)
         selectedID = slot.id
+    }
+
+    /// A new text box that holds a variable, a function or a dropdown of a collection.
+    private func addElementBox(_ token: String, name: String) {
+        pushUndo()
+        addSlot(.text)
+        guard let index = selectedIndex else { return }
+        template.slots[index].key = uniqueKey(name)
+        addToken(index, token)
+        if let variable = DesignElementTokens.plainVariable(token), !vars.keys.contains(where: { TemplateFill.normal($0) == TemplateFill.normal(variable) }) {
+            vars[variable] = ""
+            onVariablesChange?(vars)
+        }
+    }
+
+    private func newVariableName() -> String {
+        var number = 1
+        var name = "variable"
+        while vars.keys.contains(where: { TemplateFill.normal($0) == TemplateFill.normal(name) }) { number += 1; name = "variable\(number)" }
+        return name
     }
 
     private func addLogo(_ name: String) {
@@ -1607,7 +1661,12 @@ extension TemplateDesignerView {
             template.slots[index].content = value
             template.slots[index].sample = value
             return "Text changed."
-        case .insertToken(let token):
+        case .insertToken(let rawToken):
+            let token = DesignElementTokens.refine(rawToken)
+            if selectedIndex == nil {
+                addElementBox(token, name: DesignElementTokens.boxName(token))
+                return "Added a box for it. Drag it where you want it."
+            }
             guard let index = selectedIndex else { return needBox }
             guard template.slots[index].kind != .logo else { return "Logos do not hold text." }
             addToken(index, token)

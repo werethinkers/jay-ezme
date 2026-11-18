@@ -1,7 +1,6 @@
-## AppDesigner apps run from the backslash popup, and Fill by voice works like Ezyourlife
+## AppDesigner: build the app by voice or one tap
 
-- **One word runs your app.** Every published app gets a command word (the first word of its name, like hbd or greeting). Change it in the preview column ("Type \ ___ -name") or say "command word hbd". Then type `\hbd-rohit.media-pink` in the popup, in any app: the HBD app runs, uses the shortcut rohit.media as its picture, and fills the rest. Parts can come in any order. Pictures, wish shortcuts (ss10) and collection items are put in the right box, and everything else goes to the text boxes in order.
-- **Instant result.** When every box is covered, the file is made and delivered the same way as your other AppBuilder apps. When something is missing the popup asks for it, and **Open the full form** opens the app's whole form with what you typed already filled in.
-- **Fill by voice, the Ezyourlife way.** Pressing Fill by voice (in the published app and in the designer's Try it panel) points at one box at a time. Say the answer and it moves on, or say several boxes at once ("name Rahul photo rohit dot media wish ss10"). Say next, back, clear, "make it" or done. It shows what it hears and highlights the box it is waiting for, with English and Hindi.
-- Design changes still only change the design (style, position, fonts, picking from collections). The published version is what the command uses, so press Publish to update it.
-- Published apps no longer appear in the AppBuilder list of your apps, because they are managed in AppDesigner.
+- **Add elements fast.** The Add a box card now has Variable, Function and Dropdown buttons. Dropdown lists your collections grouped by category, so a sub-category (for example Diwali wishes) or a list of names or companies becomes a pick-list when the app runs.
+- **Say it.** "Add variable company", "add function date", "add dropdown of Diwali wishes" and "add media variable photo" now create their own box when nothing is selected. If a box is selected, they go into that box.
+- **Unique names.** Every design and app name is unique. A name already in use gets a number, for example "Diwali greeting 2".
+- **Send a design to an app without changing it.** Using a design or template in a WishStudio or AppBuilder app now saves a new copy named "<design> for <app>" and links the app to that copy. The app's own default look and the original design stay as they were. Switch the app off to return to its default.
