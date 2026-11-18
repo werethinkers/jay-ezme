@@ -1,9 +1,9 @@
 {
-  "version": "3.63",
-  "build": 364,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.63-build364/EzMe-3.63-macOS.zip",
-  "sha256": "5cb04df9b89c5837b3cfdb639356176f1f176d600bd049860518ed8bf0aa614b",
-  "notes": "# KeyDo 3.63\n\n- **Rename an app any time.** Every app card in App Designer has a pencil next to its name: type the new name and press Save. Inside the designer the app name now has a visible \"Save name\" button. Released apps keep working: the backslash popup and its run word follow the new name (unless you set your own run word).\n- **Ask AI to design it.** In the New App wizard, AI now designs the page instead of only moving boxes: a big confident title, quieter details, grouped boxes, whitespace, and one small colour palette chosen to read well on your page or uploaded background. It also picks a font, text size, colour, bold or italic, alignment and a coloured band for each box. You can still change any box afterwards.\n- **From a reference.** In step 2, \"From a reference\" takes a picture or PDF of an app, form, invoice or card you like. AI reads it and adds the boxes that change each time as variables (with the right data type and an example value) and the words that never change as fixed text, laid out and styled like the reference, and suggests the app name. Needs an AI key in Setup.",
-  "published": "2026-11-18T16:14:00Z",
+  "version": "3.64",
+  "build": 365,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.64-build365/EzMe-3.64-macOS.zip",
+  "sha256": "f9ca3d2c77629a72ea1167d66ea9552b1f0a3fe4854e4e8c3d4c9d0803274aa0",
+  "notes": "# KeyDo 3.64\n\n- **Type the app name and it runs.** An App Designer app now runs as soon as you type its name and press Return in the backslash popup. Variables are optional: an empty box uses the last value or its ready value, or is simply left out. Only a box marked Mandatory can stop it.\n- **Better location.** CITY, PLACE and the new AREA and PLACENAME now use this Mac's own location when you allow it (the first time an app uses a place word, macOS asks once), so you get the neighbourhood and spot name, not just the city. If you say no, or it is not available, KeyDo falls back to the city from your internet address. Weather, sunrise and the rest follow the same location.\n- **Add a box inside the designer, like in the New App wizard.** A new \"Add a box\" section at the top of the designer's side panel: say or type \"two variables string and date, one picture\", or tap Variable, Collection, Function, Picture or Text. Each opens the same card as the wizard (data type, ready value, subcategory and default shortcut, fixed text or media, mandatory) with an \"Add to page\" button.",
+  "published": "2026-11-18T18:16:10Z",
   "minimumSystemVersion": "14.0"
 }
