@@ -122,7 +122,7 @@ struct WizardElement: Identifiable, Equatable {
     var text = ""
     var cx = 0.5, cy = 0.5, w = 0.7, h = 0.07
 
-    var isMediaCollection: Bool { kind == .collection && !sub.isEmpty && MediaFinder.isMediaCollection(sub) }
+    @MainActor var isMediaCollection: Bool { kind == .collection && !sub.isEmpty && MediaFinder.isMediaCollection(sub) }
     /// The key apps and the form know this box by.
     var fieldKey: String { kind == .collection && !sub.isEmpty ? TemplateFill.normal(sub) : TemplateFill.normal(name) }
     var needsChoice: Bool { (kind == .collection && sub.isEmpty) || (kind == .function && formula.isEmpty) }
