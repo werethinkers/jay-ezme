@@ -234,12 +234,6 @@ struct DesignVariant: Codable, Identifiable, Hashable {
     }
 }
 
-/// The KeyDo icon (speech bubble and arrow) from the app's resources.
-func keyDoIconImage() -> NSImage? {
-    guard let url = Bundle.main.url(forResource: "KeyDoIcon", withExtension: "png") else { return nil }
-    return NSImage(contentsOf: url)
-}
-
 // MARK: - Last values
 
 /// What was typed into an app last time. It fills the form first and stands in when a command leaves something out.
