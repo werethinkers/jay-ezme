@@ -190,7 +190,10 @@ extension DesignElementTokens {
         }
         var result = [Line(label: "Say", text: "Make \(appName)" + (spoken.isEmpty ? "" : " " + spoken.joined(separator: " ")))]
         result.append(Line(label: "Short", text: "Make \(appName)"))
-        if !word.isEmpty { result.append(Line(label: "Type", text: "\\\(word)-" + typed.joined(separator: "-"))) }
+        if !word.isEmpty {
+            result.append(Line(label: "Type", text: "\\\(word)-" + typed.joined(separator: "-")))
+            result.append(Line(label: "Template", text: "\\\(word)-" + typed.joined(separator: "-") + (typed.isEmpty ? "temp2" : "-temp2")))
+        }
         return result
     }
 }

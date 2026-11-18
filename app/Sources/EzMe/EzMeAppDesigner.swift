@@ -118,6 +118,10 @@ struct AppDesign: Codable, Identifiable, Hashable {
     /// The one word that runs the app from the backslash popup, like hbd in \\hbd-rohit.
     var command: String? = nil
     var created: Date = Date()
+    /// The other templates of this app (looks of the same form). The pages above are the default one.
+    var variants: [DesignVariant]? = nil
+    /// The name of the default template, at most 6 letters. temp1 until the person renames it.
+    var mainName: String? = nil
 }
 
 @MainActor final class AppDesignStore: ObservableObject {
@@ -196,7 +200,7 @@ struct AppDesign: Codable, Identifiable, Hashable {
 
     func delete(_ id: String) {
         guard let design = design(id: id) else { return }
-        for page in design.pages + (design.releasedPages ?? []) { TemplateStore.shared.delete(page) }
+        for page in design.pages + (design.releasedPages ?? []) + (design.variants ?? []).flatMap({ $0.pages + ($0.releasedPages ?? []) }) { TemplateStore.shared.delete(page) }
         designs.removeAll { $0.id == id }
         persist()
         DesignCommands.unregister(designID: id)
@@ -204,6 +208,7 @@ struct AppDesign: Codable, Identifiable, Hashable {
 
     /// Freezes the pages as they are now. Apps that use this design switch to the frozen copy.
     func release(_ id: String) -> String {
+        DesignTemplates.ensure(id)
         guard var design = design(id: id) else { return "That design is missing." }
         for old in design.releasedPages ?? [] { TemplateStore.shared.delete(old) }
         var made: [String] = []
@@ -216,6 +221,22 @@ struct AppDesign: Codable, Identifiable, Hashable {
             made.append(frozen.id)
         }
         guard !made.isEmpty else { return "Nothing to release yet." }
+        // Every template of the app is published together, so temp2, temp3 and tempr always match what was designed.
+        if var others = design.variants {
+            for index in others.indices {
+                for old in others[index].releasedPages ?? [] { TemplateStore.shared.delete(old) }
+                var frozenIDs: [String] = []
+                for pageID in others[index].pages {
+                    guard var copy = TemplateStore.shared.duplicate(pageID) else { continue }
+                    copy.designID = design.id
+                    copy.name = "\(design.name) \(others[index].name) v\(design.version + 1) page \(frozenIDs.count + 1)"
+                    TemplateStore.shared.save(copy)
+                    frozenIDs.append(copy.id)
+                }
+                others[index].releasedPages = frozenIDs.isEmpty ? nil : frozenIDs
+            }
+            design.variants = others
+        }
         design.releasedPages = made
         design.version += 1
         design.releasedAt = Date()
@@ -228,18 +249,44 @@ struct AppDesign: Codable, Identifiable, Hashable {
         let ids = (design.releasedPages?.isEmpty == false) ? (design.releasedPages ?? []) : design.pages
         return ids.compactMap { TemplateStore.shared.template(id: $0) }
     }
+
+    /// The pages of one template of the app ("temp2", "tempr" or a name). Nothing said means the default.
+    func activePages(_ design: AppDesign, token: String?) -> [ImageTemplate] {
+        guard let token, !token.trimmingCharacters(in: .whitespaces).isEmpty else { return activePages(design) }
+        let found = DesignTemplates.activePages(design, token: token)
+        return found.isEmpty ? activePages(design) : found
+    }
+
+    /// A new blank page in another template of the app.
+    func addPage(to id: String, variant: String, like template: ImageTemplate) -> ImageTemplate? {
+        guard variant != "main" else { return addPage(to: id, like: template) }
+        guard var design = design(id: id), let index = design.variants?.firstIndex(where: { $0.id == variant }),
+              let page = claim(TemplateStore.shared.blank(name: "Page \((design.variants?[index].pages.count ?? 0) + 1)", width: template.pixelWidth, height: template.pixelHeight), for: id) else { return nil }
+        design.variants?[index].pages.append(page.id)
+        save(design)
+        return page
+    }
 }
 
 // MARK: - Apps using templates or designs
 
 /// An app is linked to either a template id or "design:<id>".
 enum TemplateLinks {
-    static func designID(_ link: String) -> String? { link.hasPrefix("design:") ? String(link.dropFirst("design:".count)) : nil }
+    static func designID(_ link: String) -> String? {
+        guard link.hasPrefix("design:") else { return nil }
+        return String(link.dropFirst("design:".count)).split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init)
+    }
+
+    /// The template asked for in "design:<id>@temp2", if any.
+    static func token(_ link: String) -> String? {
+        guard link.hasPrefix("design:"), let at = link.firstIndex(of: "@") else { return nil }
+        return String(link[link.index(after: at)...])
+    }
 
     @MainActor static func design(_ link: String) -> AppDesign? { AppDesignStore.shared.design(id: designID(link)) }
 
     @MainActor static func pages(for link: String) -> [ImageTemplate] {
-        if let design = design(link) { return AppDesignStore.shared.activePages(design) }
+        if let design = design(link) { return AppDesignStore.shared.activePages(design, token: token(link)) }
         if designID(link) != nil { return [] }
         return TemplateStore.shared.template(id: link).map { [$0] } ?? []
     }
@@ -271,7 +318,13 @@ enum DesignFill {
         let pages = TemplateLinks.pages(for: link)
         guard !pages.isEmpty else { throw NSError(domain: "KeyDoTemplates", code: 3, userInfo: [NSLocalizedDescriptionKey: "The template is missing."]) }
         let design = TemplateLinks.design(link)
-        let merged = merge(TemplateLinks.variables(for: link), values.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+        let given = values.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        var merged = merge(TemplateLinks.variables(for: link), design.map { DesignMemory.last($0.id) } ?? [:], given)
+        if let design {
+            // Anything still empty uses the first item of its collection, so the app never stops to ask.
+            DesignDefaults.fillMerged(DesignFields.fields(pages: pages, variables: design.variables), into: &merged)
+            DesignMemory.remember(design.id, values: given)
+        }
         let format = DesignFormat.from(design?.outputFormat) ?? (pages.count > 1 ? .pdf : .png)
         return try DesignOutput.write(format: format, pages: pages, values: merged, clips: clips, title: design?.appTitle ?? design?.name ?? "Design", directory: directory, stem: stem)
     }
@@ -692,7 +745,7 @@ struct AppDesignerView: View {
             AppDesignRunView(designID: item.id, onClose: { runningID = nil }).frame(minWidth: 940, minHeight: 640)
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in dropFiles(providers) }
-        .onAppear { StarterPack.installOnce() }
+        .onAppear { StarterPack.installOnce(); DesignTemplates.ensureAll() }
         .alert("Delete this design?", isPresented: Binding(get: { deleteID != nil }, set: { if !$0 { deleteID = nil } })) {
             Button("Delete", role: .destructive) { if let id = deleteID { designs.delete(id) }; deleteID = nil }
             Button("Cancel", role: .cancel) { deleteID = nil }
@@ -790,17 +843,36 @@ struct AppDesignEditor: View {
     var onClose: () -> Void
     @ObservedObject private var designs = AppDesignStore.shared
     @ObservedObject private var templates = TemplateStore.shared
+    /// The template being edited: "main" is the default (temp1), otherwise the id of another template.
+    @State private var templateID = "main"
+
+    /// The pages of the template being edited.
+    private func pageList(_ design: AppDesign) -> [String] {
+        guard templateID != "main", let variant = design.variants?.first(where: { $0.id == templateID }) else { return design.pages }
+        return variant.pages
+    }
 
     var body: some View {
-        if let design = designs.design(id: designID), !design.pages.isEmpty {
-            let index = min(max(0, pageIndex), design.pages.count - 1)
-            if let page = templates.template(id: design.pages[index]) {
+        VStack(spacing: 0) {
+            DesignTemplateBar(designID: designID, selected: $templateID)
+            Divider()
+            editor
+        }
+        .onAppear { DesignTemplates.ensure(designID) }
+        .onChange(of: templateID) { _, _ in pageIndex = 0 }
+    }
+
+    @ViewBuilder private var editor: some View {
+        if let design = designs.design(id: designID), !pageList(design).isEmpty {
+            let pageIDs = pageList(design)
+            let index = min(max(0, pageIndex), pageIDs.count - 1)
+            if let page = templates.template(id: pageIDs[index]) {
                 TemplateDesignerView(
                     template: page, onClose: onClose,
-                    pageInfo: (index + 1, design.pages.count),
+                    pageInfo: (index + 1, pageIDs.count),
                     onGoToPage: { pageIndex = $0 },
                     onAddPage: {
-                        if let new = designs.addPage(to: designID, like: page), let updated = designs.design(id: designID), let at = updated.pages.firstIndex(of: new.id) { pageIndex = at }
+                        if let new = designs.addPage(to: designID, variant: templateID, like: page), let updated = designs.design(id: designID), let at = pageList(updated).firstIndex(of: new.id) { pageIndex = at }
                     },
                     onRelease: { designs.release(designID) },
                     variables: design.variables,
@@ -809,7 +881,7 @@ struct AppDesignEditor: View {
                     },
                     onReplaceElsewhere: { old, new in
                         var changed = 0
-                        for id in design.pages where id != page.id {
+                        for id in pageIDs where id != page.id {
                             guard var other = templates.template(id: id) else { continue }
                             var touched = false
                             for slot in other.slots.indices where other.slots[slot].kind == .text {

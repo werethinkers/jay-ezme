@@ -165,7 +165,14 @@ enum LaunchScope { case apps, contacts, everything }
         return true
     }
 
+    /// The backslash popup captures every key while it is open. Let go of it so the form that opens can be typed in.
+    private func releasePopup() {
+        if let app = MiniJAppDelegate.current { app.pickerActive = false; app.triggerTracking = false; app.imagePromptMode = false }
+        NotificationCenter.default.post(name: .miniJClosePicker, object: nil)
+    }
+
     func open(design: AppDesign, prompt: String, values: [String: String] = [:]) {
+        releasePopup()
         let id = design.id
         present(title: design.appTitle ?? design.name, size: NSSize(width: 980, height: 680)) { close in
             AnyView(AppDesignRunView(designID: id, onClose: { close() }, startPrompt: prompt.isEmpty ? nil : prompt, startValues: values))
@@ -181,6 +188,7 @@ enum LaunchScope { case apps, contacts, everything }
     private func present(title: String, size: NSSize, content: (@escaping () -> Void) -> AnyView) {
         let window = NSWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = title
+        window.appearance = NSAppearance(named: .aqua)
         window.isReleasedWhenClosed = false
         window.delegate = self
         let close: () -> Void = { [weak window] in window?.close() }

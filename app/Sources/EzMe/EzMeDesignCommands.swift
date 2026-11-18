@@ -123,7 +123,10 @@ import AppKit
             guard let design = AppDesignStore.shared.design(id: designID), design.version > 0 else { continue }
             let prefix = (UserDefaults.standard.string(forKey: "ezmeBuilderPrefix." + app) ?? "").lowercased()
             guard !prefix.isEmpty, lower.hasPrefix(prefix + "-") else { continue }
-            let parts = splitBuilderCommand(String(command.dropFirst(prefix.count + 1)))
+            var parts = splitBuilderCommand(String(command.dropFirst(prefix.count + 1)))
+            // A trailing temp1, temp2, tempr or template name stays at the end; it is not a value for any box.
+            var template = ""
+            if let last = parts.last, DesignTemplates.isToken(last, design: design) { template = last; parts.removeLast() }
             let boxes = slots(for: design)
             guard !boxes.isEmpty, !parts.isEmpty else { return raw }
             var filled = [String?](repeating: nil, count: boxes.count)
@@ -150,9 +153,33 @@ import AppKit
             var last = filled.count - 1
             while last >= 0, filled[last] == nil { last -= 1 }
             let ordered = filled.prefix(last + 1).map { quoteBuilderValue($0 ?? "") }
-            return prefix + "-" + (ordered + rest.map(quoteBuilderValue)).joined(separator: "-")
+            return prefix + "-" + (ordered + rest.map(quoteBuilderValue)).joined(separator: "-") + (template.isEmpty ? "" : "-" + template)
         }
         return raw
+    }
+
+    // MARK: Templates and missing details
+
+    /// True when the word is temp1, temp2, tempr or the name of one of this app's templates.
+    static func isTemplateToken(_ word: String, app: String) -> Bool {
+        guard let id = designID(forApp: app), let design = AppDesignStore.shared.design(id: id) else { return false }
+        return DesignTemplates.isToken(word, design: design)
+    }
+
+    /// Fills the boxes a command left empty with the last value typed, or the first item of the collection, so the app never stops to ask.
+    static func completed(app: String, names: [String], values: [String]) -> [String] {
+        guard let id = designID(forApp: app), let design = AppDesignStore.shared.design(id: id) else { return values }
+        let boxes = slots(for: design)
+        let remembered = DesignMemory.last(id)
+        var result = values
+        for (index, name) in names.enumerated() where index < result.count && result[index].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            guard let box = boxes.first(where: { $0.label == name }) else { continue }
+            if let last = remembered[TemplateFill.normal(box.key)], !last.isEmpty { result[index] = last; continue }
+            var one = [box.key: ""]
+            DesignDefaults.fill([box], into: &one)
+            if let first = one[box.key], !first.isEmpty { result[index] = first }
+        }
+        return result
     }
 
     // MARK: The full form

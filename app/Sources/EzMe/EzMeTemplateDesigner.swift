@@ -2107,7 +2107,7 @@ extension TemplateDesignerView {
                 VStack(alignment: .leading, spacing: 10) {
                     if previewFields.isEmpty { hint("Nothing to fill in yet. Add boxes or variables.") }
                     ForEach(previewFields) { field in
-                        DesignFieldRow(field: field, text: Binding(get: { formValues[field.key] ?? "" }, set: { formValues[field.key] = $0 }))
+                        DesignFieldRow(field: field, text: Binding(get: { formValues[field.key] ?? "" }, set: { formValues[field.key] = $0 }), fallback: field.defaultValue)
                             .padding(4)
                             .background(RoundedRectangle(cornerRadius: 9).stroke(tryGuide.active && tryGuide.current?.key == field.key ? Butter.coral : Color.clear, lineWidth: 2))
                             .simultaneousGesture(TapGesture().onEnded { tryGuide.select(field.key) })

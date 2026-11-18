@@ -90,12 +90,24 @@ enum DesignFields {
 struct DesignFieldRow: View {
     var field: DesignField
     @Binding var text: String
+    /// What an empty box will use instead: the value typed last time, or the app's starting value.
+    var fallback: String = ""
     @State private var chooserOpen = false
+
+    /// Text boxes with nothing to fall back on are the ones the person has to fill.
+    private var needsValue: Bool {
+        (field.kind == .text || field.kind == .long) && fallback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text(field.label).font(.system(size: 12, weight: .semibold)).foregroundStyle(FormVoiceInk.main)
+                if needsValue {
+                    Text("* Required").font(.system(size: 10, weight: .bold)).foregroundStyle(Color(red: 0.74, green: 0.18, blue: 0.1))
+                } else if field.kind == .image && field.collection == nil {
+                    Text("Optional").font(.system(size: 10)).foregroundStyle(Butter.cocoa.opacity(0.6))
+                }
                 if let category = field.category, !category.isEmpty {
                     Text(category).font(.system(size: 9, weight: .semibold)).foregroundStyle(Butter.cocoa.opacity(0.8))
                         .padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(Butter.honey.opacity(0.35)))
@@ -103,12 +115,19 @@ struct DesignFieldRow: View {
             }
             switch field.kind {
             case .text:
-                TextField(field.label, text: $text).textFieldStyle(.roundedBorder)
+                TextField(fallback.isEmpty ? field.label : fallback, text: $text).textFieldStyle(.roundedBorder)
                     .accessibilityLabel(field.label).help(field.label)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(needsValue && text.trimmingCharacters(in: .whitespaces).isEmpty ? Color.red.opacity(0.55) : Color.clear, lineWidth: 1))
+                if text.trimmingCharacters(in: .whitespaces).isEmpty && !fallback.isEmpty {
+                    Text("Left empty, it uses \u{201C}\(String(fallback.prefix(40)))\u{201D}").font(.system(size: 10)).foregroundStyle(Butter.cocoa.opacity(0.6))
+                }
             case .long:
-                TextEditor(text: $text).font(.system(size: 13)).frame(minHeight: 70, maxHeight: 130).padding(4)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white)).overlay(RoundedRectangle(cornerRadius: 8).stroke(Butter.honey, lineWidth: 1))
+                TextEditor(text: $text).font(.system(size: 13)).foregroundStyle(Butter.cocoa).scrollContentBackground(.hidden).frame(minHeight: 70, maxHeight: 130).padding(4)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color.white)).overlay(RoundedRectangle(cornerRadius: 8).stroke(needsValue && text.trimmingCharacters(in: .whitespaces).isEmpty ? Color.red.opacity(0.55) : Butter.honey, lineWidth: 1))
                     .accessibilityLabel(field.label).help(field.label)
+                if text.trimmingCharacters(in: .whitespaces).isEmpty && !fallback.isEmpty {
+                    Text("Left empty, it uses \u{201C}\(String(fallback.replacingOccurrences(of: "\n", with: " ").prefix(40)))\u{201D}").font(.system(size: 10)).foregroundStyle(Butter.cocoa.opacity(0.6))
+                }
             case .image:
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
@@ -163,9 +182,17 @@ struct AppDesignRunView: View {
     @State private var message = ""
     @State private var busy = false
     @State private var aiBusy = false
+    /// "" is the default template; otherwise temp2, a template's name, or tempr for a random one.
+    @State private var templateName = ""
+    @State private var lastRandom = ""
 
     private var design: AppDesign? { designs.design(id: designID) }
-    private var fields: [DesignField] { design.map { DesignFields.fields(for: $0) } ?? [] }
+    /// The template the preview shows: the one chosen, or the one a random pick landed on.
+    private var previewToken: String { templateName == "tempr" ? lastRandom : templateName }
+    private var fields: [DesignField] {
+        guard let design else { return [] }
+        return DesignFields.fields(pages: AppDesignStore.shared.activePages(design, token: previewToken), variables: design.variables)
+    }
     private var format: DesignFormat { DesignFormat.from(design?.outputFormat) ?? ((design.map { AppDesignStore.shared.activePages($0).count } ?? 1) > 1 ? .pdf : .png) }
 
     var body: some View {
@@ -179,11 +206,19 @@ struct AppDesignRunView: View {
             }
         }
         .background(Butter.butter)
+        .environment(\.colorScheme, .light)
+        .preferredColorScheme(.light)
         .onAppear {
+            DesignTemplates.ensure(designID)
             guide.fields = { fields }
             guide.values = { values }
             guide.setValue = { key, value in values[key] = value }
             guide.make = { make() }
+            // Start from what was typed last time, then the first item of each collection, then anything given with the command.
+            if let design {
+                let remembered = DesignMemory.last(design.id)
+                for field in fields { if let last = remembered[TemplateFill.normal(field.key)], !last.isEmpty { values[field.key] = last } }
+            }
             DesignDefaults.fill(fields, into: &values)
             for (key, value) in startValues { values[key] = value }
             refreshPreview()
@@ -194,6 +229,7 @@ struct AppDesignRunView: View {
         }
         .onDisappear { guide.stop() }
         .onChange(of: values) { _, _ in refreshPreview() }
+        .onChange(of: templateName) { _, _ in refreshPreview() }
     }
 
     /// Fills what the sentence names; falls back to the AI, then to the first empty field.
@@ -224,16 +260,23 @@ struct AppDesignRunView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Image(systemName: format.symbol).font(.system(size: 20, weight: .semibold)).foregroundStyle(.white)
-                .frame(width: 44, height: 44).background(Butter.coral, in: RoundedRectangle(cornerRadius: 12))
+            if let logo = keyDoIconImage() {
+                Image(nsImage: logo).resizable().scaledToFit().frame(width: 40, height: 40)
+                    .padding(4).background(RoundedRectangle(cornerRadius: 11).fill(Color(red: 0.973, green: 0.937, blue: 0.882)))
+            } else {
+                Image(systemName: format.symbol).font(.system(size: 20, weight: .semibold)).foregroundStyle(.white)
+                    .frame(width: 44, height: 44).background(Butter.coral, in: RoundedRectangle(cornerRadius: 12))
+            }
             VStack(alignment: .leading, spacing: 2) {
-                Text(design?.appTitle ?? design?.name ?? "App").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa)
-                Text("Fill the form, press Make, and you get \(format.title).").font(.system(size: 12)).foregroundStyle(.secondary)
+                Text(design?.appTitle ?? design?.name ?? "App").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundStyle(Color(red: 0.114, green: 0.125, blue: 0.133))
+                Text("Fill what you like and press Make. Anything left empty uses the last value or a ready one, and you get \(format.title).")
+                    .font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.75))
             }
             Spacer()
-            if let onClose { Button("Close") { onClose() }.buttonStyle(.bordered) }
+            if let onClose { Button("Close") { onClose() }.buttonStyle(.bordered).tint(Butter.cocoa) }
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
+        .background(Color(red: 0.973, green: 0.937, blue: 0.882))
     }
 
     private var form: some View {
@@ -252,10 +295,25 @@ struct AppDesignRunView: View {
             .padding(12).background(RoundedRectangle(cornerRadius: 12).fill(Butter.cream))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("Details").font(.system(size: 12, weight: .bold)).foregroundStyle(FormVoiceInk.main)
+                HStack(spacing: 8) {
+                    Text("Details").font(.system(size: 12, weight: .bold)).foregroundStyle(FormVoiceInk.main)
+                    Spacer()
+                    if let design {
+                        let items = DesignTemplates.items(design)
+                        Text("Template").font(.system(size: 11)).foregroundStyle(Butter.cocoa.opacity(0.75))
+                        Picker("Template", selection: $templateName) {
+                            ForEach(items) { item in Text(item.name + (item.isDefault ? " (default)" : "")).tag(item.isDefault ? "" : item.name) }
+                            Text("Random (tempr)").tag("tempr")
+                        }
+                        .labelsHidden().frame(width: 150).help("temp1 is the default. In a command, add -temp2, -temp3 or -tempr.")
+                    }
+                }
+                Text("Red * marks what only you can fill. Everything else already has a value, so you can just press Make.")
+                    .font(.system(size: 11)).foregroundStyle(Butter.cocoa.opacity(0.7))
                 if fields.isEmpty { Text("This app needs nothing from you. Press Make.").font(.system(size: 12)).foregroundStyle(.secondary) }
                 ForEach(fields) { field in
-                    DesignFieldRow(field: field, text: Binding(get: { values[field.key] ?? "" }, set: { values[field.key] = $0 }))
+                    DesignFieldRow(field: field, text: Binding(get: { values[field.key] ?? "" }, set: { values[field.key] = $0 }),
+                                   fallback: design.map { DesignMemory.fallback($0.id, field: field) } ?? field.defaultValue)
                         .padding(6)
                         .background(RoundedRectangle(cornerRadius: 10).stroke(guide.active && guide.current?.key == field.key ? Butter.coral : Color.clear, lineWidth: 2))
                         .simultaneousGesture(TapGesture().onEnded { guide.select(field.key) })
@@ -297,7 +355,7 @@ struct AppDesignRunView: View {
     }
 
     private func refreshPreview() {
-        guard let design, let first = AppDesignStore.shared.activePages(design).first, let base = TemplateStore.shared.basePicture(for: first) else { preview = nil; return }
+        guard let design, let first = AppDesignStore.shared.activePages(design, token: previewToken).first, let base = TemplateStore.shared.basePicture(for: first) else { preview = nil; return }
         let merged = DesignFill.merge(design.variables, values.filter { !$0.value.isEmpty })
         let made = TemplateFill.resolved(first, values: merged, clips: AppDesignContext.shared.clips)
         preview = TemplateRenderer.render(first, base: base, texts: made.texts, images: made.images, useSamples: true, maxSide: 900)
@@ -307,14 +365,17 @@ struct AppDesignRunView: View {
         guard let design else { return }
         busy = true
         message = ""
+        let chosen = templateName == "tempr" ? (DesignTemplates.items(design).randomElement()?.name ?? "") : templateName
+        if templateName == "tempr" { lastRandom = chosen }
         let directory = TemplateStore.shared.directory.appendingPathComponent("Outputs", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let safe = design.name.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: "-")
         let stem = (safe.isEmpty ? "App" : safe) + "-" + String(UUID().uuidString.prefix(5))
         do {
-            let file = try DesignFill.renderFile(link: "design:" + design.id, values: values, clips: AppDesignContext.shared.clips, directory: directory, stem: stem)
+            let file = try DesignFill.renderFile(link: DesignTemplates.link("design:" + design.id, token: chosen), values: values, clips: AppDesignContext.shared.clips, directory: directory, stem: stem)
             result = file
-            message = "Ready."
+            let blank = fields.filter { $0.kind == .text || $0.kind == .long }.filter { (values[$0.key] ?? "").trimmingCharacters(in: .whitespaces).isEmpty && DesignMemory.fallback(design.id, field: $0).isEmpty }.map { $0.label }
+            message = "Ready" + (chosen.isEmpty ? "" : " (\(chosen))") + "." + (blank.isEmpty ? "" : " Left blank: " + blank.joined(separator: ", ") + ".")
         } catch {
             message = error.localizedDescription
         }

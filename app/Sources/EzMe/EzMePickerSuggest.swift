@@ -93,6 +93,18 @@ import AppKit
     }
 }
 
+extension DesignDefaults {
+    /// The same, for values keyed by the plain (normalised) name that rendering uses.
+    static func fillMerged(_ fields: [DesignField], into merged: inout [String: String]) {
+        var keyed: [String: String] = [:]
+        for field in fields { keyed[field.key] = merged[TemplateFill.normal(field.key)] ?? "" }
+        fill(fields, into: &keyed)
+        for field in fields {
+            if let value = keyed[field.key], !value.isEmpty { merged[TemplateFill.normal(field.key)] = value }
+        }
+    }
+}
+
 /// One line of the short list under a box.
 struct PickerSuggestionRow: View {
     var title: String
