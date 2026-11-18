@@ -193,3 +193,25 @@ import AppKit
         AppLauncher.shared.open(design: design, prompt: "", values: start)
     }
 }
+
+
+extension DesignCommands {
+    /// Renames an app (a released one keeps working: its run word follows the name unless the person chose their own).
+    /// Returns the name that was saved and the run word, or nil when the app is missing.
+    @discardableResult static func rename(designID: String, to name: String) -> (name: String, command: String)? {
+        let designs = AppDesignStore.shared
+        guard var current = designs.design(id: designID) else { return nil }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oldName = current.appTitle ?? current.name
+        guard !trimmed.isEmpty, trimmed != oldName else { return (oldName, current.command ?? word(for: current)) }
+        let oldFirst = sanitize(String(oldName.split(separator: " ").first ?? ""))
+        let followsName = current.command == nil || sanitize(current.command ?? "") == oldFirst
+        let unique = DesignNames.unique(trimmed, taken: designs.designs.filter { $0.id != current.id }.map { $0.appTitle ?? $0.name })
+        current.name = unique
+        current.appTitle = unique
+        if followsName { current.command = nil }
+        designs.save(current)
+        let command = current.version > 0 ? register(current) : word(for: current)
+        return (unique, command)
+    }
+}

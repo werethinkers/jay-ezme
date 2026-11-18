@@ -121,6 +121,8 @@ struct WizardElement: Identifiable, Equatable {
     var defaultValue = ""
     /// Fixed: the ready value or media is printed on the page and the form never asks for it.
     var fixed = false
+    /// Fonts and colours chosen by AI or the person. Empty keeps the page defaults.
+    var style = WizardStyle()
     var formula = ""
     var text = ""
     var cx = 0.5, cy = 0.5, w = 0.7, h = 0.07
@@ -143,6 +145,7 @@ struct WizardElement: Identifiable, Equatable {
             else if e.kind == .variable { slot.content = e.defaultValue; slot.sample = e.defaultValue }
             else { slot.content = "{{shortcut:\(e.defaultValue)}}"; slot.sample = e.defaultValue }
             slot.cx = e.cx; slot.cy = e.cy; slot.w = e.w; slot.h = e.h
+            e.style.apply(to: &slot)
             return slot
         }
         switch e.kind {
@@ -174,6 +177,7 @@ struct WizardElement: Identifiable, Equatable {
             slot.sample = e.text.isEmpty ? "Your text" : e.text
         }
         slot.cx = e.cx; slot.cy = e.cy; slot.w = e.w; slot.h = e.h
+        e.style.apply(to: &slot)
         return slot
     }
 
@@ -498,13 +502,15 @@ enum WizardSpec {
         }
         let logoText = logo.map { "logo: cx \($0.cx), cy \($0.cy), w \($0.w), h \($0.h) (do not move it)" } ?? ""
         let list = elements.map { "{\"key\":\"\($0.fieldKey)\",\"kind\":\"\($0.kind.rawValue)\",\"cx\":\(String(format: "%.3f", $0.cx)),\"cy\":\(String(format: "%.3f", $0.cy)),\"w\":\(String(format: "%.3f", $0.w)),\"h\":\(String(format: "%.3f", $0.h))}" }.joined(separator: ",")
-        let prompt = "You place boxes on a \(kind.title.lowercased()) page whose width divided by height is \(String(format: "%.3f", aspect)). Positions are fractions of the page: cx and cy are the centre, w and h the size. \(logoText). Boxes: [\(list)]. Arrange them so nothing overlaps or touches the logo, keep a margin of at least 0.05, follow a natural reading order for a \(kind.title.lowercased()), group related boxes, and keep pictures roughly square. Reply with ONLY a JSON array with one object per box, each with key, cx, cy, w and h."
+        let details = elements.map { "\($0.fieldKey) (\($0.kind.rawValue)\($0.kind == .variable ? ", " + $0.type.rawValue : "")\($0.kind == .text ? ": " + $0.text : ""))" }.joined(separator: "; ")
+        let ground = uploaded ? "a picture the person uploaded (keep text readable on it, so choose strongly contrasting colours)" : "a plain page coloured \(kind.background)"
+        let prompt = "You are a graphic designer laying out a \(kind.title.lowercased()) app called \"\(appName)\" on a page whose width divided by height is \(String(format: "%.3f", aspect)). The page is \(ground). Positions are fractions of the page: cx and cy are the centre, w and h the size. \(logoText). Boxes: [\(list)]. What each box holds: \(details). Design it so it looks beautiful and professional, not just tidy: give the main title or name a large confident size, make secondary details smaller and quieter, group related boxes, use whitespace and alignment, keep a margin of at least 0.05, never overlap boxes or the logo, keep pictures roughly square, and pick one small palette of colours with good contrast against the page. For every box also choose a look: font from this list only: \(WizardStyle.palette); size as the text height fraction of page height (0.02 small, 0.035 normal, 0.06 heading, 0.09 hero); color as hex like #1F2A2E; fill as hex or empty for a coloured band behind the text; bold, italic, uppercase as true or false; align as left, center or right. Reply with ONLY a JSON array with one object per box, each with key, cx, cy, w, h, font, size, color, fill, bold, italic, uppercase and align."
         busy = true
         message = "Asking AI to place the boxes\u{2026}"
         Task { [weak self] in
             guard let self else { return }
             do {
-                let reply = try await SharedAIClient.generate(profile: profile, key: key, prompt: prompt, maxTokens: 2500)
+                let reply = try await SharedAIClient.generate(profile: profile, key: key, prompt: prompt, maxTokens: 4000)
                 self.apply(reply)
             } catch {
                 self.busy = false
@@ -529,11 +535,12 @@ enum WizardSpec {
                 elements[index].w = min(0.95, max(0.05, w)); elements[index].h = min(0.6, max(0.03, h))
                 elements[index].cx = min(1 - elements[index].w / 2, max(elements[index].w / 2, cx))
                 elements[index].cy = min(1 - elements[index].h / 2, max(elements[index].h / 2, cy))
+                elements[index].style = WizardStyle.from(item)
                 changed += 1
             }
         }
         commit()
-        message = changed > 0 ? "AI placed \(changed) box\(changed == 1 ? "" : "es"). Not right? Tap Tidy for plain order, or ask again." : "AI gave no positions, so nothing moved."
+        message = changed > 0 ? "AI placed and styled \(changed) box\(changed == 1 ? "" : "es"). Not right? Tap Tidy for plain order, or ask again." : "AI gave no positions, so nothing moved."
     }
 
     // Step 3
@@ -690,9 +697,11 @@ struct NewAppWizardView: View {
                     if !model.kind.suggested.isEmpty {
                         Button { model.addSuggested() } label: { Label("Add the usual boxes", systemImage: "sparkles") }.buttonStyle(.bordered).controlSize(.small)
                     }
+                    Button { model.importReference() } label: { Label("From a reference", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered).controlSize(.small).disabled(model.busy)
+                        .help("Upload a picture or PDF of an app or form you like. AI picks the variables and fixed text from it.")
                     Spacer()
                     Button { model.relayout(); model.message = "Tidied in reading order." } label: { Label("Tidy", systemImage: "rectangle.3.group") }.buttonStyle(.bordered).controlSize(.small)
-                    Button { model.askAI() } label: { Label(model.busy ? "Asking\u{2026}" : "Ask AI to place them", systemImage: "wand.and.stars") }
+                    Button { model.askAI() } label: { Label(model.busy ? "Asking\u{2026}" : "Ask AI to design it", systemImage: "wand.and.stars") }
                         .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small).disabled(model.busy)
                 }
                 if !model.message.isEmpty { Text(model.message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)) }

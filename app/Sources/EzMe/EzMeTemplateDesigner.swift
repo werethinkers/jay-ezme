@@ -463,6 +463,9 @@ struct TemplateDesignerView: View {
                         .focused($appNameFocused).onSubmit { commitAppName() }
                         .onChange(of: appNameFocused) { _, focused in if !focused { commitAppName() } }
                         .accessibilityLabel("App name").help("The name of the app. Press Return to rename it.")
+                    Button { commitAppName() } label: { Label("Save name", systemImage: "checkmark") }
+                        .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                        .disabled(appName.trimmingCharacters(in: .whitespacesAndNewlines) == (designTitle ?? "") || appName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             TextField(designTitle == nil ? "Template name" : "Page name", text: $template.name).textFieldStyle(.roundedBorder).frame(maxWidth: 200)

@@ -701,6 +701,8 @@ struct AppDesignerView: View {
     @State private var usingID: String?
     @State private var showWizard = false
     @State private var deleteID: String?
+    @State private var renamingID: String?
+    @State private var renameText = ""
     @State private var runningID: String?
     @State private var message = ""
 
@@ -823,7 +825,19 @@ struct AppDesignerView: View {
             }
             .frame(height: 170).clipShape(RoundedRectangle(cornerRadius: 10))
             .onTapGesture { open(design) }
-            Text(design.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Butter.cocoa).lineLimit(1)
+            if renamingID == design.id {
+                HStack(spacing: 6) {
+                    TextField("App name", text: $renameText).textFieldStyle(.roundedBorder).onSubmit { saveRename(design) }
+                    Button("Save") { saveRename(design) }.buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                    Button { renamingID = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    Text(design.appTitle ?? design.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Butter.cocoa).lineLimit(1)
+                    Button { renameText = design.appTitle ?? design.name; renamingID = design.id } label: { Image(systemName: "pencil") }
+                        .buttonStyle(.plain).foregroundStyle(Butter.coral).help("Rename this app")
+                }
+            }
             Text("\(design.pages.count) page\(design.pages.count == 1 ? "" : "s") \u{00B7} " + (design.version > 0 ? "released v\(design.version)" : "not released"))
                 .font(.system(size: 11)).foregroundStyle(.secondary)
             HStack(spacing: 6) {
@@ -837,6 +851,13 @@ struct AppDesignerView: View {
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 14).fill(Color.white))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Butter.honey.opacity(0.7), lineWidth: 1))
+    }
+
+    private func saveRename(_ design: AppDesign) {
+        if let done = DesignCommands.rename(designID: design.id, to: renameText) {
+            message = "Renamed to \u{201C}\(done.name)\u{201D}. Run it with  \\\(done.command)-name."
+        }
+        renamingID = nil
     }
 
     private func open(_ design: AppDesign) { pageIndex = 0; editingID = design.id }
@@ -978,22 +999,7 @@ struct AppDesignEditor: View {
                             return "Saved \(destination.lastPathComponent)."
                         } catch { return error.localizedDescription }
                     },
-                    onRename: { name in
-                        guard var current = designs.design(id: designID) else { return (name, "") }
-                        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let oldName = current.appTitle ?? current.name
-                        guard !trimmed.isEmpty, trimmed != oldName else { return (oldName, current.command ?? DesignCommands.word(for: current)) }
-                        // The run word follows the new name unless the person picked a word of their own.
-                        let oldFirst = DesignCommands.sanitize(String(oldName.split(separator: " ").first ?? ""))
-                        let followsName = current.command == nil || DesignCommands.sanitize(current.command ?? "") == oldFirst
-                        let unique = DesignNames.unique(trimmed, taken: designs.designs.filter { $0.id != current.id }.map { $0.appTitle ?? $0.name })
-                        current.name = unique
-                        current.appTitle = unique
-                        if followsName { current.command = nil }
-                        designs.save(current)
-                        let word = current.version > 0 ? DesignCommands.register(current) : DesignCommands.word(for: current)
-                        return (unique, word)
-                    },
+                    onRename: { name in DesignCommands.rename(designID: designID, to: name) ?? (name, "") },
                     command: design.command ?? DesignCommands.word(for: design),
                     onCommandChange: { word in
                         guard var current = designs.design(id: designID) else { return "" }
