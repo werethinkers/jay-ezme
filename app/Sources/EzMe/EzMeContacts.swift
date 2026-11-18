@@ -516,9 +516,11 @@ struct EzAttachmentImportCard: View {
                 .pickerStyle(.menu)
                 if let kind { Text(kind.hint).font(.caption).foregroundStyle(.secondary) }
                 TextField("What is in it? e.g. Clients from Zoho, March price list (optional)", text: $note).textFieldStyle(.roundedBorder)
+                Button("From Mac Contacts (includes Google)", systemImage: "person.crop.circle.badge.checkmark") { fromMac() }
+                    .buttonStyle(.bordered).disabled(kind != .contacts)
                 Button("Attach VCF or CSV file…", systemImage: "paperclip.badge.ellipsis") { choose() }
                     .buttonStyle(.borderedProminent).tint(Butter.coral).disabled(kind == nil)
-                Text("Pick the kind first, so KeyDo knows how to read the file. Google Contacts and Zoho: export as VCF or CSV, then attach it here. Live sync is not connected yet.")
+                Text("Pick the kind first, so KeyDo knows how to read the file. Google contacts: add your Google account in System Settings, Internet Accounts, then use From Mac Contacts. Zoho: export as VCF or CSV and attach it. Signing in to Google directly is not connected yet.")
                     .font(.caption2).foregroundStyle(.secondary)
             } else {
                 attachedRow
@@ -669,6 +671,20 @@ struct EzAttachmentImportCard: View {
 
     private func reset() {
         fileName = ""; contacts = []; headers = []; rows = []; staged = []; selected = []; columns = []; nameColumn = 0; status = ""
+    }
+
+    private func fromMac() {
+        status = "Reading Mac Contacts…"
+        Task { @MainActor in
+            do {
+                let found = try await MacContacts.fetch()
+                guard !found.isEmpty else { status = "No contacts with a name were found in Mac Contacts."; return }
+                contacts = found
+                if group == "Contacts" || group.isEmpty { group = "Contacts" }
+                fileName = "Mac Contacts"
+                status = ""
+            } catch { status = error.localizedDescription }
+        }
     }
 
     private func choose() {

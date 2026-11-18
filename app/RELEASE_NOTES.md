@@ -1,4 +1,5 @@
-# KeyDo 3.68
+# KeyDo 3.69
 
-- **Every app has its own name.** App Designer apps can no longer share a name with another designed app or with another app in the backslash popup: a clash gets a number ("Invoice 2") when the app is created, renamed or saved. WishStudio apps already numbered new apps the same way.
-- **Duplicate an app.** App Designer: the copy icon on an app card makes a full copy (its own pages, variables and templates) named "<name> copy", ready to change. Release the copy to give it its own run word. WishStudio: right-click an app and choose Duplicate.
+- **Collections:** collections that apps create on their own now sit together in an "Apps" folder, folded by default. Unfold it any time; nothing is hidden or private.
+- **Bulk shortcuts:** paste one per line, such as `ty Thank you so much`. The first word becomes the shortcut and the rest becomes the text. If there is no name, KeyDo makes one from the text (or uses the shortcut). Comma and tab layouts still work.
+- **Contacts:** new "From Mac Contacts" import in MyDatabase and in Attach a file. It includes Google contacts once your Google account is added in System Settings, Internet Accounts, with Contacts on. KeyDo asks for Contacts permission the first time.

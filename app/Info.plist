@@ -32,6 +32,8 @@
 	<string>KeyDo uses macOS automation to expand shortcuts in other apps.</string>
 	<key>NSLocationUsageDescription</key>
 	<string>KeyDo uses your location only when an app of yours shows where you are, like the city or place name.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>KeyDo reads your contacts, including Google contacts added to your Mac, only when you choose to import them.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>KeyDo uses your location only when an app of yours shows where you are, like the city or place name.</string>
 	<key>NSMicrophoneUsageDescription</key>

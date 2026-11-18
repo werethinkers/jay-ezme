@@ -384,6 +384,8 @@ struct MyDatabaseView: View {
                     .buttonStyle(.borderedProminent).tint(Butter.coral)
                 if tab == "Contacts" {
                     Button { importContacts() } label: { Label("Import VCF or CSV", systemImage: "square.and.arrow.down") }.buttonStyle(.bordered)
+                    Button { importMacContacts() } label: { Label("From Mac Contacts", systemImage: "person.crop.circle.badge.checkmark") }.buttonStyle(.bordered)
+                        .help("Reads the Contacts app on this Mac. Google contacts are included once your Google account is added in System Settings, Internet Accounts, with Contacts turned on.")
                     Button { importContacts(linkedIn: true) } label: { Label("LinkedIn export", systemImage: "person.2.badge.plus") }.buttonStyle(.bordered)
                         .help("Upload the ZIP or Connections.csv you get from LinkedIn (Settings, Data privacy, Get a copy of your data)")
                 }
@@ -516,6 +518,17 @@ struct MyDatabaseView: View {
     }
 
     // MARK: Actions
+
+    private func importMacContacts() {
+        store.message = "Reading Mac Contacts…"
+        Task { @MainActor in
+            do {
+                let contacts = try await MacContacts.fetch()
+                let added = store.addContacts(contacts, collection: currentCollection)
+                store.message = "Read \(contacts.count) contact(s) from Mac Contacts and added \(added). \(contacts.count - added) already saved."
+            } catch { store.message = error.localizedDescription }
+        }
+    }
 
     private func importContacts(linkedIn: Bool = false) {
         let panel = NSOpenPanel()
