@@ -1,9 +1,9 @@
 {
-  "version": "3.66",
-  "build": 367,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.66-build367/EzMe-3.66-macOS.zip",
-  "sha256": "6a180e71e46ae275049abbf86ae8068d99628cb48d0a3786165d2287c6b37939",
-  "notes": "# KeyDo 3.66\n\n- **Fixed text is never asked for.** In App Designer a text box now has \"Typed each time\" or \"Fixed words\". Fixed words are printed as written and the app never asks for them; typed-each-time boxes are the ones the app asks for.\n- **Every function in one place, grouped.** All Function menus (the designer's Add a box, the box editor and the wizard) now list Date and time, Where you are (city, place, area, place name, state, country, coordinates), Weather and sky, and Money and more (dollar and euro rates, Bitcoin, quote of the day). The function search panel has category chips and shows the place and live functions first.\n- **Friendlier Add a box.** Collection, subcategory, default shortcut and variable cards now stack vertically instead of running wide, so they fit the side panel.\n- **Library section removed** from the designer: picking a subcategory in Add a box does the same job.",
-  "published": "2026-11-18T18:58:10Z",
+  "version": "3.67",
+  "build": 368,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.67-build368/EzMe-3.67-macOS.zip",
+  "sha256": "dbd240aa6b4344281f8667070697cb2d8c82788ab99ebdd222c63d90185bfd43",
+  "notes": "# KeyDo 3.67\n\n- **Voice and typed commands for App Designer apps.** A new \"Voice and typed commands\" section in the designer's side panel has the same phrase editor WishStudio apps use: add phrases like \"send birthday wishes to\" and say or type them followed by the details. The phrases stay with the app when you rename it.\n- **Typing a command is free-form.** `\\hbd-rahul`, `\\@hbd-rahul` and `\\hbd rahul` all work. After the app word, give the details in any order, each after a dash. A `#` before a collection name (`#birthday-wishes`) means \"use its first item\", and a template ends the command (`-temp2`). Anything left out uses its ready value; only a mandatory box is asked for.\n- **Rename a variable at any time.** In the designer's Variables list, click the name, type the new one and press Return. Its value, data type, mandatory mark and every box and formula that uses it (on every page) follow the new name.\n- **WishStudio: new templates and redesign.** The studio toolbar has \"New template\" (opens the same new-app wizard and links the result to this app) and \"Redesign\" (opens the linked template straight in the designer). WishBuilder's template picker has the same two buttons.",
+  "published": "2026-11-18T19:20:18Z",
   "minimumSystemVersion": "14.0"
 }
