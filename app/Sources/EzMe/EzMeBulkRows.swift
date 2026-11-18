@@ -58,12 +58,20 @@ enum AppCollections {
     private static var cacheKey = ""
     private static var cache = Set<String>()
 
+    private static let registryKey = "ezmeAppMadeCollections"
+    /// Remember a collection an app created on its own, so it sits under Apps.
+    static func register(_ name: String) {
+        var list = UserDefaults.standard.stringArray(forKey: registryKey) ?? []
+        if !list.contains(where: { $0.caseInsensitiveCompare(name) == .orderedSame }) { list.append(name); UserDefaults.standard.set(list, forKey: registryKey) }
+    }
+
     static func names() -> Set<String> {
         let defaults = UserDefaults.standard
         let json = defaults.string(forKey: "ezmeCustomBuilderAppsJSON") ?? "[]"
         let apps = (try? JSONDecoder().decode([String].self, from: Data(json.utf8))) ?? []
         let outputs = apps.map { defaults.string(forKey: "ezmeBuilderOutputCollections." + $0) ?? "" }
-        let key = json + "|" + outputs.joined(separator: "|")
+        let registered = defaults.stringArray(forKey: registryKey) ?? []
+        let key = json + "|" + outputs.joined(separator: "|") + "|" + registered.joined(separator: ",")
         lock.lock(); defer { lock.unlock() }
         if key == cacheKey { return cache }
         var set = Set<String>()
@@ -71,6 +79,7 @@ enum AppCollections {
             let pieces = outputs[index].split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty }
             if pieces.isEmpty { set.insert(app.lowercased()) } else { pieces.forEach { set.insert($0) } }
         }
+        registered.forEach { set.insert($0.lowercased()) }
         cacheKey = key
         cache = set
         return set

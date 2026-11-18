@@ -1,3 +1,4 @@
-# KeyDo 3.70
+# KeyDo 3.71
 
-- **Collections:** new "Select all" in shortcut selection picks every shortcut in the collection across all pages (respecting the type filter), so Delete, Move and Rename act on all of them at once. "Select page" still selects just the current page.
+- **Collections:** every collection an app creates on its own is now remembered and kept inside the folded "Apps" folder, so it no longer fills your list. Unfold Apps to see them.
+- **Order:** collections are listed alphabetically within each category, and the 3 most recently created collections show first in a "Latest" group.
