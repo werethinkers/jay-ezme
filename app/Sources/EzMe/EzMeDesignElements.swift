@@ -194,3 +194,11 @@ extension DesignElementTokens {
         return result
     }
 }
+
+extension AppDesignContext {
+    /// The category a collection (subcategory) belongs to.
+    func category(of collection: String) -> String? {
+        guard !collection.isEmpty else { return nil }
+        return collectionCategory(collection, definition: definitions.first { $0.name.caseInsensitiveCompare(collection) == .orderedSame })
+    }
+}

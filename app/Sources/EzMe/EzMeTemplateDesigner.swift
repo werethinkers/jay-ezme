@@ -371,6 +371,11 @@ struct TemplateDesignerView: View {
     var onCommandChange: ((String) -> String)? = nil
     @State private var livePreview: NSImage?
     @State private var librarySearch = ""
+    @State private var libCategory = ""
+    @State private var libSub = ""
+    @State private var libField = "name"
+    /// The language the command mic listens in. English every time the designer opens.
+    @State private var commandLocale = "en-IN"
     @State private var outputFormat: String
     @State private var vars: [String: String]
     @State private var commandText = ""
@@ -1299,6 +1304,11 @@ extension TemplateDesignerView {
                         .overlay(Circle().stroke(Butter.coral.opacity(voice.isListening ? 0.4 + voice.level * 0.6 : 1), lineWidth: 1.5 + CGFloat(voice.level) * 4))
                 }
                 .buttonStyle(.plain).help(voice.isListening ? "Stop listening" : "Listen: say what to change")
+                Picker("", selection: Binding(get: { commandLocale }, set: { value in commandLocale = value; voice.changeLanguage(value) })) {
+                    Text("English").tag("en-IN")
+                    Text("\u{0939}\u{093F}\u{0928}\u{094D}\u{0926}\u{0940}").tag("hi-IN")
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 118).help("Language the command mic listens in")
                 TextField("Say or type a change, like \u{201C}make the text pink\u{201D} or \u{201C}go to page 2\u{201D}", text: $commandText)
                     .textFieldStyle(.roundedBorder).focused($commandFocused)
                     .onSubmit { submitCommand() }
@@ -1324,7 +1334,7 @@ extension TemplateDesignerView {
     func toggleListening() {
         if voice.isListening { voice.stop(); message = "Mic off."; return }
         message = "Listening. Say one change at a time."
-        voice.start(localeIdentifier: DesignSpeech.commandLocale(chosen: EzMeSpeechDictation.chosenLocale.identifier), commitDelay: 0.9) { text in runCommand(text) }
+        voice.start(localeIdentifier: commandLocale, commitDelay: 0.9) { text in runCommand(text) }
     }
 
     // MARK: Variables and live content
@@ -1437,7 +1447,9 @@ extension TemplateDesignerView {
         guard !text.isEmpty else { return }
         heard = text
         var notes: [String] = []
-        for action in DesignCommand.parse(text) { notes.append(perform(action)) }
+        for action in DesignCommand.parse(text) {
+            if case .unknown(let sentence) = action, let filled = tryGuide.acceptLoose(sentence) { notes.append(filled) } else { notes.append(perform(action)) }
+        }
         let joined = notes.filter { !$0.isEmpty }.joined(separator: " ")
         if !joined.isEmpty { message = joined }
         refresh()
@@ -1864,26 +1876,61 @@ extension TemplateDesignerView {
     var libraryPanel: some View {
         let context = AppDesignContext.shared
         return VStack(alignment: .leading, spacing: 10) {
-            hint("Drag any item onto a box on the page, or onto empty space to make a new box. You can also select a box and click an item.")
-            TextField("Search shortcuts and collection items", text: $librarySearch).textFieldStyle(.roundedBorder)
-            if !librarySearch.trimmingCharacters(in: .whitespaces).isEmpty {
-                let term = librarySearch.lowercased()
-                let clips = context.clips.filter { $0.name.lowercased().contains(term) || $0.key.lowercased().contains(term) }
-                let records = context.records.filter { $0.name.lowercased().contains(term) || $0.alias.lowercased().contains(term) }
-                chipGrid {
-                    ForEach(Array(clips.prefix(40)), id: \.id) { shortcutChip($0) }
-                    ForEach(Array(records.prefix(20)), id: \.id) { record in
-                        chip(record.name, "person.text.rectangle", "{{@\(record.collection)/\(record.alias.isEmpty ? record.name : record.alias)}}")
+            hint("Pick a category and a subcategory, then add it. The person chooses the exact item when the app runs. Select a box first to put it in that box.")
+            libraryGroups(context)
+        }
+    }
+
+    /// Category, then subcategory. That is as deep as a template needs to go.
+    @ViewBuilder private func subcategoryPicker(_ context: AppDesignContext) -> some View {
+        let tree = context.collectionTree
+        if tree.isEmpty {
+            hint("Open the AppDesigner from the main app to see your collections here.")
+        } else {
+            let category = tree.first(where: { $0.category == libCategory }) ?? tree[0]
+            let sub = category.names.contains(libSub) ? libSub : (category.names.first ?? "")
+            let fields = Array(Set(context.records.filter { $0.collection.caseInsensitiveCompare(sub) == .orderedSame }.prefix(20).flatMap { $0.values.keys })).sorted()
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Category").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+                Picker("", selection: Binding(get: { category.category }, set: { value in
+                    libCategory = value
+                    libSub = tree.first(where: { $0.category == value })?.names.first ?? ""
+                    libField = "name"
+                })) {
+                    ForEach(tree) { group in Text(group.category).tag(group.category) }
+                }
+                .labelsHidden()
+                Text("Subcategory").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+                Picker("", selection: Binding(get: { sub }, set: { value in libSub = value; libField = "name" })) {
+                    ForEach(category.names, id: \.self) { name in
+                        Label(name, systemImage: MediaFinder.isMediaCollection(name) ? "photo.on.rectangle" : "list.bullet.rectangle").tag(name)
                     }
                 }
-                if clips.isEmpty && records.isEmpty { hint("Nothing matches.") }
-            } else {
-                libraryGroups(context)
+                .labelsHidden()
+                if !fields.isEmpty && WishPick.clips(in: sub).isEmpty {
+                    Text("Show").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
+                    Picker("", selection: $libField) {
+                        Text("Name").tag("name")
+                        ForEach(fields, id: \.self) { field in Text(field).tag(field) }
+                    }
+                    .labelsHidden()
+                }
+                Button { addSubcategory(sub, fields: fields) } label: { Label("Add \(sub) to the page", systemImage: "plus.circle.fill") }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small).disabled(sub.isEmpty)
             }
         }
     }
 
+    private func addSubcategory(_ name: String, fields: [String]) {
+        var token = DesignElementTokens.refine("{{wish:\(name)}}")
+        if token.hasPrefix("{{@"), libField != "name", fields.contains(libField) {
+            token = "{{@\(name)/$\(TemplateFill.normal(name))/\(libField)}}"
+        }
+        if let index = selectedIndex, template.slots[index].kind != .logo { addToken(index, token) } else { addElementBox(token, name: name) }
+    }
+
     @ViewBuilder private func libraryGroups(_ context: AppDesignContext) -> some View {
+        subcategoryPicker(context)
         DisclosureGroup("Variables") {
             VStack(alignment: .leading, spacing: 6) {
                 chipGrid { ForEach(vars.keys.sorted(), id: \.self) { chip($0, "curlybraces", "{{\($0)}}") } }
@@ -1905,21 +1952,10 @@ extension TemplateDesignerView {
         DisclosureGroup("Functions") {
             chipGrid { ForEach(DesignFunction.items) { chip($0.title, "function", $0.token) } }
         }
-        DisclosureGroup("Collections") {
-            if context.collectionTree.isEmpty { hint("Open the AppDesigner from the main app to see your collections here.") }
-            ForEach(context.collectionTree) { group in
-                DisclosureGroup(group.category) {
-                    ForEach(group.names, id: \.self) { name in
-                        DisclosureGroup(name) { collectionContents(name, context) }
-                    }
-                }
-            }
-        }
         DisclosureGroup("Pictures and videos") {
             VStack(alignment: .leading, spacing: 6) {
                 Button { chooseNewMedia() } label: { Label("Add a picture or video\u{2026}", systemImage: "photo.badge.plus") }.buttonStyle(.bordered).controlSize(.small)
-                hint("Or drag files from Finder onto the page.")
-                chipGrid { ForEach(Array(context.clips.filter { !$0.files.isEmpty }.prefix(40)), id: \.id) { shortcutChip($0) } }
+                hint("Or drag files from Finder onto the page. Collections of pictures are in the subcategory list above.")
             }
         }
         DisclosureGroup("Logos") {

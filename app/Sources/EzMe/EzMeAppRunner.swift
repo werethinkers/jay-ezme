@@ -13,6 +13,8 @@ struct DesignField: Identifiable, Hashable {
     var kind: Kind
     var collection: String? = nil
     var defaultValue: String = ""
+    /// The category of the collection (subcategory) this box takes its choices from.
+    var category: String? = nil
     var id: String { key }
 }
 
@@ -22,6 +24,11 @@ enum DesignFields {
     private static func label(_ key: String) -> String {
         let spaced = key.replacingOccurrences(of: "_", with: " ").replacingOccurrences(of: "-", with: " ")
         return spaced.prefix(1).uppercased() + spaced.dropFirst()
+    }
+
+    /// A box that takes its choice from a subcategory is named after it ("HBD Wish"), not after its variable.
+    private static func pickLabel(_ collection: String, _ variable: String) -> String {
+        TemplateFill.normal(variable) == TemplateFill.normal(collection) ? collection : "\(collection) \u{00B7} \(label(variable))"
     }
 
     /// Everything the pages need from the person: variables used in boxes, boxes with no fixed content, and variables
@@ -46,14 +53,14 @@ enum DesignFields {
                     let inner = ns.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespaces)
                     if inner.lowercased().hasPrefix("shortcut:") { continue }
                     if let pick = WishPick.parse(inner) {
-                        add(DesignField(key: pick.variable, label: label(pick.collection), kind: .wish, collection: pick.collection, defaultValue: defaultFor(pick.variable)))
+                        add(DesignField(key: pick.variable, label: pickLabel(pick.collection, pick.variable), kind: .wish, collection: pick.collection, defaultValue: defaultFor(pick.variable), category: AppDesignContext.shared.category(of: pick.collection)))
                         continue
                     }
                     if inner.hasPrefix("@") {
                         let parts = String(inner.dropFirst()).split(separator: "/", omittingEmptySubsequences: false).map { String($0) }
                         if parts.count >= 2, parts[1].hasPrefix("$") {
                             let name = String(parts[1].dropFirst())
-                            add(DesignField(key: name, label: label(name), kind: .choice, collection: parts[0], defaultValue: defaultFor(name)))
+                            add(DesignField(key: name, label: pickLabel(parts[0], name), kind: .choice, collection: parts[0], defaultValue: defaultFor(name), category: AppDesignContext.shared.category(of: parts[0])))
                         }
                         continue
                     }
@@ -64,7 +71,7 @@ enum DesignFields {
         }
         for page in pages {
             for slot in page.slots where slot.kind != .logo && (slot.content ?? "").isEmpty {
-                add(DesignField(key: slot.key, label: label(slot.key), kind: slot.kind == .image ? .image : .text, collection: slot.kind == .image ? MediaFinder.collectionNamed(slot.key) : nil, defaultValue: defaultFor(slot.key)))
+                add(DesignField(key: slot.key, label: label(slot.key), kind: slot.kind == .image ? .image : .text, collection: slot.kind == .image ? MediaFinder.collectionNamed(slot.key) : nil, defaultValue: defaultFor(slot.key), category: slot.kind == .image ? MediaFinder.collectionNamed(slot.key).flatMap { AppDesignContext.shared.category(of: $0) } : nil))
             }
         }
         for key in variables.keys.sorted() {
@@ -88,7 +95,13 @@ struct DesignFieldRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(field.label).font(.system(size: 12, weight: .semibold)).foregroundStyle(FormVoiceInk.main)
+            HStack(spacing: 6) {
+                Text(field.label).font(.system(size: 12, weight: .semibold)).foregroundStyle(FormVoiceInk.main)
+                if let category = field.category, !category.isEmpty {
+                    Text(category).font(.system(size: 9, weight: .semibold)).foregroundStyle(Butter.cocoa.opacity(0.8))
+                        .padding(.horizontal, 6).padding(.vertical, 2).background(Capsule().fill(Butter.honey.opacity(0.35)))
+                }
+            }
             switch field.kind {
             case .text:
                 TextField(field.label, text: $text).textFieldStyle(.roundedBorder)

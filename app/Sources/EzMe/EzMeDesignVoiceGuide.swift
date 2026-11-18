@@ -82,6 +82,23 @@ import SwiftUI
         text.lowercased().trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
     }
 
+    /// A sentence heard by the designer's own mic that is not a design change: it fills boxes or makes the file, so the
+    /// whole page answers to voice. Returns what happened, or nil when the sentence meant nothing here.
+    func acceptLoose(_ raw: String) -> String? {
+        let spoken = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !spoken.isEmpty else { return nil }
+        if DesignVoiceFill.isMakeCommand(spoken) { make(); return "Making it\u{2026}" }
+        let all = fields()
+        let found = DesignVoiceFill.parse(spoken, fields: all)
+        guard !found.isEmpty else { return nil }
+        var done: [String] = []
+        for field in all {
+            guard let value = found[field.key] else { continue }
+            if commit(value, to: field) { done.append(field.label) }
+        }
+        return done.isEmpty ? (note.isEmpty ? nil : note) : "Filled " + done.joined(separator: ", ") + "."
+    }
+
     /// One spoken sentence.
     func handle(_ raw: String) {
         guard active else { return }
