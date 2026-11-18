@@ -1458,6 +1458,9 @@ struct WishHomeView: View {
             showsCredits: false,
             badge: "WISH"
         )
+        .contextMenu {
+            Button("Duplicate") { if let id = store.duplicateApp(item.id) { model.status = "Made a copy: \(store.app(id: id)?.name ?? "")." } }
+        }
     }
 
     private var builderCard: some View {

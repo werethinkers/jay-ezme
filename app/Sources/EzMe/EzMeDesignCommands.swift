@@ -64,6 +64,13 @@ import AppKit
         return true
     }
 
+    /// Names of the other apps in the popup (not the one made from this design).
+    static func otherAppNames(except designID: String) -> [String] {
+        let own = registered()[designID]
+        let designApps = Set(registered().values)
+        return builderApps().filter { $0 != own && !designApps.contains($0) }
+    }
+
     static func isDesignApp(_ app: String) -> Bool { registered().values.contains(app) }
 
     static func designID(forApp app: String) -> String? { registered().first(where: { $0.value == app })?.key }

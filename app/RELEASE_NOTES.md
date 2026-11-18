@@ -1,6 +1,4 @@
-# KeyDo 3.67
+# KeyDo 3.68
 
-- **Voice and typed commands for App Designer apps.** A new "Voice and typed commands" section in the designer's side panel has the same phrase editor WishStudio apps use: add phrases like "send birthday wishes to" and say or type them followed by the details. The phrases stay with the app when you rename it.
-- **Typing a command is free-form.** `\hbd-rahul`, `\@hbd-rahul` and `\hbd rahul` all work. After the app word, give the details in any order, each after a dash. A `#` before a collection name (`#birthday-wishes`) means "use its first item", and a template ends the command (`-temp2`). Anything left out uses its ready value; only a mandatory box is asked for.
-- **Rename a variable at any time.** In the designer's Variables list, click the name, type the new one and press Return. Its value, data type, mandatory mark and every box and formula that uses it (on every page) follow the new name.
-- **WishStudio: new templates and redesign.** The studio toolbar has "New template" (opens the same new-app wizard and links the result to this app) and "Redesign" (opens the linked template straight in the designer). WishBuilder's template picker has the same two buttons.
+- **Every app has its own name.** App Designer apps can no longer share a name with another designed app or with another app in the backslash popup: a clash gets a number ("Invoice 2") when the app is created, renamed or saved. WishStudio apps already numbered new apps the same way.
+- **Duplicate an app.** App Designer: the copy icon on an app card makes a full copy (its own pages, variables and templates) named "<name> copy", ready to change. Release the copy to give it its own run word. WishStudio: right-click an app and choose Duplicate.

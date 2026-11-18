@@ -525,6 +525,17 @@ final class WishStore: ObservableObject {
         return apps.first { $0.id == id }
     }
 
+    /// A copy of a wish app with a unique name of its own.
+    @discardableResult func duplicateApp(_ id: String) -> String? {
+        guard let source = apps.first(where: { $0.id == id }) else { return nil }
+        var copy = source
+        copy.id = UUID().uuidString
+        copy.builtIn = false
+        copy.name = DesignNames.unique(source.name + " copy", taken: apps.map { $0.name })
+        apps.append(copy)
+        return copy.id
+    }
+
     func updateApp(_ app: WishApp) {
         guard let index = apps.firstIndex(where: { $0.id == app.id }) else { return }
         apps[index] = app

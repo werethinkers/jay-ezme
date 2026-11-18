@@ -178,6 +178,14 @@ struct AppDesign: Codable, Identifiable, Hashable {
         if !designs.contains(where: { $0.id == design.id }) {
             design.name = DesignNames.unique(design.name, taken: designs.map { $0.name })
         }
+        // Every app has a name of its own: not another design's, and not another app's in the backslash popup.
+        let wanted = design.appTitle ?? design.name
+        let used = designs.filter { $0.id != design.id }.map { $0.appTitle ?? $0.name } + DesignCommands.otherAppNames(except: design.id)
+        let unique = DesignNames.unique(wanted, taken: used)
+        if unique != wanted {
+            design.name = unique
+            if design.appTitle != nil { design.appTitle = unique }
+        }
         if let index = designs.firstIndex(where: { $0.id == design.id }) { designs[index] = design } else { designs.append(design) }
         persist()
     }
@@ -232,6 +240,44 @@ struct AppDesign: Codable, Identifiable, Hashable {
         design.pages.append(page.id)
         save(design)
         return page
+    }
+
+    /// A copy of an app with its own pages, a new unique name and no release: it must be released before its run word works.
+    func duplicate(_ id: String) -> AppDesign? {
+        guard var copy = design(id: id) else { return nil }
+        let source = copy
+        let newID = UUID().uuidString
+        let taken = designs.map { $0.appTitle ?? $0.name } + DesignCommands.otherAppNames(except: newID)
+        let title = DesignNames.unique((source.appTitle ?? source.name) + " copy", taken: taken)
+        func clone(_ ids: [String]) -> [String] {
+            ids.compactMap { pageID -> String? in
+                guard var page = TemplateStore.shared.duplicate(pageID) else { return nil }
+                page.designID = newID
+                TemplateStore.shared.save(page)
+                return page.id
+            }
+        }
+        copy.id = newID
+        copy.name = title
+        copy.appTitle = title
+        copy.command = nil
+        copy.version = 0
+        copy.releasedAt = nil
+        copy.releasedPages = nil
+        copy.created = Date()
+        copy.pages = clone(source.pages)
+        if var variants = copy.variants {
+            for index in variants.indices {
+                variants[index].id = UUID().uuidString
+                variants[index].pages = clone(variants[index].pages)
+                variants[index].releasedPages = nil
+            }
+            copy.variants = variants
+        }
+        guard !copy.pages.isEmpty else { return nil }
+        designs.append(copy)
+        persist()
+        return copy
     }
 
     func delete(_ id: String) {
@@ -847,6 +893,10 @@ struct AppDesignerView: View {
                 if design.version > 0 { Button("Run") { runningID = design.id }.buttonStyle(.bordered).controlSize(.small) }
                 Button("Use in apps") { usingID = "design:" + design.id }.buttonStyle(.bordered).controlSize(.small)
                 Spacer()
+                Button {
+                    if let made = designs.duplicate(design.id) { message = "Made \u{201C}\(made.appTitle ?? made.name)\u{201D}, a copy of \(design.appTitle ?? design.name). Release it to give it its own run word." }
+                    else { message = "That app could not be copied." }
+                } label: { Image(systemName: "plus.square.on.square") }.buttonStyle(.plain).foregroundStyle(Butter.cocoa.opacity(0.8)).help("Duplicate this app")
                 Button { deleteID = design.id } label: { Image(systemName: "trash") }.buttonStyle(.plain).foregroundStyle(.red.opacity(0.8))
             }
         }
