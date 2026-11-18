@@ -362,11 +362,14 @@ struct TemplateDesignerView: View {
     var designTitle: String? = nil
     var onOutputFormatChange: ((String) -> Void)? = nil
     var onMakeFile: (([String: String]) -> String)? = nil
-    var onRename: ((String) -> Void)? = nil
+    var onRename: ((String) -> (name: String, command: String))? = nil
     enum SideTab: Hashable { case library, box, page }
     @State private var sideTab: SideTab = .library
     @State private var formValues: [String: String] = [:]
     @State private var commandWord = ""
+    @State private var appName = ""
+    @FocusState private var appNameFocused: Bool
+    @FocusState private var commandFocused2: Bool
     @StateObject private var tryGuide = DesignVoiceGuide()
     var onCommandChange: ((String) -> String)? = nil
     @State private var livePreview: NSImage?
@@ -389,9 +392,10 @@ struct TemplateDesignerView: View {
          variables: [String: String] = [:], onVariablesChange: (([String: String]) -> Void)? = nil,
          onReplaceElsewhere: ((String, String) -> Int)? = nil, designTitle: String? = nil,
          outputFormat: String? = nil, onOutputFormatChange: ((String) -> Void)? = nil,
-         onMakeFile: (([String: String]) -> String)? = nil, onRename: ((String) -> Void)? = nil,
+         onMakeFile: (([String: String]) -> String)? = nil, onRename: ((String) -> (name: String, command: String))? = nil,
          command: String? = nil, onCommandChange: ((String) -> String)? = nil) {
         _commandWord = State(initialValue: command ?? "")
+        _appName = State(initialValue: designTitle ?? "")
         self.onCommandChange = onCommandChange
         _template = State(initialValue: template)
         _base = State(initialValue: TemplateStore.shared.basePicture(for: template) ?? NSImage(size: NSSize(width: 100, height: 100)))
@@ -443,14 +447,24 @@ struct TemplateDesignerView: View {
             tryGuide.setValue = { key, value in formValues[key] = value }
             tryGuide.make = { makeFile() }
             tryGuide.onStart = { voice.stop() }
+            fillDefaults()
         }
+        .onChange(of: previewFields) { _, _ in fillDefaults() }
         .onDisappear { voice.stop(); tryGuide.stop(); store.save(template) }
     }
 
     private var topBar: some View {
         HStack(spacing: 10) {
             Button { finish() } label: { Label("Templates", systemImage: "chevron.left") }.buttonStyle(.bordered)
-            if let designTitle { Text(designTitle).font(.system(size: 13, weight: .bold)).foregroundStyle(Butter.cocoa).lineLimit(1) }
+            if designTitle != nil {
+                HStack(spacing: 4) {
+                    Text("App").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                    TextField("App name", text: $appName).textFieldStyle(.roundedBorder).font(.system(size: 13, weight: .bold)).frame(maxWidth: 180)
+                        .focused($appNameFocused).onSubmit { commitAppName() }
+                        .onChange(of: appNameFocused) { _, focused in if !focused { commitAppName() } }
+                        .accessibilityLabel("App name").help("The name of the app. Press Return to rename it.")
+                }
+            }
             TextField(designTitle == nil ? "Template name" : "Page name", text: $template.name).textFieldStyle(.roundedBorder).frame(maxWidth: 200)
             if let info = pageInfo {
                 HStack(spacing: 4) {
@@ -1532,8 +1546,11 @@ extension TemplateDesignerView {
             onOutputFormatChange?(format.rawValue)
             return "The app will make \(format.title)."
         case .appName(let name):
-            onRename?(name)
-            return "Named \u{201C}\(name)\u{201D}."
+            guard let onRename else { return "The app name is set from inside an app design." }
+            let done = onRename(name)
+            appName = done.name
+            if !done.command.isEmpty { commandWord = done.command }
+            return "Renamed to \u{201C}\(done.name)\u{201D}. Run it with \\\(done.command)-"
         case .commandWord(let word):
             guard let onCommandChange else { return "Commands are set from inside an app design." }
             commandWord = onCommandChange(word)
@@ -2008,8 +2025,28 @@ extension TemplateDesignerView {
 
     var previewFields: [DesignField] { DesignFields.fields(pages: [template], variables: vars) }
 
+    /// Saves a new app name typed in the top bar, and shows the name and run word that came back.
+    private func commitAppName() {
+        guard let designTitle else { return }
+        let wanted = appName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !wanted.isEmpty else { appName = designTitle; return }
+        let changed = wanted != designTitle
+        if let done = onRename?(wanted) {
+            appName = done.name
+            if !done.command.isEmpty { commandWord = done.command }
+            if changed { message = "App renamed to \u{201C}\(done.name)\u{201D}. Run it with \\\(commandWord)-name." }
+        }
+    }
+
+    /// New boxes that take a collection start on its first item.
+    private func fillDefaults() {
+        var next = formValues
+        DesignDefaults.fill(previewFields, into: &next)
+        if next != formValues { formValues = next }
+    }
+
     @ViewBuilder var exampleCommands: some View {
-        let lines = DesignExamples.lines(appName: designTitle ?? template.name, word: commandWord, fields: previewFields)
+        let lines = DesignExamples.lines(appName: designTitle == nil ? template.name : (appName.isEmpty ? (designTitle ?? template.name) : appName), word: commandWord, fields: previewFields)
         if !lines.isEmpty {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Say or type it like this").font(.system(size: 11, weight: .bold)).foregroundStyle(Butter.cocoa)
@@ -2057,7 +2094,9 @@ extension TemplateDesignerView {
                     Text("Type").font(.system(size: 11)).foregroundStyle(.secondary)
                     Text("\\").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(Butter.coral)
                     TextField("hbd", text: $commandWord).textFieldStyle(.roundedBorder).frame(width: 90)
+                        .focused($commandFocused2)
                         .onSubmit { commandWord = onCommandChange?(commandWord) ?? commandWord }
+                        .onChange(of: commandFocused2) { _, focused in if !focused { commandWord = onCommandChange?(commandWord) ?? commandWord } }
                     Text("-name to run this app anywhere").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }

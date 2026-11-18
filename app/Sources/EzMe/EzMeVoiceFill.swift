@@ -46,7 +46,8 @@ enum DesignVoiceFill {
             case .choice:
                 let all = options(for: hit.field)
                 if let match = all.first(where: { $0.name.caseInsensitiveCompare(value) == .orderedSame || $0.alias.caseInsensitiveCompare(value) == .orderedSame })
-                    ?? all.first(where: { value.lowercased().contains($0.name.lowercased()) || $0.name.lowercased().contains(value.lowercased()) }) {
+                    ?? all.first(where: { value.lowercased().contains($0.name.lowercased()) || $0.name.lowercased().contains(value.lowercased()) })
+                    ?? PickerRank.records(value, in: hit.field.collection ?? "", limit: 1).first {
                     value = match.alias.isEmpty ? match.name : match.alias
                 } else { continue }
             case .wish:

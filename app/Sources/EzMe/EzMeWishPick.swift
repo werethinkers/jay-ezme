@@ -61,6 +61,7 @@ import SwiftUI
         if let hit = all.first(where: { $0.name.caseInsensitiveCompare(q) == .orderedSame }) { return hit }
         guard q.count >= 3 else { return nil }
         return all.first(where: { $0.name.localizedCaseInsensitiveContains(q) }) ?? all.first(where: { $0.text.localizedCaseInsensitiveContains(q) })
+            ?? PickerRank.clips(q, in: collection, limit: 1).first
     }
 
     /// Only a key or a number in range, so ordinary words in a typed command are never taken for a wish.
@@ -87,7 +88,7 @@ import SwiftUI
     }
 }
 
-/// The form row for a wish box: type a key or number, or open the list.
+/// The form row for a wish box: it starts on the first wish; type a key, a number or words to narrow, or open the list.
 struct WishChooserRow: View {
     var field: DesignField
     @Binding var text: String
@@ -95,19 +96,34 @@ struct WishChooserRow: View {
 
     private var collection: String { field.collection ?? "" }
     private var chosen: Clip? { WishPick.find(text, in: collection) }
+    /// True while what is typed is exactly the chosen shortcut, so no short list is needed.
+    private var settled: Bool { chosen.map { WishPick.plain($0.key) == WishPick.plain(text) } ?? false }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                TextField(field.label + " (type a shortcut like ss10, a number, or words)", text: $text)
+                TextField(field.label + " (type a few letters, a shortcut like ss10, or a number)", text: $text)
                     .textFieldStyle(.roundedBorder).accessibilityLabel(field.label).help(field.label)
+                    .onSubmit { if !settled, let best = PickerRank.clips(text, in: collection, limit: 1).first { text = best.key } }
                 Button { open = true } label: { Label("Choose", systemImage: "list.bullet.rectangle") }
                     .buttonStyle(.bordered).controlSize(.small)
                     .popover(isPresented: $open, arrowEdge: .bottom) {
                         WishListView(collection: collection) { clip in text = clip.key; open = false }.frame(width: 380, height: 420)
                     }
             }
-            if let chosen {
+            if !settled && !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                let near = PickerRank.clips(text, in: collection, limit: 5)
+                if near.isEmpty {
+                    Text("No shortcut in \(collection) is near \u{201C}\(text)\u{201D}. Press Choose to look.").font(.system(size: 11)).foregroundStyle(.orange)
+                } else {
+                    PickerSuggestionList {
+                        ForEach(near, id: \.id) { clip in
+                            PickerSuggestionRow(title: clip.key, detail: clip.text.replacingOccurrences(of: "\n", with: " ")) { text = clip.key }
+                        }
+                    }
+                }
+            }
+            if let chosen, settled || text.trimmingCharacters(in: .whitespaces).isEmpty == false {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
                     VStack(alignment: .leading, spacing: 2) {
@@ -117,8 +133,6 @@ struct WishChooserRow: View {
                 }
                 .padding(8).frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color.green.opacity(0.08)))
-            } else if !text.isEmpty {
-                Text("No shortcut matches \u{201C}\(text)\u{201D} in \(collection). Press Choose to see them all.").font(.system(size: 11)).foregroundStyle(.orange)
             }
         }
     }
@@ -131,12 +145,13 @@ struct WishListView: View {
 
     var body: some View {
         let all = WishPick.clips(in: collection)
-        let shown = query.isEmpty ? all : all.filter { $0.key.localizedCaseInsensitiveContains(query) || $0.name.localizedCaseInsensitiveContains(query) || $0.text.localizedCaseInsensitiveContains(query) }
+        // Only the first few until something is typed; then the ones nearest to the letters typed.
+        let shown = PickerRank.clips(query, in: collection, limit: 30)
         VStack(spacing: 0) {
             HStack {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                TextField("Search \(collection)", text: $query).textFieldStyle(.plain)
-                Text("\(shown.count)").font(.system(size: 11)).foregroundStyle(.secondary)
+                TextField("Type to search \(collection)", text: $query).textFieldStyle(.plain)
+                Text(query.isEmpty ? "\(all.count) in all" : "\(shown.count) near").font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .padding(10)
             Divider()
@@ -146,7 +161,7 @@ struct WishListView: View {
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 4) {
-                        ForEach(shown.prefix(300), id: \.id) { clip in
+                        ForEach(shown, id: \.id) { clip in
                             Button { onPick(clip) } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(clip.key).font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.coral)

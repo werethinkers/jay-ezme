@@ -645,6 +645,12 @@ struct AppDesignerView: View {
                             ForEach(StarterLayouts.Kind.allCases) { kind in
                                 Button { startLayout(kind) } label: { Label(kind.title + ": " + kind.detail, systemImage: kind.symbol) }
                             }
+                            Divider()
+                            ForEach(StarterPack.entries) { entry in
+                                Button { startPack(entry) } label: { Label(entry.title + ": " + entry.detail, systemImage: entry.symbol) }
+                            }
+                            Divider()
+                            Button { message = "Added \(StarterPack.installAll()) templates." } label: { Label("Add the whole pack again", systemImage: "square.stack.3d.up.fill") }
                         } label: { Label("Ready layouts", systemImage: "sparkles.rectangle.stack") }
                             .menuStyle(.borderlessButton).fixedSize()
                         Button { fromDocument() } label: { Label("From document", systemImage: "doc.text") }
@@ -686,6 +692,7 @@ struct AppDesignerView: View {
             AppDesignRunView(designID: item.id, onClose: { runningID = nil }).frame(minWidth: 940, minHeight: 640)
         }
         .onDrop(of: [.fileURL], isTargeted: nil) { providers in dropFiles(providers) }
+        .onAppear { StarterPack.installOnce() }
         .alert("Delete this design?", isPresented: Binding(get: { deleteID != nil }, set: { if !$0 { deleteID = nil } })) {
             Button("Delete", role: .destructive) { if let id = deleteID { designs.delete(id) }; deleteID = nil }
             Button("Cancel", role: .cancel) { deleteID = nil }
@@ -721,6 +728,10 @@ struct AppDesignerView: View {
     }
 
     private func open(_ design: AppDesign) { pageIndex = 0; editingID = design.id }
+
+    private func startPack(_ entry: StarterPack.Entry) {
+        if let made = entry.make() { open(made) } else { message = "That template could not be made." }
+    }
 
     private func startLayout(_ kind: StarterLayouts.Kind) {
         if let made = StarterLayouts.make(kind) { open(made) } else { message = "That layout could not be made." }
@@ -837,11 +848,20 @@ struct AppDesignEditor: View {
                         } catch { return error.localizedDescription }
                     },
                     onRename: { name in
-                        if var current = designs.design(id: designID) {
-                            let unique = DesignNames.unique(name, taken: designs.designs.filter { $0.id != current.id }.map { $0.name })
-                            current.name = unique; current.appTitle = unique; designs.save(current)
-                            if current.version > 0 { DesignCommands.register(current) }
-                        }
+                        guard var current = designs.design(id: designID) else { return (name, "") }
+                        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let oldName = current.appTitle ?? current.name
+                        guard !trimmed.isEmpty, trimmed != oldName else { return (oldName, current.command ?? DesignCommands.word(for: current)) }
+                        // The run word follows the new name unless the person picked a word of their own.
+                        let oldFirst = DesignCommands.sanitize(String(oldName.split(separator: " ").first ?? ""))
+                        let followsName = current.command == nil || DesignCommands.sanitize(current.command ?? "") == oldFirst
+                        let unique = DesignNames.unique(trimmed, taken: designs.designs.filter { $0.id != current.id }.map { $0.appTitle ?? $0.name })
+                        current.name = unique
+                        current.appTitle = unique
+                        if followsName { current.command = nil }
+                        designs.save(current)
+                        let word = current.version > 0 ? DesignCommands.register(current) : DesignCommands.word(for: current)
+                        return (unique, word)
                     },
                     command: design.command ?? DesignCommands.word(for: design),
                     onCommandChange: { word in

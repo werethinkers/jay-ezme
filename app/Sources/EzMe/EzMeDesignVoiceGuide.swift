@@ -165,7 +165,8 @@ import SwiftUI
             let wanted = clean(value)
             let options = DesignVoiceFill.options(for: field)
             guard let match = options.first(where: { clean($0.name) == wanted || clean($0.alias) == wanted })
-                ?? options.first(where: { clean($0.name).contains(wanted) || wanted.contains(clean($0.name)) }) else {
+                ?? options.first(where: { clean($0.name).contains(wanted) || wanted.contains(clean($0.name)) })
+                ?? PickerRank.records(value, in: field.collection ?? "", limit: 1).first else {
                 note = "I did not find \u{201C}\(value)\u{201D}. Say one of: " + options.prefix(6).map { $0.name }.joined(separator: ", ")
                 return false
             }

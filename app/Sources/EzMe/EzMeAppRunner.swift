@@ -90,7 +90,6 @@ enum DesignFields {
 struct DesignFieldRow: View {
     var field: DesignField
     @Binding var text: String
-    @State private var records: [CollectionRecord] = []
     @State private var chooserOpen = false
 
     var body: some View {
@@ -132,12 +131,7 @@ struct DesignFieldRow: View {
             case .wish:
                 WishChooserRow(field: field, text: $text)
             case .choice:
-                let options = AppDesignContext.shared.records.filter { $0.collection.caseInsensitiveCompare(field.collection ?? "") == .orderedSame }
-                Picker(field.label, selection: $text) {
-                    Text("Choose\u{2026}").tag("")
-                    ForEach(options, id: \.id) { record in Text(record.name).tag(record.alias.isEmpty ? record.name : record.alias) }
-                }
-                .labelsHidden().accessibilityLabel(field.label).help(field.label)
+                RecordChooserRow(field: field, text: $text)
             }
         }
     }
@@ -190,6 +184,7 @@ struct AppDesignRunView: View {
             guide.values = { values }
             guide.setValue = { key, value in values[key] = value }
             guide.make = { make() }
+            DesignDefaults.fill(fields, into: &values)
             for (key, value) in startValues { values[key] = value }
             refreshPreview()
             if let startPrompt, !startPrompt.trimmingCharacters(in: .whitespaces).isEmpty, prompt.isEmpty {

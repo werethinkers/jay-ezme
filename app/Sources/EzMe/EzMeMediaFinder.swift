@@ -142,7 +142,7 @@ struct MediaChooserList: View {
             Divider()
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 4) {
-                    let clips = MediaFinder.search(query, in: collection, limit: 120)
+                    let clips = MediaFinder.search(query, in: collection, limit: query.isEmpty ? 24 : 40)
                     if clips.isEmpty { Text("No media found.").font(.system(size: 12)).foregroundStyle(.secondary).padding(8) }
                     ForEach(clips, id: \.id) { clip in
                         Button { onPick(clip) } label: {
