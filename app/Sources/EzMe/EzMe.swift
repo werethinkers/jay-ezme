@@ -3054,6 +3054,7 @@ func customBuilderCommand(_ raw:String,clips:[Clip]=[],records:[CollectionRecord
  @ViewBuilder private func slotField(_ index:Int)->some View {
   let slotName=command.slotNames[index]
   if let field=DesignCommands.field(app:command.app,label:slotName),field.kind == .image{VStack(alignment:.leading,spacing:3){Text(slotName).font(.caption.weight(.semibold));PopupImageField(collection:field.collection,text:valueBinding(index))}}
+  else if let field=DesignCommands.field(app:command.app,label:slotName),field.dataType != .text{VStack(alignment:.leading,spacing:3){Text(slotName).font(.caption.weight(.semibold));HStack{TextField(field.dataType.example,text:valueBinding(index)).textFieldStyle(.roundedBorder).onSubmit{let check=field.dataType.check(value(at:index));if check.ok{setValue(index,check.clean)}};if field.dataType == .date || field.dataType == .time{DesignDatePickButton(type:field.dataType,text:valueBinding(index))}};DesignTypeNote(type:field.dataType,text:value(at:index))}}
   else{plainSlotField(index)}
  }
  private var isDesignApp:Bool{DesignCommands.designID(forApp:command.app) != nil}

@@ -15,6 +15,8 @@ struct DesignField: Identifiable, Hashable {
     var defaultValue: String = ""
     /// The category of the collection (subcategory) this box takes its choices from.
     var category: String? = nil
+    /// What the box takes: text, number, currency, date, phone and so on. Checked in the form, preview and popup.
+    var dataType: DesignDataType = .text
     var id: String { key }
 }
 
@@ -74,11 +76,18 @@ enum DesignFields {
                 add(DesignField(key: slot.key, label: label(slot.key), kind: slot.kind == .image ? .image : .text, collection: slot.kind == .image ? MediaFinder.collectionNamed(slot.key) : nil, defaultValue: defaultFor(slot.key), category: slot.kind == .image ? MediaFinder.collectionNamed(slot.key).flatMap { AppDesignContext.shared.category(of: $0) } : nil))
             }
         }
-        for key in variables.keys.sorted() {
+        for key in DesignDataType.names(variables) {
             let value = variables[key] ?? ""
             add(DesignField(key: key, label: label(key), kind: value.count > 80 || value.contains("\n") ? .long : .text, defaultValue: value))
         }
-        return result
+        // Each text box takes the data type declared for its variable.
+        return result.map { field in
+            guard field.kind == .text || field.kind == .long else { return field }
+            var typed = field
+            typed.dataType = DesignDataType.of(field.key, in: variables)
+            if typed.dataType == .long { typed.kind = .long } else if typed.dataType != .text { typed.kind = .text }
+            return typed
+        }
     }
 
     @MainActor static func fields(for design: AppDesign) -> [DesignField] {
@@ -115,9 +124,15 @@ struct DesignFieldRow: View {
             }
             switch field.kind {
             case .text:
-                TextField(fallback.isEmpty ? field.label : fallback, text: $text).textFieldStyle(.roundedBorder)
-                    .accessibilityLabel(field.label).help(field.label)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(needsValue && text.trimmingCharacters(in: .whitespaces).isEmpty ? Color.red.opacity(0.55) : Color.clear, lineWidth: 1))
+                HStack(spacing: 6) {
+                    TextField(fallback.isEmpty ? (field.dataType == .text ? field.label : field.dataType.example) : fallback, text: $text).textFieldStyle(.roundedBorder)
+                        .accessibilityLabel(field.label).help(field.label)
+                        .onSubmit { tidy() }
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(needsValue && text.trimmingCharacters(in: .whitespaces).isEmpty ? Color.red.opacity(0.55) : (field.dataType.check(text).ok ? Color.clear : Color.red.opacity(0.7)), lineWidth: 1))
+                    if field.dataType == .date || field.dataType == .time { DesignDatePickButton(type: field.dataType, text: $text) }
+                    if field.dataType != .text { Button("Tidy") { tidy() }.buttonStyle(.bordered).controlSize(.small).help("Format it neatly") }
+                }
+                if field.dataType != .text { DesignTypeNote(type: field.dataType, text: text) }
                 if text.trimmingCharacters(in: .whitespaces).isEmpty && !fallback.isEmpty {
                     Text("Left empty, it uses \u{201C}\(String(fallback.prefix(40)))\u{201D}").font(.system(size: 10)).foregroundStyle(Butter.cocoa.opacity(0.6))
                 }
@@ -153,6 +168,12 @@ struct DesignFieldRow: View {
                 RecordChooserRow(field: field, text: $text)
             }
         }
+    }
+
+    /// Writes a typed value the neat way: commas in an amount, a full date, a spaced phone number.
+    private func tidy() {
+        let check = field.dataType.check(text)
+        if check.ok, check.clean != text { text = check.clean }
     }
 
     private func choose() {

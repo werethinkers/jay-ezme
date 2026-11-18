@@ -364,7 +364,7 @@ struct TemplateDesignerView: View {
     var onMakeFile: (([String: String]) -> String)? = nil
     var onRename: ((String) -> (name: String, command: String))? = nil
     enum SideTab: Hashable { case library, box, page }
-    @State private var sideTab: SideTab = .library
+    @State private var openSections: Set<String> = ["box", "library"]
     @State private var formValues: [String: String] = [:]
     @State private var commandWord = ""
     @State private var appName = ""
@@ -440,7 +440,7 @@ struct TemplateDesignerView: View {
         .onChange(of: testVersion) { _, _ in refresh() }
         .onChange(of: vars) { _, _ in refresh() }
         .onChange(of: formValues) { _, _ in refresh() }
-        .onChange(of: selectedID) { _, value in if value != nil { sideTab = .box } }
+        .onChange(of: selectedID) { _, value in if value != nil { openSections.insert("box") } }
         .onAppear {
             tryGuide.fields = { previewFields }
             tryGuide.values = { formValues }
@@ -762,36 +762,51 @@ struct TemplateDesignerView: View {
 
     // MARK: Inspector
 
+    /// One panel: Box, Library and Page sit one under the other, each can be folded, so nothing is hidden behind a tab.
     @ViewBuilder private var sidebar: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $sideTab) {
-                Text("Library").tag(SideTab.library)
-                Text("Box").tag(SideTab.box)
-                Text("Page").tag(SideTab.page)
-            }
-            .pickerStyle(.segmented).labelsHidden().padding(10)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    switch sideTab {
-                    case .library:
-                        libraryPanel
-                    case .box:
-                        if let index = selectedIndex { boxEditor(index) } else {
-                            hint("Click a box on the page to edit it. Drag it to move, drag the dots to resize, and drag the round arrow to turn it.")
-                            boxesCard
-                        }
-                    case .page:
-                        if mode == .erase { hint("Pick a shape at the top of the page (rectangle, square, circle, triangle, points or free hand), then draw around what to remove. Only the inside of the shape is erased.") }
-                        if onVariablesChange != nil { variablesCard }
-                        addCard
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                section("box", "Box", "rectangle.dashed") {
+                    if let index = selectedIndex { boxEditor(index) } else {
+                        hint("Click a box on the page to edit it. Drag it to move, drag the dots to resize, and drag the round arrow to turn it.")
                         boxesCard
-                        pictureCard
                     }
                 }
-                .padding(.horizontal, 12).padding(.bottom, 14)
+                section("library", "Library", "books.vertical") { libraryPanel }
+                section("page", "Page", "doc.richtext") {
+                    if mode == .erase { hint("Pick a shape at the top of the page (rectangle, square, circle, triangle, points or free hand), then draw around what to remove. Only the inside of the shape is erased.") }
+                    if onVariablesChange != nil { variablesCard }
+                    addCard
+                    if selectedIndex != nil { boxesCard }
+                    pictureCard
+                }
+            }
+            .padding(.horizontal, 12).padding(.vertical, 10)
+        }
+        .frame(width: 330).background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private func section<Content: View>(_ id: String, _ title: String, _ symbol: String, @ViewBuilder _ content: () -> Content) -> some View {
+        let open = openSections.contains(id)
+        return VStack(alignment: .leading, spacing: 8) {
+            Button {
+                if open { openSections.remove(id) } else { openSections.insert(id) }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: symbol).foregroundStyle(Butter.coral).frame(width: 18)
+                    Text(title).font(.system(size: 13, weight: .bold)).foregroundStyle(Butter.cocoa)
+                    Spacer()
+                    Image(systemName: open ? "chevron.down" : "chevron.right").font(.system(size: 10, weight: .bold)).foregroundStyle(Butter.cocoa.opacity(0.6))
+                }
+                .padding(.vertical, 6).padding(.horizontal, 8)
+                .background(RoundedRectangle(cornerRadius: 9).fill(Butter.honey.opacity(0.35)))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if open {
+                VStack(alignment: .leading, spacing: 14) { content() }
             }
         }
-        .frame(width: 320).background(Color(nsColor: .windowBackgroundColor))
     }
 
     private func card<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
@@ -959,8 +974,9 @@ struct TemplateDesignerView: View {
         let slot = template.slots[index]
         return card("Text") {
             TextField("Sample text", text: $template.slots[index].sample, axis: .vertical).lineLimit(1...3).textFieldStyle(.roundedBorder)
-            Picker("Font", selection: $template.slots[index].fontName) {
-                ForEach(TemplateFonts.all, id: \.self) { Text($0).tag($0) }
+            HStack {
+                Text("Font").font(.system(size: 12))
+                SearchablePick(title: "Font", options: TemplateFonts.all, selection: $template.slots[index].fontName)
             }
             Toggle("Fit the text to the box automatically", isOn: Binding(get: { slot.fontSize == 0 }, set: { template.slots[index].fontSize = $0 ? 0 : max(0.008, min(0.1, template.slots[index].h * 0.6)) }))
                 .toggleStyle(.checkbox).font(.system(size: 12))
@@ -1355,12 +1371,25 @@ extension TemplateDesignerView {
 
     var variablesCard: some View {
         card("Variables") {
-            if vars.isEmpty { hint("Variables are values that change for each use, like company or amount. Say \u{201C}replace Acme Ltd with variable company\u{201D}.") }
-            ForEach(vars.keys.sorted(), id: \.self) { key in
-                HStack(spacing: 6) {
-                    Text(key).font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.cocoa).frame(width: 84, alignment: .leading).lineLimit(1)
-                    TextField("starting value", text: Binding(get: { vars[key] ?? "" }, set: { vars[key] = $0; onVariablesChange?(vars) })).textFieldStyle(.roundedBorder)
-                    Button { vars[key] = nil; onVariablesChange?(vars) } label: { Image(systemName: "xmark.circle") }.buttonStyle(.plain)
+            if DesignDataType.names(vars).isEmpty { hint("Variables are values that change for each use, like company or amount. Say \u{201C}replace Acme Ltd with variable company\u{201D}.") }
+            ForEach(DesignDataType.names(vars), id: \.self) { key in
+                let type = DesignDataType.of(key, in: vars)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(key).font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.cocoa).frame(width: 84, alignment: .leading).lineLimit(1)
+                        TextField(type.example, text: Binding(get: { vars[key] ?? "" }, set: { vars[key] = $0; onVariablesChange?(vars) }))
+                            .textFieldStyle(.roundedBorder).onSubmit { tidyVariable(key) }
+                        Button { vars[key] = nil; vars[DesignDataType.key(key)] = nil; onVariablesChange?(vars) } label: { Image(systemName: "xmark.circle") }.buttonStyle(.plain)
+                    }
+                    HStack(spacing: 6) {
+                        Menu {
+                            ForEach(DesignDataType.allCases) { option in
+                                Button { setType(option, for: key) } label: { Label(option.title, systemImage: option.symbol) }
+                            }
+                        } label: { Label(type.title, systemImage: type.symbol).font(.system(size: 11)) }
+                        .menuStyle(.borderlessButton).fixedSize()
+                        if type != .text && type != .long { DesignTypeNote(type: type, text: vars[key] ?? "") }
+                    }
                 }
             }
             HStack {
@@ -1375,6 +1404,19 @@ extension TemplateDesignerView {
             }
             .buttonStyle(.bordered).controlSize(.small)
         }
+    }
+
+    func setType(_ type: DesignDataType, for name: String) {
+        DesignDataType.set(type, for: name, in: &vars)
+        tidyVariable(name)
+        onVariablesChange?(vars)
+    }
+
+    func tidyVariable(_ name: String) {
+        let type = DesignDataType.of(name, in: vars)
+        let check = type.check(vars[name] ?? "")
+        if check.ok, check.clean != (vars[name] ?? "") { vars[name] = check.clean }
+        onVariablesChange?(vars)
     }
 
     func addToken(_ index: Int, _ rawToken: String) {
@@ -1411,7 +1453,7 @@ extension TemplateDesignerView {
 
     func contentEditor(_ index: Int) -> some View {
         let slot = template.slots[index]
-        let names = Array(Set(vars.keys).union(template.slots.map { $0.key })).sorted()
+        let names = Array(Set(DesignDataType.names(vars)).union(template.slots.map { $0.key })).sorted()
         return card(slot.kind == .text ? "Live content (shown instead of the sample)" : "Picture or video source") {
             TextField(slot.kind == .text ? "Type text, then add live values with the buttons" : "Shortcut name, a file, or {{variable}}",
                       text: Binding(get: { template.slots[index].content ?? "" }, set: { template.slots[index].content = $0.isEmpty ? nil : $0 }), axis: .vertical)
@@ -1461,8 +1503,22 @@ extension TemplateDesignerView {
         guard !text.isEmpty else { return }
         heard = text
         var notes: [String] = []
-        for action in DesignCommand.parse(text) {
-            if case .unknown(let sentence) = action, let filled = tryGuide.acceptLoose(sentence) { notes.append(filled) } else { notes.append(perform(action)) }
+        DesignFormulaSpeech.variables = Array(Set(DesignDataType.names(vars)).union(template.slots.map { $0.key }))
+        for sentence in DesignVoiceTarget.split(text) {
+            if let hit = DesignVoiceTarget.find(sentence, slots: template.slots) {
+                // The sentence names a box: select it, then do the rest of the sentence to it.
+                selectedID = hit.slot.id
+                var actions = hit.rest.isEmpty ? [] : DesignCommand.parse(hit.rest)
+                if actions.isEmpty { notes.append("Selected \(hit.slot.key).") ; continue }
+                if case .unknown = actions[0], let set = DesignVoiceTarget.setAction(hit) { actions = [set] }
+                for action in actions {
+                    if case .color(let hex, .page) = action { notes.append(perform(.color(hex, .shape))) } else { notes.append(perform(action)) }
+                }
+                continue
+            }
+            for action in DesignCommand.parse(sentence) {
+                if case .unknown(let loose) = action, let filled = tryGuide.acceptLoose(loose) { notes.append(filled) } else { notes.append(perform(action)) }
+            }
         }
         let joined = notes.filter { !$0.isEmpty }.joined(separator: " ")
         if !joined.isEmpty { message = joined }
@@ -1729,6 +1785,14 @@ extension TemplateDesignerView {
             vars[name] = value
             onVariablesChange?(vars)
             return "Variable \(name) starts as \u{201C}\(value)\u{201D}."
+        case .variableType(let name, let type):
+            guard let key = vars.keys.first(where: { !DesignDataType.isHidden($0) && TemplateFill.normal($0) == TemplateFill.normal(name) }) else { return "There is no variable called \(name). Add it first." }
+            setType(type, for: key)
+            return "\(key) now takes \(type.title.lowercased()) only."
+        case .makeTypedVariable(let name, let type):
+            let made = perform(.makeVariable(name))
+            if vars[name] != nil { setType(type, for: name) }
+            return made + " It takes \(type.title.lowercased()) only."
         case .makeVariable(let name):
             guard let index = selectedIndex else { return needBox }
             guard template.slots[index].kind == .text else { return "Select a text box." }
@@ -1909,28 +1973,17 @@ extension TemplateDesignerView {
             let fields = Array(Set(context.records.filter { $0.collection.caseInsensitiveCompare(sub) == .orderedSame }.prefix(20).flatMap { $0.values.keys })).sorted()
             VStack(alignment: .leading, spacing: 6) {
                 Text("Category").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                Picker("", selection: Binding(get: { category.category }, set: { value in
+                SearchablePick(title: "Choose a category", options: tree.map { $0.category }, symbol: { _ in "folder" }, selection: Binding(get: { category.category }, set: { value in
                     libCategory = value
                     libSub = tree.first(where: { $0.category == value })?.names.first ?? ""
                     libField = "name"
-                })) {
-                    ForEach(tree) { group in Text(group.category).tag(group.category) }
-                }
-                .labelsHidden()
+                }))
                 Text("Subcategory").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                Picker("", selection: Binding(get: { sub }, set: { value in libSub = value; libField = "name" })) {
-                    ForEach(category.names, id: \.self) { name in
-                        Label(name, systemImage: MediaFinder.isMediaCollection(name) ? "photo.on.rectangle" : "list.bullet.rectangle").tag(name)
-                    }
-                }
-                .labelsHidden()
+                SearchablePick(title: "Choose a subcategory", options: category.names, symbol: { MediaFinder.isMediaCollection($0) ? "photo.on.rectangle" : "list.bullet.rectangle" },
+                               selection: Binding(get: { sub }, set: { value in libSub = value; libField = "name" }))
                 if !fields.isEmpty && WishPick.clips(in: sub).isEmpty {
                     Text("Show").font(.system(size: 10, weight: .bold)).foregroundStyle(.secondary)
-                    Picker("", selection: $libField) {
-                        Text("Name").tag("name")
-                        ForEach(fields, id: \.self) { field in Text(field).tag(field) }
-                    }
-                    .labelsHidden()
+                    SearchablePick(title: "Name", options: ["name"] + fields, selection: $libField)
                 }
                 Button { addSubcategory(sub, fields: fields) } label: { Label("Add \(sub) to the page", systemImage: "plus.circle.fill") }
                     .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small).disabled(sub.isEmpty)
@@ -1950,8 +2003,8 @@ extension TemplateDesignerView {
         subcategoryPicker(context)
         DisclosureGroup("Variables") {
             VStack(alignment: .leading, spacing: 6) {
-                chipGrid { ForEach(vars.keys.sorted(), id: \.self) { chip($0, "curlybraces", "{{\($0)}}") } }
-                if vars.isEmpty { hint("No variables yet. Add one below, or say \u{201C}make this a variable called name\u{201D}.") }
+                chipGrid { ForEach(DesignDataType.names(vars), id: \.self) { chip($0, DesignDataType.of($0, in: vars).symbol, "{{\($0)}}") } }
+                if DesignDataType.names(vars).isEmpty { hint("No variables yet. Add one below, or say \u{201C}make this a variable called name\u{201D}.") }
                 if onVariablesChange != nil {
                     HStack {
                         TextField("New variable", text: $newVariable).textFieldStyle(.roundedBorder)
@@ -1967,7 +2020,10 @@ extension TemplateDesignerView {
             }
         }
         DisclosureGroup("Functions") {
-            chipGrid { ForEach(DesignFunction.items) { chip($0.title, "function", $0.token) } }
+            VStack(alignment: .leading, spacing: 8) {
+                chipGrid { ForEach(DesignFunction.items) { chip($0.title, "function", $0.token) } }
+                FunctionPickerList { applyPayload($0, at: nil) }
+            }
         }
         DisclosureGroup("Pictures and videos") {
             VStack(alignment: .leading, spacing: 6) {

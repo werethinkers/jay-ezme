@@ -55,15 +55,43 @@ enum DesignContent {
         if let regex {
             let nsText = text as NSString
             let matches = regex.matches(in: text, range: NSRange(location: 0, length: nsText.length))
+            let formulas = formulaRanges(in: text)
             for match in matches.reversed() {
                 let inner = nsText.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespacesAndNewlines)
-                let value = token(inner, values: values, designing: designing)
+                var value = token(inner, values: values, designing: designing)
+                // Inside a formula an amount like 1,25,000 counts as the number 125000, so it still multiplies and adds.
+                if formulas.contains(where: { NSLocationInRange(match.range.location, $0) }), !inner.hasPrefix("@"), !inner.lowercased().hasPrefix("shortcut:"),
+                   !(match.range.location > 0 && nsText.substring(with: NSRange(location: match.range.location - 1, length: 1)) == "\""),
+                   let plain = DesignDataType.numeric(value) { value = plain }
                 output = (output as NSString).replacingCharacters(in: match.range, with: value)
             }
         }
         var context = WishContext()
         context.variables = values
         return WishFormula.render(output, context: context)
+    }
+
+    /// The stretches of text that are inside {= ... }, where variables are numbers and not words.
+    private static func formulaRanges(in text: String) -> [NSRange] {
+        let chars = Array(text.utf16)
+        var ranges: [NSRange] = []
+        var i = 0
+        var start = -1
+        while i < chars.count {
+            if start < 0 {
+                if chars[i] == 123, i + 1 < chars.count, chars[i + 1] == 61 { start = i; i += 2; continue }
+            } else if chars[i] == 123, i + 1 < chars.count, chars[i + 1] == 123 {
+                i += 2
+                while i + 1 < chars.count, !(chars[i] == 125 && chars[i + 1] == 125) { i += 1 }
+                i += 2
+                continue
+            } else if chars[i] == 125 {
+                ranges.append(NSRange(location: start, length: i - start + 1))
+                start = -1
+            }
+            i += 1
+        }
+        return ranges
     }
 
     @MainActor private static func token(_ inner: String, values: [String: String], designing: Bool) -> String {
@@ -300,7 +328,7 @@ enum TemplateLinks {
     @MainActor static func fieldKeys(for link: String) -> [String] {
         var keys: [String] = []
         for page in pages(for: link) { for key in page.fieldKeys where !keys.contains(key) { keys.append(key) } }
-        for key in (design(link)?.variables.keys.sorted() ?? []) where !keys.contains(key) { keys.append(key) }
+        for key in DesignDataType.names(design(link)?.variables ?? [:]) where !keys.contains(key) { keys.append(key) }
         return keys
     }
 
@@ -320,7 +348,16 @@ enum DesignFill {
         let pages = TemplateLinks.pages(for: link)
         guard !pages.isEmpty else { throw NSError(domain: "KeyDoTemplates", code: 3, userInfo: [NSLocalizedDescriptionKey: "The template is missing."]) }
         let design = TemplateLinks.design(link)
-        let given = values.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        var given = values.filter { !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if let design {
+            // A value that does not fit its data type (a word in a phone box) is left out, so the last or ready value is used.
+            for field in DesignFields.fields(pages: pages, variables: design.variables) where field.dataType != .text && field.dataType != .long {
+                for (key, value) in given where TemplateFill.normal(key) == TemplateFill.normal(field.key) {
+                    let check = field.dataType.check(value)
+                    if check.ok { given[key] = check.clean } else { given[key] = nil }
+                }
+            }
+        }
         var merged = merge(TemplateLinks.variables(for: link), design.map { DesignMemory.last($0.id) } ?? [:], given)
         if let design {
             // Anything still empty uses the first item of its collection, so the app never stops to ask.
@@ -428,6 +465,8 @@ enum DesignAction {
     case insertToken(String)
     case replace(String, String, variable: String?)
     case variable(String, String)
+    case variableType(String, DesignDataType)
+    case makeTypedVariable(String, DesignDataType)
     case makeVariable(String)
     case imageFrom(String)
     case fontSize(Double), fontScale(Double)
@@ -443,6 +482,11 @@ enum DesignCommand {
         "light blue": "#BFE3F7", "sky blue": "#8FC8EE", "navy": "#1B2A5C", "blue": "#2F6FDB", "dark green": "#1E6B43", "green": "#2E9E5B",
         "orange": "#F28A2E", "yellow": "#F2C230", "purple": "#7B52B8", "violet": "#7B52B8", "gold": "#C9A227", "silver": "#B8BDC4",
         "grey": "#777777", "gray": "#777777", "brown": "#8B5A2B", "teal": "#1A9AA0", "maroon": "#7A1F2B", "cream": "#FFF4DC",
+        "dark red": "#8B1A1A", "light green": "#BFE8C8", "dark blue": "#1B3A8C", "royal blue": "#2A4BD7", "light grey": "#DADDE1", "light gray": "#DADDE1",
+        "dark grey": "#444444", "dark gray": "#444444", "sky": "#8FC8EE", "coral": "#FF6F61", "beige": "#F2E6D0", "indigo": "#3F3D9C", "olive": "#6B7A2F",
+        "cyan": "#20C4E0", "lime": "#9BD43A", "rose": "#E8527A", "charcoal": "#2B2F33", "khaki": "#C3B091", "burgundy": "#6D1230", "saffron": "#F4802A",
+        "emerald": "#169B62", "wine": "#722F37", "chocolate": "#5A3A22", "ivory": "#FFFFF0", "tan": "#D2B48C", "aqua": "#3FD0D4", "sand": "#E2CFA6",
+        "rust": "#B7410E", "plum": "#7E3A6B", "blush": "#F6D1D5", "dark orange": "#D96A0B", "dark purple": "#4B2A7A", "dark pink": "#C2467E",
         "peach": "#FFD9C0", "lavender": "#E6DCF7", "mint": "#CFEFD9", "magenta": "#C2188B", "turquoise": "#2CC4C0"
     ]
 
@@ -473,18 +517,8 @@ enum DesignCommand {
     }
 
     private static func functionToken(_ name: String) -> String {
-        let lower = name.lowercased().trimmingCharacters(in: .whitespaces)
-        if lower.contains("(") { return "{=\(name.uppercased())}" }
-        switch lower {
-        case "date", "today", "todays date", "today's date", "current date": return "{=TODAY()}"
-        case "time", "current time": return "{=time}"
-        case "now", "date and time": return "{=now}"
-        case "month": return "{=month}"
-        case "year": return "{=year}"
-        case "day": return "{=day}"
-        case "weekday", "day of week": return "{=weekday}"
-        default: return "{=\(name.uppercased())()}"
-        }
+        if name.contains("(") { return "{=\(name.uppercased())}" }
+        return DesignFormulaSpeech.token(name)
     }
 
     private static func one(_ s: String) -> DesignAction {
@@ -519,6 +553,12 @@ enum DesignCommand {
             return .replace(m[1], "{{@\(m[2])/\(m[3])\(field)}}", variable: nil)
         }
         if let m = match("^replace\\s+(.+?)\\s+with\\s+(.+)$", s) { return .replace(m[1], m[2], variable: nil) }
+        if let m = match("^(?:make|turn)\\s+(?:this|it|that|selected|the box)\\s+(?:into\\s+)?(?:a\\s+)?variable\\s+(?:called\\s+|named\\s+)?(.+?)\\s+(?:of\\s+|with\\s+)?(?:data\\s+)?(?:type|as)\\s+(?:a\\s+|an\\s+)?(.+)$", s), let type = DesignDataType.spoken(m[2]) {
+            return .makeTypedVariable(m[1].trimmingCharacters(in: .whitespaces), type)
+        }
+        if let m = match("^(?:set\\s+|change\\s+)?(?:the\\s+)?(?:variable\\s+)?(.+?)\\s+(?:data\\s+)?type\\s+(?:to\\s+|is\\s+|as\\s+)?(?:a\\s+|an\\s+)?(.+)$", s), let type = DesignDataType.spoken(m[2]) {
+            return .variableType(m[1].trimmingCharacters(in: .whitespaces), type)
+        }
         if let m = match("^(?:make|turn)\\s+(?:this|it|that|selected|the box)\\s+(?:into\\s+)?(?:a\\s+)?variable\\s+(?:called\\s+|named\\s+)?(.+)$", s) { return .makeVariable(m[1].trimmingCharacters(in: .whitespaces)) }
         if let m = match("^(?:set\\s+)?variable\\s+(.+?)\\s+(?:to|is|equals|=)\\s+(.+)$", s) { return .variable(m[1].trimmingCharacters(in: .whitespaces), m[2]) }
         if let m = match("^(?:use|pick|choose|select|put|insert|add)\\s+(?:a\\s+|the\\s+|any\\s+)?(?:wish|wishes|message|messages)\\s+(?:from\\s+)?(?:the\\s+)?(.+?)(?:\\s+(?:collection|wishes|messages))?$", s), !m[1].lowercased().hasPrefix("variable") {
@@ -582,7 +622,7 @@ enum DesignCommand {
 
         // Look: colours, fonts, style
         var colorName: String?
-        for name in colors.keys.sorted(by: { $0.count > $1.count }) where l.contains(name) { colorName = name; break }
+        for name in colors.keys.sorted(by: { $0.count > $1.count }) where match("(?<![a-z])" + NSRegularExpression.escapedPattern(for: name) + "(?![a-z])", l) != nil { colorName = name; break }
         var hex = colorName.flatMap { colors[$0] }
         if let m = match("(#[0-9a-f]{6})", l) { hex = m[1].uppercased() }
         if let hex {
@@ -631,6 +671,8 @@ enum DesignCommand {
         if l.contains("taller") { return .scale(w: 1, h: 1.15) }
         if l.contains("shorter") { return .scale(w: 1, h: 0.87) }
 
+        // A formula said on its own, with no brackets and no "formula" word: "days to event date", "today plus 7".
+        if let token = DesignFormulaSpeech.recognise(s) { return .insertToken(token) }
         return .unknown(s)
     }
 

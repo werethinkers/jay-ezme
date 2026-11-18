@@ -53,6 +53,8 @@ enum DesignVoiceFill {
             case .wish:
                 guard let clip = WishPick.find(value, in: hit.field.collection ?? "") else { continue }
                 value = clip.key
+            case .text where hit.field.dataType != .text:
+                value = hit.field.dataType.fromSpeech(value)
             default: break
             }
             result[hit.field.key] = value
