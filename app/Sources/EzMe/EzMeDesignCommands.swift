@@ -105,7 +105,7 @@ import AppKit
     }
 
     private static func popupFormat(_ design: AppDesign) -> String {
-        switch DesignFormat.from(design.outputFormat) ?? .png {
+        switch DesignDynamic.format(design) {
         case .png, .gif: return "Image"
         case .pdf, .docx: return "PDF"
         case .html: return "HTML"

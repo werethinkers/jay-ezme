@@ -105,7 +105,7 @@ enum LaunchScope { case apps, contacts, everything }
         }
         if scope != .contacts {
             for design in publishedApps where hits(design.appTitle ?? design.name) {
-                let format = DesignFormat.from(design.outputFormat) ?? (design.pages.count > 1 ? .pdf : .png)
+                let format = DesignDynamic.format(design)
                 result.append(LaunchSuggestion(id: "app:" + design.id, kind: .app, title: design.appTitle ?? design.name, subtitle: "App \u{00B7} makes \(format.title)", symbol: "paintpalette.fill", designID: design.id))
             }
         }

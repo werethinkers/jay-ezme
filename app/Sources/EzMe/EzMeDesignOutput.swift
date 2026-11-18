@@ -234,10 +234,14 @@ enum DesignOutput {
                 case .text:
                     var text = made.texts[key] ?? ""
                     if text.isEmpty { continue }
+                    var liveHTML: String? = nil
+                    if let content = slot.content, content.contains("{="), (values.first { TemplateFill.normal($0.key) == key }?.value ?? "").isEmpty, !slot.uppercase {
+                        liveHTML = DesignLiveText.html(content: content, values: values.reduce(into: [:]) { $0[TemplateFill.normal($1.key)] = $1.value }, escape: { xml($0) })
+                    }
                     if slot.uppercase { text = text.uppercased() }
                     let justify = slot.align == "left" ? "flex-start" : (slot.align == "right" ? "flex-end" : "center")
                     style += "justify-content:\(justify);text-align:\(slot.align == "center" ? "center" : slot.align);color:\(slot.colorHex);font-family:'\(slot.fontName)',sans-serif;font-weight:\(slot.bold ? 700 : 400);font-style:\(slot.italic ? "italic" : "normal");"
-                    boxes += "<div class=\"box\" style=\"\(style)\"><span class=\"t\" data-fs=\"\(css(slot.fontSize))\">\(xml(text).replacingOccurrences(of: "\n", with: "<br>"))</span></div>"
+                    boxes += "<div class=\"box\" style=\"\(style)\"><span class=\"t\" data-fs=\"\(css(slot.fontSize))\">\(liveHTML ?? xml(text).replacingOccurrences(of: "\n", with: "<br>"))</span></div>"
                 case .image:
                     if let picture = made.images[key] { boxes += "<div class=\"box\" style=\"\(style)\"><img src=\"\(dataURI(picture, maxSide: 900))\"></div>" }
                 case .logo:
@@ -260,7 +264,8 @@ enum DesignOutput {
         </style></head><body>\(sections)
         <script>
         function fit(){document.querySelectorAll('.page').forEach(function(p){var H=p.clientHeight;p.querySelectorAll('.box').forEach(function(b){var t=b.querySelector('.t');if(!t)return;var fs=parseFloat(t.dataset.fs)||0;var size=fs>0?fs*H:b.clientHeight*0.8;t.style.fontSize=size+'px';var n=0;while((t.scrollHeight>b.clientHeight+1||t.scrollWidth>b.clientWidth+1)&&size>5&&n<80){size*=0.94;t.style.fontSize=size+'px';n++}})})}
-        window.addEventListener('load',fit);window.addEventListener('resize',fit);
+        window.addEventListener('load',live);window.addEventListener('resize',fit);
+        \(DesignLiveText.script)
         </script></body></html>
         """
     }

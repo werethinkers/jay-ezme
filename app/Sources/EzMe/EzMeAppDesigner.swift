@@ -122,6 +122,8 @@ struct AppDesign: Codable, Identifiable, Hashable {
     var variants: [DesignVariant]? = nil
     /// The name of the default template, at most 6 letters. temp1 until the person renames it.
     var mainName: String? = nil
+    /// True once the person picked the format themselves; until then a countdown design delivers a web page.
+    var formatPinned: Bool? = nil
 }
 
 @MainActor final class AppDesignStore: ObservableObject {
@@ -325,7 +327,7 @@ enum DesignFill {
             DesignDefaults.fillMerged(DesignFields.fields(pages: pages, variables: design.variables), into: &merged)
             DesignMemory.remember(design.id, values: given)
         }
-        let format = DesignFormat.from(design?.outputFormat) ?? (pages.count > 1 ? .pdf : .png)
+        let format = DesignDynamic.format(design, pages: pages)
         return try DesignOutput.write(format: format, pages: pages, values: merged, clips: clips, title: design?.appTitle ?? design?.name ?? "Design", directory: directory, stem: stem)
     }
 }
@@ -897,15 +899,15 @@ struct AppDesignEditor: View {
                         return changed
                     },
                     designTitle: design.appTitle ?? design.name,
-                    outputFormat: design.outputFormat,
+                    outputFormat: DesignDynamic.format(design).rawValue,
                     onOutputFormatChange: { format in
-                        if var current = designs.design(id: designID) { current.outputFormat = format; designs.save(current) }
+                        if var current = designs.design(id: designID) { current.outputFormat = format; current.formatPinned = true; designs.save(current) }
                     },
                     onMakeFile: { values in
                         guard let current = designs.design(id: designID) else { return "The design is missing." }
                         let drafts = current.pages.compactMap { templates.template(id: $0) }
                         guard !drafts.isEmpty else { return "The design has no pages." }
-                        let format = DesignFormat.from(current.outputFormat) ?? (drafts.count > 1 ? .pdf : .png)
+                        let format = DesignDynamic.format(current, pages: drafts)
                         let merged = DesignFill.merge(current.variables, values.filter { !$0.value.isEmpty })
                         let stem = current.name.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { !$0.isEmpty }.joined(separator: "-")
                         do {

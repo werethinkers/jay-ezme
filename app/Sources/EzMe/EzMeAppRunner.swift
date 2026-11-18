@@ -193,7 +193,7 @@ struct AppDesignRunView: View {
         guard let design else { return [] }
         return DesignFields.fields(pages: AppDesignStore.shared.activePages(design, token: previewToken), variables: design.variables)
     }
-    private var format: DesignFormat { DesignFormat.from(design?.outputFormat) ?? ((design.map { AppDesignStore.shared.activePages($0).count } ?? 1) > 1 ? .pdf : .png) }
+    private var format: DesignFormat { DesignDynamic.format(design, pages: design.map { AppDesignStore.shared.activePages($0, token: previewToken) }) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -470,7 +470,7 @@ struct PublishedAppsStrip: View {
             } else {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170, maximum: 240), spacing: 10)], spacing: 10) {
                     ForEach(published) { design in
-                        let format = DesignFormat.from(design.outputFormat) ?? (design.pages.count > 1 ? .pdf : .png)
+                        let format = DesignDynamic.format(design)
                         Button { running = design.id } label: {
                             HStack(spacing: 10) {
                                 Image(systemName: format.symbol).foregroundStyle(.white).frame(width: 34, height: 34).background(Butter.coral, in: RoundedRectangle(cornerRadius: 9))

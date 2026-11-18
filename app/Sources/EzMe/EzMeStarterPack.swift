@@ -114,9 +114,9 @@ private struct Sheet {
             Entry(id: "ad", title: "Product ad", detail: "Headline, round product photo, benefit pills and a button. Image.", symbol: "megaphone.fill", make: productAd),
             Entry(id: "appointment", title: "Appointment letter (2 pages)", detail: "Letter with details table, then terms and acceptance. PDF.", symbol: "doc.on.doc.fill", make: appointmentLetter),
             Entry(id: "invite", title: "Invitation", detail: "Gold on midnight: event, host, date, venue and RSVP. Image.", symbol: "envelope.open.fill", make: invitation),
-            Entry(id: "savethedate", title: "Save the date with countdown", detail: "Counts the days to go from today. Image.", symbol: "heart.circle.fill", make: saveTheDate),
+            Entry(id: "savethedate", title: "Save the date with countdown", detail: "Counts the days to go, fresh every time it opens. Web page.", symbol: "heart.circle.fill", make: saveTheDate),
             Entry(id: "certificate", title: "Certificate of appreciation", detail: "Wide certificate with a gold seal. PDF.", symbol: "rosette", make: certificate),
-            Entry(id: "festival", title: "Festival countdown story", detail: "Tall story with days-to-go and your wish. Image.", symbol: "sparkles", make: festivalStory),
+            Entry(id: "festival", title: "Festival countdown story", detail: "Tall story with live days-to-go and your wish. Web page.", symbol: "sparkles", make: festivalStory),
             Entry(id: "hiring", title: "We are hiring post", detail: "Role, three requirements, pay and how to apply. Image.", symbol: "person.badge.plus", make: hiringPost),
             Entry(id: "quotation", title: "Quotation", detail: "Three items; works out amounts, GST and total. PDF.", symbol: "indianrupeesign.circle.fill", make: quotation)
         ]
@@ -341,7 +341,7 @@ private struct Sheet {
 
     private static func saveTheDate() -> AppDesign? {
         let vars = ["couple": "Aarav & Meera", "eventdate": "14 February 2027", "venue": "Udaipur, Rajasthan", "note": "Formal invitation to follow"]
-        return build("Save the date", width: 1080, height: 1080, color: "#FDF0F0", format: .png, variables: vars, pages: [{ s in
+        return build("Save the date", width: 1080, height: 1080, color: "#FDF0F0", format: .html, variables: vars, pages: [{ s in
             s.dot("Outer ring", x: 0.07, y: 0.07, d: 0.86, fill: "#F2A7B5")
             s.dot("Inner disc", x: 0.1, y: 0.1, d: 0.8, fill: "#FFF8F6")
             s.text("Kicker", "Save the date", x: 0.2, y: 0.2, w: 0.6, h: 0.05, size: 0.03, color: "#B23A5B", font: "Futura", upper: true)
@@ -384,7 +384,7 @@ private struct Sheet {
         let wish = wishToken(["festival", "diwali", "holi", "navratri", "eid", "christmas"])
         var vars = ["festival": "Happy Diwali", "festivaldate": "8 November 2027", "name": "Dear Rahul", "from": "Priya and family"]
         if wish == nil { vars["greeting"] = "May the festival of lights fill your home with joy, prosperity and sweet moments." }
-        return build("Festival countdown story", width: 1080, height: 1920, color: "#2D0A4E", format: .png, variables: vars, pages: [{ s in
+        return build("Festival countdown story", width: 1080, height: 1920, color: "#2D0A4E", format: .html, variables: vars, pages: [{ s in
             s.dot("Glow", x: 0.1, y: 0.05, d: 0.8, fill: "#6A1B9A")
             s.dot("Sun", x: 0.15, y: 0.08, d: 0.7, fill: "#FF9E00")
             s.dot("Sun inner", x: 0.2, y: 0.115, d: 0.6, fill: "#FFC300")
