@@ -1,3 +1,3 @@
-# KeyDo 3.72
+# KeyDo 3.73
 
-- **Bulk shortcuts:** pasting a table (rows like `| a.story1 | text |`) now works. The first cell is the shortcut, kept as typed (letters, digits and dots such as `a.story1`). The text after it is the expanded text, and the name is made from it. The header row and the `| --- |` divider row are skipped, and a `|` inside the text stays in the text.
+- **Collections:** deleting selected shortcuts (or all of them with Select all) now removes them in one go and the list updates straight away. Before, the shortcuts were removed in the background but the collection list kept showing them until you switched collections.
