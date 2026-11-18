@@ -73,7 +73,7 @@ import AppKit
 }
 
 /// A small picture, or a film icon for a video.
-struct MediaThumb: View {
+struct MediaClipThumb: View {
     var clip: Clip
     var body: some View {
         Group {
@@ -108,7 +108,7 @@ struct MediaSuggestions: View {
                 ForEach(hits, id: \.id) { clip in
                     Button { onPick(clip) } label: {
                         HStack(spacing: 8) {
-                            MediaThumb(clip: clip)
+                            MediaClipThumb(clip: clip)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(clip.name.isEmpty ? clip.key : clip.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
                                 Text(clip.key + (mediaDescription(clip).isEmpty ? "" : "  \u{00B7}  " + mediaDescription(clip))).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
@@ -147,7 +147,7 @@ struct MediaChooserList: View {
                     ForEach(clips, id: \.id) { clip in
                         Button { onPick(clip) } label: {
                             HStack(spacing: 8) {
-                                MediaThumb(clip: clip)
+                                MediaClipThumb(clip: clip)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(clip.name.isEmpty ? clip.key : clip.name).font(.system(size: 12, weight: .semibold)).lineLimit(1)
                                     Text(clip.key).font(.system(size: 10, weight: .bold)).foregroundStyle(Butter.coral)
