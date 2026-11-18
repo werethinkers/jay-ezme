@@ -1,9 +1,9 @@
 {
-  "version": "3.71",
-  "build": 372,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.71-build372/EzMe-3.71-macOS.zip",
-  "sha256": "ef260e83b4790266fe433c7c367c988a5817ebcf29cea3071633f7c53b7898f0",
-  "notes": "# KeyDo 3.71\n\n- **Collections:** every collection an app creates on its own is now remembered and kept inside the folded \"Apps\" folder, so it no longer fills your list. Unfold Apps to see them.\n- **Order:** collections are listed alphabetically within each category, and the 3 most recently created collections show first in a \"Latest\" group.",
-  "published": "2026-11-18T20:54:38Z",
+  "version": "3.72",
+  "build": 373,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.72-build373/EzMe-3.72-macOS.zip",
+  "sha256": "deebc1c1815ee93ade860ebafe35b0493fe31b13dee449a28da0294a83b1422f",
+  "notes": "# KeyDo 3.72\n\n- **Bulk shortcuts:** pasting a table (rows like `| a.story1 | text |`) now works. The first cell is the shortcut, kept as typed (letters, digits and dots such as `a.story1`). The text after it is the expanded text, and the name is made from it. The header row and the `| --- |` divider row are skipped, and a `|` inside the text stays in the text.",
+  "published": "2026-11-18T21:16:58Z",
   "minimumSystemVersion": "14.0"
 }
