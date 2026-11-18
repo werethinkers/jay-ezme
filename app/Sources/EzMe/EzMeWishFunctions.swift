@@ -630,6 +630,7 @@ struct WishEvaluator {
         case "timestamp": return .text(ISO8601DateFormatter().string(from: now))
         case "uuid": return .text(UUID().uuidString)
         case "pi": return .number(Double.pi)
+        case _ where LiveData.words.contains(key): return LiveData.evaluate(key, args: [], now: now) ?? .error("#NAME?")
         case "true": return .bool(true)
         case "false": return .bool(false)
         default: break
@@ -1370,6 +1371,7 @@ struct WishEvaluator {
         case "WORLDCLOCK":
             return .text(WishFormula.worldClock(s(0), now: context.now))
         default:
+            if let live = LiveData.evaluate(name, args: v.map { $0.display(context) }, now: context.now) { return live }
             return .error("#NAME?")
         }
     }
@@ -1408,7 +1410,7 @@ struct WishFunctionInfo: Identifiable, Hashable {
 }
 
 enum WishFunctionCatalog {
-    static let categories = ["Date & time", "Text", "Logic", "Math", "Lists", "KeyDo extras"]
+    static let categories = ["Date & time", "Text", "Logic", "Math", "Lists", "KeyDo extras", "Live & place"]
 
     /// Words that work on their own, without brackets.
     static let words: [WishFunctionInfo] = [
@@ -1427,7 +1429,9 @@ enum WishFunctionCatalog {
         WishFunctionInfo("UUID", "=UUID", "A new unique ID each time.", "Date & time"),
     ]
 
-    static let all: [WishFunctionInfo] = [
+    static var all: [WishFunctionInfo] { base + live }
+
+    private static let base: [WishFunctionInfo] = [
         // Date & time
         WishFunctionInfo("TODAY", "TODAY()", "Today's date.", "Date & time"),
         WishFunctionInfo("NOW", "NOW()", "Date and time now.", "Date & time"),

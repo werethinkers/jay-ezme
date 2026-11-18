@@ -921,6 +921,9 @@ struct TemplateDesignerView: View {
             card("This box") {
                 TextField("Box name, like name or amount", text: $template.slots[index].key).textFieldStyle(.roundedBorder)
                 hint("Apps fill this box when a field has this name.")
+                Button { makeFixed(index) } label: { Label(slot.kind == .image ? "Make this picture fixed" : "Turn variables here into fixed text", systemImage: "pin") }
+                    .buttonStyle(.bordered)
+                hint("Fixed means the ready value is printed as is and the form stops asking for it.")
                 Picker("", selection: $template.slots[index].kind) {
                     ForEach(TemplateSlotKind.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.pickerStyle(.segmented).labelsHidden()
@@ -1410,6 +1413,35 @@ extension TemplateDesignerView {
         DesignDataType.set(type, for: name, in: &vars)
         tidyVariable(name)
         onVariablesChange?(vars)
+    }
+
+    /// Turns a box that is filled by a variable into fixed text, or fixed media when the box is a picture.
+    func makeFixed(_ index: Int) {
+        guard index < template.slots.count else { return }
+        var slot = template.slots[index]
+        let names = DesignDataType.names(vars)
+        if slot.kind == .image {
+            let value = vars[slot.key] ?? vars[TemplateFill.normal(slot.key)] ?? ""
+            guard !value.isEmpty else { message = "Give this picture a ready value first (a shortcut name or a file)."; return }
+            pushUndo(); slot.content = value; slot.sample = ""
+            template.slots[index] = slot
+            message = "This picture is now fixed."
+            return
+        }
+        var text = slot.content ?? "{{\(slot.key)}}"
+        var changed = false
+        for name in names {
+            let token = "{{\(name)}}"
+            if text.contains(token) {
+                let value = vars[name] ?? ""
+                guard !value.isEmpty else { message = "\(name) has no ready value yet. Type one in the variables list first."; return }
+                text = text.replacingOccurrences(of: token, with: value); changed = true
+            }
+        }
+        guard changed else { message = "Nothing to fix here: this box has no variable in it."; return }
+        pushUndo(); slot.content = text; slot.sample = text
+        template.slots[index] = slot
+        message = "Those variables are now fixed text."
     }
 
     func tidyVariable(_ name: String) {

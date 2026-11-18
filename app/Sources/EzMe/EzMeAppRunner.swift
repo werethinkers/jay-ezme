@@ -232,6 +232,7 @@ struct AppDesignRunView: View {
         .environment(\.colorScheme, .light)
         .preferredColorScheme(.light)
         .onAppear {
+            LiveData.prefetch()
             DesignTemplates.ensure(designID)
             guide.fields = { fields }
             guide.values = { values }

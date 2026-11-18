@@ -3,6 +3,7 @@
 // 3 name the app, choose its command word and say which boxes are mandatory.
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // MARK: - Kinds of app
 
@@ -118,6 +119,8 @@ struct WizardElement: Identifiable, Equatable {
     var sub = ""
     var field = "name"
     var defaultValue = ""
+    /// Fixed: the ready value or media is printed on the page and the form never asks for it.
+    var fixed = false
     var formula = ""
     var text = ""
     var cx = 0.5, cy = 0.5, w = 0.7, h = 0.07
@@ -133,6 +136,15 @@ struct WizardElement: Identifiable, Equatable {
 @MainActor enum WizardBuilder {
     static func slot(for e: WizardElement) -> TemplateSlot {
         var slot: TemplateSlot
+        if e.fixed, e.kind != .function, e.kind != .text, !e.defaultValue.isEmpty {
+            let media = e.kind == .picture || e.isMediaCollection
+            slot = TemplateSlot(key: e.kind == .collection && !e.sub.isEmpty ? e.sub : e.name, kind: media ? .image : .text)
+            if media { slot.content = e.defaultValue; slot.sample = "" }
+            else if e.kind == .variable { slot.content = e.defaultValue; slot.sample = e.defaultValue }
+            else { slot.content = "{{shortcut:\(e.defaultValue)}}"; slot.sample = e.defaultValue }
+            slot.cx = e.cx; slot.cy = e.cy; slot.w = e.w; slot.h = e.h
+            return slot
+        }
         switch e.kind {
         case .variable:
             slot = TemplateSlot(key: e.name, kind: .text)
@@ -169,6 +181,7 @@ struct WizardElement: Identifiable, Equatable {
     static func variables(for elements: [WizardElement]) -> [String: String] {
         var vars: [String: String] = [:]
         for e in elements {
+            if e.fixed, e.kind != .function, e.kind != .text, !e.defaultValue.isEmpty { continue }
             switch e.kind {
             case .variable:
                 vars[e.name] = e.defaultValue
@@ -812,6 +825,13 @@ struct ElementEditor: View {
     var onDelete: () -> Void
     private var context: AppDesignContext { AppDesignContext.shared }
 
+    @ViewBuilder private func fixedToggle(label: String) -> some View {
+        if !element.defaultValue.isEmpty {
+            Toggle(label, isOn: Binding(get: { element.fixed }, set: { element.fixed = $0; if $0 { element.required = false }; onChange() }))
+                .toggleStyle(.checkbox).font(.system(size: 11))
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
@@ -835,6 +855,7 @@ struct ElementEditor: View {
                         .onSubmit { let check = element.type.check(element.defaultValue); if check.ok { element.defaultValue = check.clean }; onChange() }
                 }
                 if !element.defaultValue.isEmpty { DesignTypeNote(type: element.type, text: element.defaultValue) }
+                fixedToggle(label: "Make this fixed text (printed as is, never asked)")
             case .collection:
                 let tree = context.collectionTree
                 HStack(spacing: 8) {
@@ -852,6 +873,7 @@ struct ElementEditor: View {
                                        selection: Binding(get: { element.defaultValue }, set: { element.defaultValue = $0; onChange() })).frame(width: 190)
                     }
                     Text("The default is filled in when nothing is chosen. Expanded text or media from this subcategory is used as is.").font(.system(size: 10)).foregroundStyle(.secondary)
+                    fixedToggle(label: element.isMediaCollection ? "Make the default media fixed (always this one)" : "Make the default shortcut fixed text (always this one)")
                 } else {
                     Text("Pick the subcategory this box draws from.").font(.system(size: 10)).foregroundStyle(Color(red: 0.74, green: 0.18, blue: 0.1))
                 }
@@ -865,6 +887,17 @@ struct ElementEditor: View {
                 }
             case .picture:
                 Text("Filled with a shortcut name, a collection picture or an image the person adds.").font(.system(size: 10)).foregroundStyle(.secondary)
+                HStack(spacing: 8) {
+                    Button(element.defaultValue.isEmpty ? "Choose a fixed picture\u{2026}" : "Change fixed picture") {
+                        let panel = NSOpenPanel()
+                        panel.allowedContentTypes = [.image]
+                        if panel.runModal() == .OK, let url = panel.url { element.defaultValue = url.path; element.fixed = true; onChange() }
+                    }
+                    if !element.defaultValue.isEmpty {
+                        Text(URL(fileURLWithPath: element.defaultValue).lastPathComponent).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
+                        Button("Ask each time instead") { element.defaultValue = ""; element.fixed = false; onChange() }.buttonStyle(.plain).font(.system(size: 10)).foregroundStyle(Butter.coral)
+                    }
+                }
             case .text:
                 TextField("Words on the page", text: $element.text).textFieldStyle(.roundedBorder).onSubmit { onChange() }
             }
