@@ -21,14 +21,29 @@ enum BulkRows {
     /// "shortcut" then the text: the first word is the shortcut, the rest is the expanded text, and the name is made from it.
     static func smart(_ text: String, split: (String) -> [String]) -> [[String]] {
         var rows: [[String]] = []
+        var tableWidth = 0
         for line in text.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { continue }
             var columns: [String]
+            var tableCells: [String]? = nil
+            if trimmed.hasPrefix("|") {
+                // A table copied from a web page or chat: | Shortcut | Text |
+                var cells = trimmed.components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
+                if cells.first == "" { cells.removeFirst() }
+                if cells.last == "" { cells.removeLast() }
+                if cells.allSatisfy({ $0.range(of: "^:?-{2,}:?$", options: .regularExpression) != nil }) { continue }
+                let head = (cells.first ?? "").lowercased().replacingOccurrences(of: " ", with: "")
+                if rows.isEmpty, tableWidth == 0, ["shortcut", "shortcuts", "key", "code", "trigger", "shortcutcode", "abbreviation"].contains(head) { tableWidth = cells.count; continue }
+                if tableWidth > 0, cells.count > tableWidth { cells = Array(cells.prefix(tableWidth - 1)) + [cells.dropFirst(tableWidth - 1).joined(separator: " | ")] }
+                tableCells = cells
+            }
             let delimited = trimmed.contains("\t") ? trimmed.components(separatedBy: "\t") : (trimmed.contains(",") ? split(trimmed) : [trimmed])
             let first = delimited.first?.trimmingCharacters(in: .whitespaces) ?? ""
             let structured = delimited.count > 1 && !first.isEmpty && !first.contains(" ")
-            if structured {
+            if let cells = tableCells {
+                columns = cells
+            } else if structured {
                 columns = delimited.map { $0.trimmingCharacters(in: .whitespaces) }
             } else {
                 // First word is the shortcut; separators like ":" or "=" right after it are dropped.
@@ -39,6 +54,7 @@ enum BulkRows {
                 columns = [key, rest]
             }
             while columns.count < 3 { columns.append("") }
+            columns[0] = columns[0].trimmingCharacters(in: CharacterSet(charactersIn: "`\\/ *_\t"))
             let key = columns[0]
             guard !key.isEmpty else { continue }
             var phrase = columns[1], name = columns[2]
