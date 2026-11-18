@@ -90,12 +90,7 @@ enum DesignElementTokens {
         var id: String { title }
     }
 
-    static let functions: [Function] = [
-        Function(title: "Today's date", token: "{=TODAY()}"), Function(title: "Date + 7 days", token: "{=Date+7}"),
-        Function(title: "Time", token: "{=time}"), Function(title: "Date and time", token: "{=now}"),
-        Function(title: "Month", token: "{=month}"), Function(title: "Year", token: "{=year}"),
-        Function(title: "Day of week", token: "{=weekday}")
-    ]
+    static let functions: [Function] = DesignFunction.items.map { Function(title: $0.title, token: $0.token) }
 
     /// A name for a new box made from a token: the variable, the collection, or "function".
     static func boxName(_ token: String) -> String {

@@ -364,7 +364,7 @@ struct TemplateDesignerView: View {
     var onMakeFile: (([String: String]) -> String)? = nil
     var onRename: ((String) -> (name: String, command: String))? = nil
     enum SideTab: Hashable { case library, box, page }
-    @State private var openSections: Set<String> = ["add", "box", "library"]
+    @State private var openSections: Set<String> = ["add", "box"]
     @State private var formValues: [String: String] = [:]
     @State private var commandWord = ""
     @State private var appName = ""
@@ -778,7 +778,6 @@ struct TemplateDesignerView: View {
                         boxesCard
                     }
                 }
-                section("library", "Library", "books.vertical") { libraryPanel }
                 section("page", "Page", "doc.richtext") {
                     if mode == .erase { hint("Pick a shape at the top of the page (rectangle, square, circle, triangle, points or free hand), then draw around what to remove. Only the inside of the shape is erased.") }
                     if onVariablesChange != nil { variablesCard }
@@ -874,9 +873,7 @@ struct TemplateDesignerView: View {
             HStack(spacing: 6) {
                 Button { let name = newVariableName(); addElementBox("{{\(name)}}", name: name) } label: { Label("Variable", systemImage: "curlybraces") }
                 Menu {
-                    ForEach(DesignElementTokens.functions) { item in
-                        Button(item.title) { addElementBox(item.token, name: "function") }
-                    }
+                    DesignFunctionMenu { addElementBox($0.token, name: "function") }
                 } label: { Label("Function", systemImage: "function") }
                     .menuStyle(.borderlessButton).fixedSize()
                 Menu {
@@ -930,6 +927,23 @@ struct TemplateDesignerView: View {
                 Button { makeFixed(index) } label: { Label(slot.kind == .image ? "Make this picture fixed" : "Turn variables here into fixed text", systemImage: "pin") }
                     .buttonStyle(.bordered)
                 hint("Fixed means the ready value is printed as is and the form stops asking for it.")
+                if slot.kind == .text {
+                    let isFixed = !(slot.content ?? "").isEmpty && !(slot.content ?? "").contains("{{") && !(slot.content ?? "").contains("{=")
+                    Picker("", selection: Binding(get: { isFixed }, set: { fixed in
+                        if fixed { template.slots[index].content = slot.sample.isEmpty ? "Your text" : slot.sample }
+                        else { template.slots[index].content = nil }
+                    })) {
+                        Text("Typed each time").tag(false)
+                        Text("Fixed words").tag(true)
+                    }.pickerStyle(.segmented).labelsHidden()
+                    if isFixed {
+                        TextField("The words on the page", text: Binding(get: { template.slots[index].content ?? "" }, set: { template.slots[index].content = $0; template.slots[index].sample = $0 }), axis: .vertical)
+                            .textFieldStyle(.roundedBorder)
+                        hint("Fixed words are printed as they are and are never asked for.")
+                    } else {
+                        hint("The app asks for this text every time it runs.")
+                    }
+                }
                 Picker("", selection: $template.slots[index].kind) {
                     ForEach(TemplateSlotKind.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.pickerStyle(.segmented).labelsHidden()
@@ -1323,12 +1337,50 @@ struct DesignFunction: Identifiable {
     let title: String
     let token: String
     var id: String { token }
-    static let items: [DesignFunction] = [
-        DesignFunction(title: "Today's date", token: "{=TODAY()}"), DesignFunction(title: "Time now", token: "{=time}"),
-        DesignFunction(title: "Date and time", token: "{=now}"), DesignFunction(title: "Month", token: "{=month}"),
-        DesignFunction(title: "Year", token: "{=year}"), DesignFunction(title: "Weekday", token: "{=weekday}"),
-        DesignFunction(title: "Date + 7 days", token: "{=Date+7}"), DesignFunction(title: "Date + 30 days", token: "{=Date+30}")
+    struct FunctionGroup: Identifiable {
+        let title: String
+        let symbol: String
+        let items: [DesignFunction]
+        var id: String { title }
+    }
+
+    /// Every function the Function buttons offer, in groups, so place, weather and money are as easy to find as the date.
+    static let groups: [FunctionGroup] = [
+        FunctionGroup(title: "Date and time", symbol: "calendar", items: [
+            DesignFunction(title: "Today's date", token: "{=TODAY()}"), DesignFunction(title: "Time now", token: "{=time}"),
+            DesignFunction(title: "Date and time", token: "{=now}"), DesignFunction(title: "Month", token: "{=month}"),
+            DesignFunction(title: "Year", token: "{=year}"), DesignFunction(title: "Weekday", token: "{=weekday}"),
+            DesignFunction(title: "Date + 7 days", token: "{=Date+7}"), DesignFunction(title: "Date + 30 days", token: "{=Date+30}"),
+            DesignFunction(title: "Day of the year", token: "{=DAYOFYEAR()}"), DesignFunction(title: "Days left this year", token: "{=YEARLEFT()}")]),
+        FunctionGroup(title: "Where you are", symbol: "location", items: [
+            DesignFunction(title: "City", token: "{=CITY()}"), DesignFunction(title: "Place (area, city, state)", token: "{=PLACE()}"),
+            DesignFunction(title: "Area or neighbourhood", token: "{=AREA()}"), DesignFunction(title: "Place or street name", token: "{=PLACENAME()}"),
+            DesignFunction(title: "State or region", token: "{=REGION()}"), DesignFunction(title: "Country", token: "{=COUNTRY()}"),
+            DesignFunction(title: "Coordinates", token: "{=COORDS()}")]),
+        FunctionGroup(title: "Weather and sky", symbol: "cloud.sun", items: [
+            DesignFunction(title: "Temperature", token: "{=TEMPERATURE()}"), DesignFunction(title: "Weather", token: "{=WEATHER()}"),
+            DesignFunction(title: "Humidity", token: "{=HUMIDITY()}"), DesignFunction(title: "Wind", token: "{=WIND()}"),
+            DesignFunction(title: "Sunrise", token: "{=SUNRISE()}"), DesignFunction(title: "Sunset", token: "{=SUNSET()}"),
+            DesignFunction(title: "UV index", token: "{=UV()}"), DesignFunction(title: "Air quality", token: "{=AQI()}"),
+            DesignFunction(title: "Moon phase", token: "{=MOON()}")]),
+        FunctionGroup(title: "Money and more", symbol: "indianrupeesign.circle", items: [
+            DesignFunction(title: "Dollar in rupees", token: "{=RATE(\"USD\",\"INR\")}"), DesignFunction(title: "Euro in rupees", token: "{=RATE(\"EUR\",\"INR\")}"),
+            DesignFunction(title: "Bitcoin price in rupees", token: "{=CRYPTO(\"bitcoin\",\"inr\")}"), DesignFunction(title: "Quote of the day", token: "{=QUOTE()}")])
     ]
+
+    static let items: [DesignFunction] = groups.flatMap { $0.items }
+}
+
+/// The grouped list of functions inside a Menu.
+struct DesignFunctionMenu: View {
+    var onPick: (DesignFunction) -> Void
+    var body: some View {
+        ForEach(DesignFunction.groups) { group in
+            Menu {
+                ForEach(group.items) { item in Button(item.title) { onPick(item) } }
+            } label: { Label(group.title, systemImage: group.symbol) }
+        }
+    }
 }
 
 extension TemplateDesignerView {
@@ -1530,7 +1582,7 @@ extension TemplateDesignerView {
                     }
                 }
                 SourcePickerButton(title: slot.kind == .image ? "Pick picture" : "Collection / shortcut", symbol: "tray.full", mediaOnly: slot.kind == .image) { addToken(index, $0) }
-                Menu("Function") { ForEach(DesignFunction.items) { item in Button(item.title) { addToken(index, item.token) } } }
+                Menu("Function") { DesignFunctionMenu { addToken(index, $0.token) } }
                 if slot.kind == .image { Button("File") { chooseSourceFile(index) } }
             }
             .menuStyle(.borderlessButton).controlSize(.small)

@@ -855,11 +855,11 @@ struct ElementEditor: View {
             }
             switch element.kind {
             case .variable:
-                HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Takes").font(.system(size: 11)).foregroundStyle(.secondary)
                     SearchablePick(title: "Data type", options: DesignDataType.allCases.map { $0.title }, symbol: { title in DesignDataType.allCases.first { $0.title == title }?.symbol ?? "textformat" },
                                    selection: Binding(get: { element.type.title }, set: { title in if let t = DesignDataType.allCases.first(where: { $0.title == title }) { element.type = t; onChange() } }))
-                        .frame(width: 170)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     TextField("Ready value, like " + element.type.example, text: $element.defaultValue).textFieldStyle(.roundedBorder)
                         .onSubmit { let check = element.type.check(element.defaultValue); if check.ok { element.defaultValue = check.clean }; onChange() }
                 }
@@ -867,19 +867,19 @@ struct ElementEditor: View {
                 fixedToggle(label: "Make this fixed text (printed as is, never asked)")
             case .collection:
                 let tree = context.collectionTree
-                HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     SearchablePick(title: "Category", options: tree.map { $0.category }, symbol: { _ in "folder" },
-                                   selection: Binding(get: { element.category }, set: { value in element.category = value; element.sub = ""; element.defaultValue = ""; onChange() })).frame(width: 150)
+                                   selection: Binding(get: { element.category }, set: { value in element.category = value; element.sub = ""; element.defaultValue = ""; onChange() })).frame(maxWidth: .infinity, alignment: .leading)
                     SearchablePick(title: "Which subcategory?", options: tree.first(where: { $0.category == element.category })?.names ?? [],
                                    symbol: { MediaFinder.isMediaCollection($0) ? "photo.on.rectangle" : "list.bullet.rectangle" },
-                                   selection: Binding(get: { element.sub }, set: { value in element.sub = value; element.defaultValue = ""; onChange() })).frame(width: 190)
+                                   selection: Binding(get: { element.sub }, set: { value in element.sub = value; element.defaultValue = ""; onChange() })).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if !element.sub.isEmpty {
                     let keys = WishPick.clips(in: element.sub).map { $0.key }
-                    HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(element.isMediaCollection ? "Default media" : "Default shortcut").font(.system(size: 11)).foregroundStyle(.secondary)
                         SearchablePick(title: keys.isEmpty ? "None yet" : "First one", options: keys, symbol: { _ in element.isMediaCollection ? "photo" : "text.quote" },
-                                       selection: Binding(get: { element.defaultValue }, set: { element.defaultValue = $0; onChange() })).frame(width: 190)
+                                       selection: Binding(get: { element.defaultValue }, set: { element.defaultValue = $0; onChange() })).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     Text("The default is filled in when nothing is chosen. Expanded text or media from this subcategory is used as is.").font(.system(size: 10)).foregroundStyle(.secondary)
                     fixedToggle(label: element.isMediaCollection ? "Make the default media fixed (always this one)" : "Make the default shortcut fixed text (always this one)")
@@ -891,7 +891,7 @@ struct ElementEditor: View {
                     TextField("Say or type it: days to event date, today plus 7", text: Binding(get: { element.formula }, set: { element.formula = $0 }))
                         .textFieldStyle(.roundedBorder).onSubmit { element.formula = DesignFormulaSpeech.token(element.formula.replacingOccurrences(of: "{=", with: "").replacingOccurrences(of: "}", with: "")); onChange() }
                     Menu {
-                        ForEach(DesignFunction.items) { item in Button(item.title) { element.formula = item.token; onChange() } }
+                        DesignFunctionMenu { item in element.formula = item.token; onChange() }
                     } label: { Image(systemName: "chevron.down.circle") }.menuStyle(.borderlessButton).fixedSize()
                 }
             case .picture:

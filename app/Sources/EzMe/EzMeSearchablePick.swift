@@ -68,11 +68,13 @@ struct SearchablePick: View {
 struct FunctionPickerList: View {
     var onPick: (String) -> Void
     @State private var query = ""
+    @State private var category = ""
 
     private var shown: [WishFunctionInfo] {
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !q.isEmpty else { return Array(WishFunctionCatalog.all.prefix(40)) }
-        return WishFunctionCatalog.all.filter { $0.name.lowercased().contains(q) || $0.summary.lowercased().contains(q) || $0.category.lowercased().contains(q) }
+        let pool = category.isEmpty ? WishFunctionCatalog.all : WishFunctionCatalog.all.filter { $0.category == category }
+        guard !q.isEmpty else { return category.isEmpty ? WishFunctionCatalog.live + WishFunctionCatalog.all.filter { $0.category != "Live & place" }.prefix(30) : pool }
+        return pool.filter { $0.name.lowercased().contains(q) || $0.summary.lowercased().contains(q) || $0.category.lowercased().contains(q) }
     }
 
     var body: some View {
@@ -81,7 +83,19 @@ struct FunctionPickerList: View {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 TextField("Find a function, like days, sum or round", text: $query).textFieldStyle(.roundedBorder)
             }
-            ForEach(shown.prefix(30)) { info in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 5) {
+                    ForEach([""] + WishFunctionCatalog.categories, id: \.self) { name in
+                        Button { category = name } label: {
+                            Text(name.isEmpty ? "All" : name).font(.system(size: 10, weight: .semibold))
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Capsule().fill(category == name ? Butter.coral : Butter.honey.opacity(0.35)))
+                                .foregroundStyle(category == name ? Color.white : Butter.cocoa)
+                        }.buttonStyle(.plain)
+                    }
+                }
+            }
+            ForEach(shown.prefix(60)) { info in
                 Button { onPick("{=\(info.syntax)}") } label: {
                     VStack(alignment: .leading, spacing: 1) {
                         Text(info.syntax).font(.system(size: 11, weight: .semibold, design: .monospaced)).foregroundStyle(Butter.cocoa)
