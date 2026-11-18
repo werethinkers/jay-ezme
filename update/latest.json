@@ -1,9 +1,9 @@
 {
-  "version": "3.52",
-  "build": 348,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.52-build348/EzMe-3.52-macOS.zip",
-  "sha256": "5fdb701e66a1406983e431e5d3da281c20700493a0d02110ec82afd0306301c0",
-  "notes": "## AppDesigner apps run from the backslash popup, and Fill by voice works like Ezyourlife\n\n- **One word runs your app.** Every published app gets a command word (the first word of its name, like hbd or greeting). Change it in the preview column (\"Type \\ ___ -name\") or say \"command word hbd\". Then type `\\hbd-rohit.media-pink` in the popup, in any app: the HBD app runs, uses the shortcut rohit.media as its picture, and fills the rest. Parts can come in any order. Pictures, wish shortcuts (ss10) and collection items are put in the right box, and everything else goes to the text boxes in order.\n- **Instant result.** When every box is covered, the file is made and delivered the same way as your other AppBuilder apps. When something is missing the popup asks for it, and **Open the full form** opens the app's whole form with what you typed already filled in.\n- **Fill by voice, the Ezyourlife way.** Pressing Fill by voice (in the published app and in the designer's Try it panel) points at one box at a time. Say the answer and it moves on, or say several boxes at once (\"name Rahul photo rohit dot media wish ss10\"). Say next, back, clear, \"make it\" or done. It shows what it hears and highlights the box it is waiting for, with English and Hindi.\n- Design changes still only change the design (style, position, fonts, picking from collections). The published version is what the command uses, so press Publish to update it.\n- Published apps no longer appear in the AppBuilder list of your apps, because they are managed in AppDesigner.",
-  "published": "2026-11-16T09:49:20Z",
+  "version": "3.53",
+  "build": 349,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.53-build349/EzMe-3.53-macOS.zip",
+  "sha256": "4e4fc72d5864bc58d135d04f2d35608c8f43c5303fc3a8a2f9ea123ff747e7a0",
+  "notes": "## AppDesigner: build the app by voice or one tap\n\n- **Add elements fast.** The Add a box card now has Variable, Function and Dropdown buttons. Dropdown lists your collections grouped by category, so a sub-category (for example Diwali wishes) or a list of names or companies becomes a pick-list when the app runs.\n- **Say it.** \"Add variable company\", \"add function date\", \"add dropdown of Diwali wishes\" and \"add media variable photo\" now create their own box when nothing is selected. If a box is selected, they go into that box.\n- **Unique names.** Every design and app name is unique. A name already in use gets a number, for example \"Diwali greeting 2\".\n- **Send a design to an app without changing it.** Using a design or template in a WishStudio or AppBuilder app now saves a new copy named \"<design> for <app>\" and links the app to that copy. The app's own default look and the original design stay as they were. Switch the app off to return to its default.",
+  "published": "2026-11-18T01:05:30Z",
   "minimumSystemVersion": "14.0"
 }
