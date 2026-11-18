@@ -14,6 +14,10 @@ struct PageScan {
     var summary = ""
     var host = ""
     var path = ""
+    /// og:type, the site's own category (YouTube says Music, Education...) and the author or channel.
+    var ogType = ""
+    var genre = ""
+    var author = ""
     /// Words read from pictures on the page (banners, buttons, logos), biggest first.
     var imageText: [String] = []
 }
@@ -23,7 +27,11 @@ enum PageScanner {
     (function(){
       function meta(n){var e=document.querySelector('meta[property="'+n+'"],meta[name="'+n+'"]');return e?(e.content||''):'';}
       var h=document.querySelector('h1');
-      return JSON.stringify({title:document.title||'',siteName:meta('og:site_name'),ogTitle:meta('og:title'),heading:h?(h.innerText||'').trim():'',summary:(meta('og:description')||meta('description')||'').slice(0,300),host:location.hostname,path:location.pathname});
+      var w=document.querySelector('ytd-watch-metadata h1, h1.ytd-watch-metadata');
+      var g=document.querySelector('meta[itemprop="genre"]');
+      var a=document.querySelector('[itemprop="author"] link[itemprop="name"]');
+      var c=document.querySelector('ytd-channel-name a, #owner #channel-name a');
+      return JSON.stringify({watchTitle:w?(w.innerText||'').trim():'',genre:g?(g.content||''):'',ogType:meta('og:type'),author:a?(a.getAttribute('content')||''):(c?(c.innerText||'').trim():meta('author')),title:document.title||'',siteName:meta('og:site_name'),ogTitle:meta('og:title'),heading:h?(h.innerText||'').trim():'',summary:(meta('og:description')||meta('description')||'').slice(0,300),host:location.hostname,path:location.pathname});
     })()
     """
 
@@ -36,6 +44,14 @@ enum PageScanner {
             if let text = value as? String, let data = text.data(using: .utf8),
                let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 scan.title = (object["ogTitle"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? (object["title"] as? String ?? "")
+                // YouTube changes pages without reloading, so its og:title can still name the previous video.
+                if scan.host.lowercased().contains("youtube") || fallbackHost.lowercased().contains("youtube") {
+                    let watch = (object["watchTitle"] as? String) ?? ""
+                    scan.title = watch.isEmpty ? (object["title"] as? String ?? scan.title) : watch
+                }
+                scan.ogType = object["ogType"] as? String ?? ""
+                scan.genre = object["genre"] as? String ?? ""
+                scan.author = object["author"] as? String ?? ""
                 scan.siteName = object["siteName"] as? String ?? ""
                 scan.heading = object["heading"] as? String ?? ""
                 scan.summary = object["summary"] as? String ?? ""
@@ -85,6 +101,8 @@ enum PageNamer {
     /// "Pricing | GitHub" -> "GitHub Pricing", "Inbox (3) - me@mail.com - Gmail" -> "Gmail Inbox".
     static func suggestName(_ scan: PageScan) -> String {
         let site = siteLabel(scan)
+        let kind = PageKind.detect(scan)
+        if kind != .other, let whole = MediaNamer.nameOptions(scan, kind: kind, site: site).first { return whole }
         var title = scan.title.isEmpty ? scan.heading : scan.title
         let generic: Set<String> = ["", "home", "homepage", "welcome", "dashboard", "untitled", "login", "log in", "sign in", "index"]
         if generic.contains(title.lowercased().trimmingCharacters(in: .whitespaces)) || title.lowercased() == site.lowercased(),
@@ -126,6 +144,11 @@ enum PageNamer {
 
     /// Short, typeable and guessable. Offers the site, the site plus the topic, and initials.
     static func suggestShortcuts(_ scan: PageScan) -> [String] {
+        let kind = PageKind.detect(scan)
+        if kind != .other {
+            let made = MediaNamer.shortcuts(kind: kind, title: MediaNamer.cleanTitle(scan, site: siteLabel(scan)))
+            if !made.isEmpty { return made }
+        }
         let core = clean(hostCore(scan.host))
         let siteKey = core.count <= 9 ? core : String(core.prefix(6))
         var topicWord = ""
@@ -178,6 +201,10 @@ struct PageScanPanel: View {
     var url: String
     @Binding var shortcut: String
     @Binding var makeShortcut: Bool
+    var tags: Binding<String>? = nil
+    var note: Binding<String>? = nil
+    var collection: Binding<String>? = nil
+    @State private var kind: PageKind = .other
     @State private var scanning = false
     @State private var scan: PageScan? = nil
     @State private var names: [String] = []
@@ -190,10 +217,17 @@ struct PageScanPanel: View {
             let name = PageNamer.suggestName(result)
             var options = [name]
             let site = PageNamer.siteLabel(result)
-            if !site.isEmpty, site != name { options.append(site) }
-            if !result.heading.isEmpty, result.heading.count < 48, !options.contains(result.heading) { options.append(result.heading) }
-            for line in result.imageText.prefix(4) where line.count <= 40 && !options.contains(line) {
-                options.append(site.isEmpty || line.lowercased().contains(site.lowercased()) ? line : "\(site) \(line)")
+            kind = PageKind.detect(result)
+            if kind != .other {
+                options = MediaNamer.nameOptions(result, kind: kind, site: site)
+                if let tags, tags.wrappedValue.trimmingCharacters(in: .whitespaces).isEmpty { tags.wrappedValue = MediaNamer.tags(result, kind: kind) }
+                if let note, note.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { note.wrappedValue = MediaNamer.note(result, kind: kind) }
+            } else {
+                if !site.isEmpty, site != name { options.append(site) }
+                if !result.heading.isEmpty, result.heading.count < 48, !options.contains(result.heading) { options.append(result.heading) }
+                for line in result.imageText.prefix(4) where line.count <= 40 && !options.contains(line) {
+                    options.append(site.isEmpty || line.lowercased().contains(site.lowercased()) ? line : "\(site) \(line)")
+                }
             }
             names = options
             keys = PageNamer.suggestShortcuts(result)
@@ -219,6 +253,13 @@ struct PageScanPanel: View {
             if !names.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack { ForEach(names, id: \.self) { item in Button(item) { title = item }.buttonStyle(.bordered).controlSize(.small) } }
+                }
+            }
+            if let collection, let suggestion = kind.collection {
+                HStack(spacing: 8) {
+                    Text("This looks like a \(kind.label.lowercased()).").font(.caption).foregroundStyle(.secondary)
+                    Button(collection.wrappedValue == suggestion ? "Saved under \(suggestion)" : "Save under \(suggestion)") { collection.wrappedValue = suggestion }
+                        .buttonStyle(.bordered).controlSize(.small).disabled(collection.wrappedValue == suggestion)
                 }
             }
             Toggle(isOn: $makeShortcut) {

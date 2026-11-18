@@ -1,6 +1,7 @@
-## AppDesigner: build the app by voice or one tap
+## Save link and Scan page now understand songs, lectures and more
 
-- **Add elements fast.** The Add a box card now has Variable, Function and Dropdown buttons. Dropdown lists your collections grouped by category, so a sub-category (for example Diwali wishes) or a list of names or companies becomes a pick-list when the app runs.
-- **Say it.** "Add variable company", "add function date", "add dropdown of Diwali wishes" and "add media variable photo" now create their own box when nothing is selected. If a box is selected, they go into that box.
-- **Unique names.** Every design and app name is unique. A name already in use gets a number, for example "Diwali greeting 2".
-- **Send a design to an app without changing it.** Using a design or template in a WishStudio or AppBuilder app now saves a new copy named "<design> for <app>" and links the app to that copy. The app's own default look and the original design stay as they were. Switch the app off to return to its default.
+- **The whole topic is kept.** A YouTube link used to be named "YouTube" plus its first five words. Now the name is the full title without the site name, for example "Tum Hi Ho (Official Video) – Arijit Singh". You also get shorter alternatives (without "Official Video" and similar), a "Song: ..." version and a "title – channel" version to pick from.
+- **It knows what the link is.** KeyDo tells a song, music album, lecture, podcast, movie or show, video and article apart, using the site's own category, the site (Spotify, Udemy, Netflix and so on) and words in the title.
+- **Shortcuts come from the topic, not the site.** For example `tumhiho`, `song-tum` and `tho`, instead of `youtub` and `youtub-word`.
+- **Tags, note and collection are suggested.** Tags get the kind and the channel or artist, the note gets "Song by ..." and a short description, and a button saves it under Music, Lectures, Podcasts, Movies & Shows, Videos or Reading. Nothing you already typed is overwritten.
+- **Right video after you move around YouTube.** YouTube can keep the previous video's title hidden in the page; the scan now reads the title of the video you are watching.
