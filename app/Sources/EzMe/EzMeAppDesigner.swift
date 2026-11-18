@@ -191,7 +191,13 @@ struct AppDesign: Codable, Identifiable, Hashable {
 
     func newBlank(name: String, width: Int, height: Int, colorHex: String = "#FFFFFF") -> AppDesign? {
         var design = AppDesign(name: name)
-        guard let page = claim(TemplateStore.shared.blank(name: "Page 1", width: width, height: height, colorHex: colorHex), for: design.id) else { return nil }
+        guard var page = claim(TemplateStore.shared.blank(name: "Page 1", width: width, height: height, colorHex: colorHex), for: design.id) else { return nil }
+        // Every new page starts with a logo spot, top left. Click it in the designer to move or change it.
+        var logo = TemplateSlot(key: "logo", kind: .logo)
+        logo.cx = 0.14; logo.cy = 0.07; logo.w = 0.14
+        logo.h = 0.14 * Double(width) / Double(max(1, height))
+        page.slots.append(logo)
+        TemplateStore.shared.save(page)
         design.pages = [page.id]
         save(design)
         return design
@@ -693,6 +699,7 @@ struct AppDesignerView: View {
     @State private var editingID: String?
     @State private var pageIndex = 0
     @State private var usingID: String?
+    @State private var showWizard = false
     @State private var deleteID: String?
     @State private var runningID: String?
     @State private var message = ""
@@ -738,6 +745,8 @@ struct AppDesignerView: View {
                 BuilderHeader(symbol: "paintpalette.fill", title: "AppDesigner",
                               subtitle: "Design apps by voice. Start from a picture, a bill, or an NDA or agreement, then put variables, shortcuts, collections, functions and media in its boxes.") {
                     HStack(spacing: 8) {
+                        Button { showWizard = true } label: { Label("New app", systemImage: "wand.and.stars") }
+                            .buttonStyle(.borderedProminent).tint(Butter.coral)
                         Menu {
                             ForEach(StarterLayouts.Kind.allCases) { kind in
                                 Button { startLayout(kind) } label: { Label(kind.title + ": " + kind.detail, systemImage: kind.symbol) }
@@ -781,6 +790,12 @@ struct AppDesignerView: View {
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .padding(22)
+        }
+        .sheet(isPresented: $showWizard) {
+            NewAppWizardView(onDone: { made in
+                showWizard = false
+                if let made { open(made); message = "\(made.name) is ready. Type  \\\(made.command ?? "")  anywhere to use it." }
+            })
         }
         .sheet(item: Binding(get: { usingID.map { DesignSheetID(id: $0) } }, set: { usingID = $0?.id })) { item in
             TemplateUseSheet(templateID: item.id, wishDirectory: wishDirectory)

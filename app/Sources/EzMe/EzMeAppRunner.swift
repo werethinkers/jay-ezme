@@ -17,6 +17,8 @@ struct DesignField: Identifiable, Hashable {
     var category: String? = nil
     /// What the box takes: text, number, currency, date, phone and so on. Checked in the form, preview and popup.
     var dataType: DesignDataType = .text
+    /// True when the person who made the app marked this box mandatory.
+    var required: Bool = false
     var id: String { key }
 }
 
@@ -82,6 +84,8 @@ enum DesignFields {
         }
         // Each text box takes the data type declared for its variable.
         return result.map { field in
+            var field = field
+            field.required = DesignDataType.isRequired(field.key, in: variables)
             guard field.kind == .text || field.kind == .long else { return field }
             var typed = field
             typed.dataType = DesignDataType.of(field.key, in: variables)
@@ -104,9 +108,7 @@ struct DesignFieldRow: View {
     @State private var chooserOpen = false
 
     /// Text boxes with nothing to fall back on are the ones the person has to fill.
-    private var needsValue: Bool {
-        (field.kind == .text || field.kind == .long) && fallback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    private var needsValue: Bool { field.required }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -384,6 +386,11 @@ struct AppDesignRunView: View {
 
     private func make() {
         guard let design else { return }
+        let missingRequired = fields.filter { $0.required && (values[$0.key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        if !missingRequired.isEmpty {
+            message = "Please fill " + missingRequired.map { $0.label }.joined(separator: ", ") + ". The app's maker marked it mandatory."
+            return
+        }
         busy = true
         message = ""
         let chosen = templateName == "tempr" ? (DesignTemplates.items(design).randomElement()?.name ?? "") : templateName

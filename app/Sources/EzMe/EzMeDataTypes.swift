@@ -57,7 +57,11 @@ enum DesignDataType: String, CaseIterable, Identifiable {
 
     static let prefix = "__type."
     static func key(_ name: String) -> String { prefix + TemplateFill.normal(name) }
-    static func isHidden(_ key: String) -> Bool { key.hasPrefix(prefix) }
+    static func isHidden(_ key: String) -> Bool { key.hasPrefix(prefix) || key.hasPrefix(requiredPrefix) }
+    /// Marks a box the person must fill before the app makes anything.
+    static let requiredPrefix = "__req."
+    static func requiredKey(_ name: String) -> String { requiredPrefix + TemplateFill.normal(name) }
+    static func isRequired(_ name: String, in variables: [String: String]) -> Bool { variables[requiredKey(name)] != nil }
     static func of(_ name: String, in variables: [String: String]) -> DesignDataType {
         variables[key(name)].flatMap { DesignDataType(rawValue: $0) } ?? .text
     }
