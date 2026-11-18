@@ -693,6 +693,8 @@ struct AppDesignerView: View {
     var records: [CollectionRecord] = []
     var collections: [String] = []
     var definitions: [CollectionDefinition] = []
+    /// Opens this design for editing straight away (WishStudio's Redesign button).
+    var openID: String? = nil
     @ObservedObject private var designs = AppDesignStore.shared
     @ObservedObject private var templates = TemplateStore.shared
     @State private var tab = 0
@@ -714,7 +716,7 @@ struct AppDesignerView: View {
                 gallery
             }
         }
-        .onAppear { sync() }
+        .onAppear { sync(); if let openID, editingID == nil, designs.design(id: openID) != nil { editingID = openID } }
         .onChange(of: clips.count) { _, _ in sync() }
         .onChange(of: records.count) { _, _ in sync() }
     }
@@ -915,7 +917,7 @@ struct AppDesignerView: View {
     }
 }
 
-private struct DesignSheetID: Identifiable { let id: String }
+struct DesignSheetID: Identifiable { let id: String }
 
 struct AppDesignEditor: View {
     var designID: String

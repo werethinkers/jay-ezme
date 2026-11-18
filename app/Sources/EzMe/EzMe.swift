@@ -2978,6 +2978,8 @@ func keydoSpokenAppCommand(_ spoken:String,clips:[Clip],records:[CollectionRecor
 }
 func customBuilderCommand(_ raw:String,clips:[Clip]=[],records:[CollectionRecord]=[])->CustomBuilderCommand?{
  var command=raw.trimmingCharacters(in:.whitespacesAndNewlines);if command.first=="\\" || command.first=="/"{command.removeFirst()}
+ if command.first=="@"{command.removeFirst()}
+ command=command.replacingOccurrences(of:"#",with:"");command=MainActor.assumeIsolated{DesignCommands.spaceToDash(command)}
  let names=(try? JSONDecoder().decode([String].self,from:Data((UserDefaults.standard.string(forKey:"ezmeCustomBuilderAppsJSON") ?? "[]").utf8))) ?? []
  if let sentence=BuilderPhrases.rewrite(command,apps:names){command=sentence};let arranged=MainActor.assumeIsolated{DesignCommands.arrange(command)};command=arranged
  for app in names {

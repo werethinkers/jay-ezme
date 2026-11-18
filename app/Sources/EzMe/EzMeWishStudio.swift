@@ -1514,6 +1514,8 @@ struct WishHomeView: View {
 struct WishStudioView: View {
     @ObservedObject var model: WishStudioModel
     @ObservedObject var store: WishStore
+    @State private var showNewTemplate = false
+    @State private var redesignID: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -1523,6 +1525,22 @@ struct WishStudioView: View {
         }
         .padding(.horizontal, 22)
         .padding(.vertical, 14)
+        .sheet(isPresented: $showNewTemplate) {
+            NewAppWizardView(onDone: { made in
+                showNewTemplate = false
+                if let made {
+                    TemplateStore.setWishTemplate("design:" + made.id, appID: model.appID)
+                    model.objectWillChange.send()
+                }
+            })
+        }
+        .sheet(item: Binding(get: { redesignID.map { DesignSheetID(id: $0) } }, set: { redesignID = $0?.id })) { item in
+            VStack(spacing: 0) {
+                HStack { Spacer(); Button("Done") { redesignID = nil; model.objectWillChange.send() }.buttonStyle(.borderedProminent).tint(Butter.coral) }.padding(12)
+                AppDesignerView(openID: item.id.isEmpty ? nil : item.id)
+            }
+            .frame(minWidth: 1100, minHeight: 760)
+        }
     }
 
     private var preview: some View {
@@ -1532,6 +1550,13 @@ struct WishStudioView: View {
                 Text("LIVE PAGE").font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(WishTheme.muted)
                 Text("Tap any text on the card to select it.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
                 Spacer()
+                Button { showNewTemplate = true } label: { Label("New template", systemImage: "plus.rectangle.on.rectangle") }
+                if !TemplateStore.wishTemplateID(appID: model.appID).isEmpty {
+                    Button {
+                        let linked = TemplateStore.wishTemplateID(appID: model.appID)
+                        redesignID = linked.hasPrefix("design:") ? String(linked.dropFirst("design:".count)) : ""
+                    } label: { Label("Redesign", systemImage: "paintbrush") }
+                }
                 Button {
                     model.web.replay()
                 } label: {

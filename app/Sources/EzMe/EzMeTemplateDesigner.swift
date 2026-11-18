@@ -269,6 +269,8 @@ struct WishTemplatePicker: View {
     @ObservedObject private var designs = AppDesignStore.shared
     @State private var selected = ""
     @State private var showLibrary = false
+    @State private var showNew = false
+    @State private var redesignID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -282,6 +284,14 @@ struct WishTemplatePicker: View {
                 .labelsHidden().frame(maxWidth: 320)
                 Button { showLibrary = true } label: { Label("Open AppDesigner", systemImage: "paintpalette.fill") }
                     .buttonStyle(.bordered)
+            }
+            HStack(spacing: 8) {
+                Button { showNew = true } label: { Label("New template", systemImage: "plus.rectangle.on.rectangle") }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                if selected.hasPrefix("design:") {
+                    Button { redesignID = String(selected.dropFirst("design:".count)) } label: { Label("Redesign this template", systemImage: "paintbrush") }
+                        .buttonStyle(.bordered).controlSize(.small)
+                }
             }
             if !selected.isEmpty, !TemplateLinks.pages(for: selected).isEmpty {
                 let keys = TemplateLinks.fieldKeys(for: selected)
@@ -303,6 +313,19 @@ struct WishTemplatePicker: View {
             VStack(spacing: 0) {
                 HStack { Spacer(); Button("Close") { showLibrary = false }.buttonStyle(.borderedProminent).tint(Butter.coral) }.padding(12)
                 AppDesignerView()
+            }
+            .frame(minWidth: 1100, minHeight: 760)
+        }
+        .sheet(isPresented: $showNew) {
+            NewAppWizardView(onDone: { made in
+                showNew = false
+                if let made { selected = "design:" + made.id }
+            })
+        }
+        .sheet(item: Binding(get: { redesignID.map { DesignSheetID(id: $0) } }, set: { redesignID = $0?.id })) { item in
+            VStack(spacing: 0) {
+                HStack { Spacer(); Button("Done") { redesignID = nil }.buttonStyle(.borderedProminent).tint(Butter.coral) }.padding(12)
+                AppDesignerView(openID: item.id)
             }
             .frame(minWidth: 1100, minHeight: 760)
         }
@@ -384,6 +407,7 @@ struct TemplateDesignerView: View {
     @State private var commandText = ""
     @State private var heard = ""
     @State private var newVariable = ""
+    @State private var renames: [String: String] = [:]
     @StateObject private var voice = WishVoiceController()
     @FocusState private var commandFocused: Bool
 
@@ -771,6 +795,12 @@ struct TemplateDesignerView: View {
             VStack(alignment: .leading, spacing: 10) {
                 section("add", "Add a box", "plus.circle.fill") {
                     DesignerAddPanel(taken: { template.slots.map { $0.key } + DesignDataType.names(vars) }, onAdd: { addWizardElements($0) })
+                }
+                if let appTitle = designTitle {
+                    section("commands", "Voice and typed commands", "waveform") {
+                        BuilderPhrasesEditor(app: appTitle).id(appTitle)
+                        hint("Type  \\\(commandWord.isEmpty ? "app" : commandWord)  or  \\@\(commandWord.isEmpty ? "app" : commandWord)  in any app, then the details in any order, each after a dash: \\\(commandWord.isEmpty ? "app" : commandWord)-rahul-5000. A # before a collection name uses its first item, and a template ends it: -temp2. Anything left out uses its ready value; only a mandatory box is asked for.")
+                    }
                 }
                 section("box", "Box", "rectangle.dashed") {
                     if let index = selectedIndex { boxEditor(index) } else {
@@ -1460,7 +1490,10 @@ extension TemplateDesignerView {
                 let type = DesignDataType.of(key, in: vars)
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(key).font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.cocoa).frame(width: 84, alignment: .leading).lineLimit(1)
+                        TextField("Name", text: Binding(get: { renames[key] ?? key }, set: { renames[key] = $0 }))
+                            .textFieldStyle(.plain).font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.cocoa).frame(width: 96, alignment: .leading).lineLimit(1)
+                            .onSubmit { renameVariable(key, to: renames[key] ?? key); renames[key] = nil }
+                            .help("Rename this variable. Boxes that use it follow the new name.")
                         TextField(type.example, text: Binding(get: { vars[key] ?? "" }, set: { vars[key] = $0; onVariablesChange?(vars) }))
                             .textFieldStyle(.roundedBorder).onSubmit { tidyVariable(key) }
                         Button { vars[key] = nil; vars[DesignDataType.key(key)] = nil; onVariablesChange?(vars) } label: { Image(systemName: "xmark.circle") }.buttonStyle(.plain)
@@ -1488,6 +1521,47 @@ extension TemplateDesignerView {
             }
             .buttonStyle(.bordered).controlSize(.small)
         }
+    }
+
+    /// Renames a variable everywhere it is used: its value, data type, mandatory mark, and the boxes (here and on the other pages).
+    func renameVariable(_ old: String, to wanted: String) {
+        let new = wanted.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "_")
+        guard !new.isEmpty, new != old else { return }
+        if DesignDataType.names(vars).contains(where: { $0 != old && TemplateFill.normal($0) == TemplateFill.normal(new) }) {
+            message = "There is already a variable called \(new)."
+            return
+        }
+        pushUndo()
+        let value = vars[old] ?? ""
+        let type = DesignDataType.of(old, in: vars)
+        let mandatory = vars[DesignDataType.requiredKey(old)] != nil
+        vars[old] = nil
+        vars[DesignDataType.key(old)] = nil
+        vars[DesignDataType.requiredKey(old)] = nil
+        vars[new] = value
+        DesignDataType.set(type, for: new, in: &vars)
+        if mandatory { vars[DesignDataType.requiredKey(new)] = "1" }
+        func swap(_ text: String) -> String {
+            var result = text.replacingOccurrences(of: "{{\(old)}}", with: "{{\(new)}}").replacingOccurrences(of: "$\(old)/", with: "$\(new)/")
+            // Inside formulas the variable is a plain word.
+            if let formula = try? NSRegularExpression(pattern: "\\{=[^}]*\\}"), let word = try? NSRegularExpression(pattern: "\\b\(NSRegularExpression.escapedPattern(for: old))\\b") {
+                let ns = result as NSString
+                for match in formula.matches(in: result, range: NSRange(location: 0, length: ns.length)).reversed() {
+                    let piece = ns.substring(with: match.range)
+                    let range = NSRange(location: 0, length: (piece as NSString).length)
+                    let changed = word.stringByReplacingMatches(in: piece, range: range, withTemplate: NSRegularExpression.escapedTemplate(for: new))
+                    result = (result as NSString).replacingCharacters(in: match.range, with: changed)
+                }
+            }
+            return result
+        }
+        for index in template.slots.indices {
+            if let content = template.slots[index].content { template.slots[index].content = swap(content) }
+            if TemplateFill.normal(template.slots[index].key) == TemplateFill.normal(old) { template.slots[index].key = new }
+        }
+        _ = onReplaceElsewhere?("{{\(old)}}", "{{\(new)}}")
+        onVariablesChange?(vars)
+        message = "Renamed \(old) to \(new)."
     }
 
     func setType(_ type: DesignDataType, for name: String) {

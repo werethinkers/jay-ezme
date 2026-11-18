@@ -124,6 +124,19 @@ import AppKit
     // MARK: Reading the command
 
     /// Puts each part of a typed command into the box it belongs to, whatever order it was typed in.
+    /// "hbd rahul" runs like "hbd-rahul": the app word, then a space, works as the first dash.
+    static func spaceToDash(_ command: String) -> String {
+        let lower = command.lowercased()
+        for (_, app) in registered() {
+            let prefix = (UserDefaults.standard.string(forKey: "ezmeBuilderPrefix." + app) ?? "").lowercased()
+            if !prefix.isEmpty, lower.hasPrefix(prefix + " ") {
+                let rest = command.dropFirst(prefix.count + 1).trimmingCharacters(in: .whitespaces)
+                return rest.isEmpty ? String(command.prefix(prefix.count)) : String(command.prefix(prefix.count)) + "-" + rest
+            }
+        }
+        return command
+    }
+
     static func arrange(_ raw: String) -> String {
         var command = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if command.first == "\\" || command.first == "/" { command.removeFirst() }
@@ -150,6 +163,14 @@ import AppKit
             }
             take(.image) { part, _ in celebrationMedia(part, clips: AppDesignContext.shared.clips) != nil }
             take(.wish) { part, box in WishPick.findStrict(part, in: box.collection ?? "") != nil }
+            // A collection named on its own (#birthday-wishes) means "pick from it": its first item is used.
+            for (slot, box) in boxes.enumerated() where box.kind == .wish && filled[slot] == nil {
+                let wanted = TemplateFill.normal(box.collection ?? "")
+                guard !wanted.isEmpty, let part = parts.indices.first(where: { !used.contains($0) && TemplateFill.normal(parts[$0]) == wanted }),
+                      let first = WishPick.clips(in: box.collection ?? "").first else { continue }
+                filled[slot] = first.key.trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
+                used.insert(part)
+            }
             take(.choice) { part, box in
                 DesignVoiceFill.options(for: box).contains { $0.name.caseInsensitiveCompare(part) == .orderedSame || $0.alias.caseInsensitiveCompare(part) == .orderedSame }
             }
@@ -220,6 +241,11 @@ extension DesignCommands {
         current.appTitle = unique
         if followsName { current.command = nil }
         designs.save(current)
+        // The sentence commands and the run-by-itself choice stay with the app under its new name.
+        let defaults = UserDefaults.standard
+        for key in ["ezmeBuilderPhrases.", "ezmeBuilderVoiceAutoRun."] {
+            if let value = defaults.object(forKey: key + oldName) { defaults.set(value, forKey: key + unique); defaults.removeObject(forKey: key + oldName) }
+        }
         let command = current.version > 0 ? register(current) : word(for: current)
         return (unique, command)
     }
