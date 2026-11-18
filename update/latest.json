@@ -1,9 +1,9 @@
 {
-  "version": "3.64",
-  "build": 365,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.64-build365/EzMe-3.64-macOS.zip",
-  "sha256": "f9ca3d2c77629a72ea1167d66ea9552b1f0a3fe4854e4e8c3d4c9d0803274aa0",
-  "notes": "# KeyDo 3.64\n\n- **Type the app name and it runs.** An App Designer app now runs as soon as you type its name and press Return in the backslash popup. Variables are optional: an empty box uses the last value or its ready value, or is simply left out. Only a box marked Mandatory can stop it.\n- **Better location.** CITY, PLACE and the new AREA and PLACENAME now use this Mac's own location when you allow it (the first time an app uses a place word, macOS asks once), so you get the neighbourhood and spot name, not just the city. If you say no, or it is not available, KeyDo falls back to the city from your internet address. Weather, sunrise and the rest follow the same location.\n- **Add a box inside the designer, like in the New App wizard.** A new \"Add a box\" section at the top of the designer's side panel: say or type \"two variables string and date, one picture\", or tap Variable, Collection, Function, Picture or Text. Each opens the same card as the wizard (data type, ready value, subcategory and default shortcut, fixed text or media, mandatory) with an \"Add to page\" button.",
-  "published": "2026-11-18T18:16:10Z",
+  "version": "3.65",
+  "build": 366,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.65-build366/EzMe-3.65-macOS.zip",
+  "sha256": "9f0d40356b0e6e8fb3616fe50948ec92f78d5375c63fd1f6e03c0ed52f4fff12",
+  "notes": "# KeyDo 3.65\n\n- **Prompt Builder sends the prompt and the media together on sites like SeaArt.** Some sites show their upload box before the prompt box has loaded, so KeyDo used to attach the media and miss the prompt. It now waits for the prompt box, falls back to finding any large text box on the page (so new sites work without setup), checks that the prompt is really in the box, and types it again if the site cleared it when the media went in. If a page will not take the prompt at all, the prompt is copied so one paste finishes the job.\n- **One dictation input.** The second \"macOS dictation\" button is gone. Speak is the one mic, with all the command words.\n- **Pronouns and small words no longer turn into shortcuts.** Words like I, me, my, he, she, her, him, his, they, the, and, that and similar are never marked as a shortcut by themselves, and punctuation-only keys are ignored, so dictation no longer attaches the wrong media or collection by accident. Use # or @ to pick one of those on purpose.",
+  "published": "2026-11-18T18:38:32Z",
   "minimumSystemVersion": "14.0"
 }
