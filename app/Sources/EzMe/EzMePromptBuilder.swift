@@ -496,7 +496,7 @@ struct PromptBuilderView: View {
     // MARK: Typing
 
     private var typingBox: some View {
-        BuilderCard(step: 1, title: "Write your prompt", symbol: "pencil", hint: "Type, or tap Speak. The mic rests after 10 quiet seconds.") {
+        BuilderCard(step: 1, title: "Write your prompt", symbol: "pencil", hint: "Type, or tap Speak. One mic does it all and rests after 10 quiet seconds.") {
             typingContent
         }
     }
@@ -521,12 +521,6 @@ struct PromptBuilderView: View {
                     onStop: { heard = ""; if voiceHint.hasPrefix("Listening") { voiceHint = "" } },
                     onText: { spoken, final in heardSpeech(spoken, final: final) }
                 )
-                Button { toggleDictation() } label: {
-                    Label(dictating ? "Stop macOS dictation" : "macOS dictation", systemImage: dictating ? "stop.circle.fill" : "keyboard")
-                        .foregroundStyle(dictating ? .red : .blue)
-                }
-                .buttonStyle(.bordered)
-                .help("Use the Mac's own keyboard dictation. The command words still work.")
                 Spacer()
                 Button("Clear") { text = ""; notice = ""; heard = ""; voiceHint = ""; dismissed = [] }.disabled(text.isEmpty)
             }
@@ -1186,48 +1180,91 @@ final class PromptDispatchRequest {
         return (result as? String) ?? "none"
     }
 
+    /// A prompt box found by what it is, for sites whose own selectors do not match: the biggest visible text area or editable box.
+    private static let anyScript = """
+    function kdAny(){var c=[].slice.call(document.querySelectorAll('textarea,[contenteditable="true"],[contenteditable=""],[role="textbox"],input[type="text"],input:not([type])')).filter(function(e){var r=e.getBoundingClientRect();var s=getComputedStyle(e);return r.width>40&&r.height>18&&s.visibility!=='hidden'&&s.display!=='none'&&!e.disabled&&!e.readOnly&&e.type!=='search'&&e.type!=='password';});c.sort(function(a,b){var x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return y.width*y.height-x.width*x.height;});return c[0]||null;}
+    """
+
+    /// Types the prompt into the site's prompt box. Returns false when no prompt box could be found.
+    private static func typePrompt(_ prompt: String, in web: WKWebView, editors: String) async -> Bool {
+        let script = """
+        (function(){\(findScript)\(anyScript)
+        var el=kdFind(\(editors))||kdAny(); if(!el) return 'none'; el.focus();
+        var text=\(literal(prompt));
+        if(el.tagName==='TEXTAREA'||el.tagName==='INPUT'){
+          var proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
+          Object.getOwnPropertyDescriptor(proto,'value').set.call(el,text);
+          el.dispatchEvent(new Event('input',{bubbles:true}));
+          el.dispatchEvent(new Event('change',{bubbles:true}));
+        } else {
+          document.execCommand('selectAll',false,null);
+          var okIns=document.execCommand('insertText',false,text);
+          if(!okIns||((el.innerText||el.textContent||'').trim().length===0)){
+            el.textContent=text;
+            try{el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));}catch(e){el.dispatchEvent(new Event('input',{bubbles:true}));}
+          }
+        }
+        return 'ok';})()
+        """
+        return ((try? await web.evaluateJavaScript(script)) as? String) == "ok"
+    }
+
+    /// True when the prompt box still holds the start of the prompt (some sites clear it when a file is added).
+    private static func promptPresent(_ prompt: String, in web: WKWebView, editors: String) async -> Bool {
+        let head = String(prompt.trimmingCharacters(in: .whitespacesAndNewlines).prefix(24))
+        let script = """
+        (function(){\(findScript)\(anyScript)
+        var el=kdFind(\(editors))||kdAny(); if(!el) return 'no';
+        var v=(el.value!==undefined&&el.tagName!=='DIV')?el.value:(el.innerText||el.textContent||'');
+        var norm=function(t){return (t||'').replace(/\\s+/g,' ').trim();};
+        return norm(v).indexOf(norm(\(literal(head))))>=0?'yes':'no';})()
+        """
+        return ((try? await web.evaluateJavaScript(script)) as? String) == "yes"
+    }
+
+    /// Types the prompt and checks it stayed, trying a few times because pages re-draw their box while they load.
+    private static func settlePrompt(_ prompt: String, in web: WKWebView, editors: String) async -> Bool {
+        var typed = false
+        for _ in 0..<3 {
+            if await promptPresent(prompt, in: web, editors: editors) { return true }
+            typed = await typePrompt(prompt, in: web, editors: editors)
+            try? await Task.sleep(nanoseconds: 500_000_000)
+        }
+        // Reading the box back can fail on odd editors even when the typing worked; only a missing box counts as failure.
+        return await promptPresent(prompt, in: web, editors: editors) || typed
+    }
+
     private static func run(_ request: PromptDispatchRequest, tabID: String, browser: EzMeBrowserTabs) async {
         if request.learnOnly { await learn(request, tabID: tabID, browser: browser); return }
         let name = request.target.name
         let editors = literal(request.target.editor)
         let senders = literal(request.target.send)
 
-        // 1. Wait for the page and its prompt box (or, for pages that only take pictures, its upload input).
+        // 1. Wait for the page and its prompt box. A page that shows its upload input first is given time to draw the prompt box too.
         var web: WKWebView?
-        for _ in 0..<90 {
+        var fileOnlyRounds = 0
+        for _ in 0..<120 {
             try? await Task.sleep(nanoseconds: 700_000_000)
             guard let candidate = browser.webViews[tabID], !candidate.isLoading else { continue }
-            let found = try? await candidate.evaluateJavaScript("(function(){\(findScript) return (kdFind(\(editors))||document.querySelector('input[type=file]'))?'yes':'no';})()")
-            if (found as? String) == "yes" { web = candidate; break }
+            let found = try? await candidate.evaluateJavaScript("(function(){\(findScript)\(anyScript) if(kdFind(\(editors))||kdAny()) return 'editor'; return document.querySelector('input[type=file]')?'file':'no';})()")
+            let state = (found as? String) ?? "no"
+            if state == "editor" { web = candidate; break }
+            if state == "file" {
+                fileOnlyRounds += 1
+                if fileOnlyRounds >= 25 || request.prompt.isEmpty { web = candidate; break }
+            }
         }
         guard let web else {
             browser.browserMessage = "Could not find the \(name) prompt box. Sign in to \(name) in the side panel, then press the button again."
             return
         }
 
-        // 2. Type the prompt.
+        // 2. Type the prompt, and make sure it is really in the box.
+        var promptOK = true
         if !request.prompt.isEmpty {
-            let script = """
-            (function(){\(findScript)
-            var el=kdFind(\(editors)); if(!el) return 'none'; el.focus();
-            var text=\(literal(request.prompt));
-            if(el.tagName==='TEXTAREA'||el.tagName==='INPUT'){
-              var proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
-              Object.getOwnPropertyDescriptor(proto,'value').set.call(el,text);
-              el.dispatchEvent(new Event('input',{bubbles:true}));
-            } else {
-              document.execCommand('selectAll',false,null);
-              var okIns=document.execCommand('insertText',false,text);
-              if(!okIns||((el.innerText||el.textContent||'').trim().length===0)){
-                el.textContent=text;
-                try{el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));}catch(e){el.dispatchEvent(new Event('input',{bubbles:true}));}
-              }
-            }
-            return 'ok';})()
-            """
-            _ = try? await web.evaluateJavaScript(script)
+            promptOK = await settlePrompt(request.prompt, in: web, editors: editors)
         } else {
-            _ = try? await web.evaluateJavaScript("(function(){\(findScript) var el=kdFind(\(editors)); if(el){el.focus();} return 'ok';})()")
+            _ = try? await web.evaluateJavaScript("(function(){\(findScript)\(anyScript) var el=kdFind(\(editors))||kdAny(); if(el){el.focus();} return 'ok';})()")
         }
 
         // 3. Attach the media: into the page's own upload inputs when it has them, else as a paste or a drop.
@@ -1257,6 +1294,8 @@ final class PromptDispatchRequest {
             }
             let wait = min(3.0 + bytes / 1_000_000 * 0.6, 25.0)
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
+            // Some sites clear the prompt box when a file is added, so put the prompt back if it went.
+            if !request.prompt.isEmpty { promptOK = await settlePrompt(request.prompt, in: web, editors: editors) }
         } else {
             try? await Task.sleep(nanoseconds: 700_000_000)
         }
@@ -1276,6 +1315,13 @@ final class PromptDispatchRequest {
           if(hit&&!off){b.click();return 'clicked';}}
         return 'wait';})()
         """
+        if !promptOK {
+            // The page would not take the prompt: keep it on the clipboard so one paste finishes the job.
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(request.prompt, forType: .string)
+            browser.browserMessage = "\(name) would not take the typed prompt, so it is copied. Click the prompt box and press \u{2318}V."
+            return
+        }
         for _ in 0..<40 {
             let result = try? await web.evaluateJavaScript(click)
             if (result as? String) == "clicked" {
@@ -1284,7 +1330,7 @@ final class PromptDispatchRequest {
             }
             try? await Task.sleep(nanoseconds: 750_000_000)
         }
-        let enter = "(function(){\(findScript) var el=kdFind(\(editors)); if(!el) return 'none'; el.focus(); ['keydown','keypress','keyup'].forEach(function(t){el.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));}); return 'enter';})()"
+        let enter = "(function(){\(findScript)\(anyScript) var el=kdFind(\(editors))||kdAny(); if(!el) return 'none'; el.focus(); ['keydown','keypress','keyup'].forEach(function(t){el.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));}); return 'enter';})()"
         _ = try? await web.evaluateJavaScript(enter)
         browser.browserMessage = "The prompt is in \(name). Press send there if it did not start."
     }

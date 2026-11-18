@@ -261,6 +261,23 @@ enum PromptAppCatalog {
 /// Everything that can be written with a mark, for finding plain words that should have one and for hearing
 /// spoken names ("hash rohit media" finds #rohit.media).
 struct PromptMarkIndex {
+    /// Pronouns and everyday small words are never turned into a shortcut by themselves: dictation says them all the time.
+    static let plainWords: Set<String> = [
+        "i", "me", "my", "mine", "myself", "you", "your", "yours", "yourself", "he", "him", "his", "himself", "she", "her", "hers", "herself",
+        "it", "its", "itself", "we", "us", "our", "ours", "ourselves", "they", "them", "their", "theirs", "themselves", "one", "ones",
+        "this", "that", "these", "those", "who", "whom", "whose", "what", "which", "there", "here", "where", "when", "how", "why",
+        "the", "and", "for", "with", "are", "was", "were", "been", "being", "has", "have", "had", "not", "but", "can", "could", "will",
+        "would", "should", "shall", "may", "might", "must", "just", "also", "from", "into", "onto", "out", "all", "any", "too", "very",
+        "then", "than", "now", "some", "such", "each", "every", "both", "more", "most", "other", "another", "own", "same", "about",
+        "over", "under", "after", "before", "again", "once", "only", "yes", "okay", "please", "thanks", "make", "use", "get", "let"
+    ]
+
+    /// A key that is only punctuation, or a plain small word, is left out of the index.
+    static func isIndexable(_ word: String) -> Bool {
+        let letters = alnum(word)
+        return !letters.isEmpty && !plainWords.contains(letters)
+    }
+
     var byWord: [String: PromptMarkEntry] = [:]
     var bySpoken: [String: PromptMarkEntry] = [:]
 
@@ -286,13 +303,13 @@ struct PromptMarkIndex {
             guard !key.isEmpty else { continue }
             let entry = PromptMarkEntry(token: "#" + key, detail: clip.name, symbol: PromptSuggestions.symbol(for: clip))
             let lower = key.lowercased()
-            if lower.count >= 3, index.byWord[lower] == nil { index.byWord[lower] = entry }
+            if lower.count >= 3, isIndexable(lower), index.byWord[lower] == nil { index.byWord[lower] = entry }
             if let dot = lower.firstIndex(of: ".") {
                 let base = String(lower[lower.startIndex..<dot])
-                if base.count >= 3, index.byWord[base] == nil { index.byWord[base] = entry }
+                if base.count >= 3, isIndexable(base), index.byWord[base] == nil { index.byWord[base] = entry }
             }
             let spoken = alnum(key)
-            if !spoken.isEmpty, index.bySpoken[spoken] == nil { index.bySpoken[spoken] = entry }
+            if !spoken.isEmpty, isIndexable(spoken), index.bySpoken[spoken] == nil { index.bySpoken[spoken] = entry }
         }
         for record in records.prefix(5000) where !record.alias.isEmpty {
             let collection = record.collection.lowercased()
@@ -300,11 +317,11 @@ struct PromptMarkIndex {
             let entry = PromptMarkEntry(token: (isPerson ? "@" : "#") + record.alias, detail: record.collection + " · " + record.name,
                                         symbol: isPerson ? "person.crop.circle" : "tray.full")
             let lower = record.alias.lowercased()
-            if lower.count >= 3, index.byWord[lower] == nil { index.byWord[lower] = entry }
+            if lower.count >= 3, isIndexable(lower), index.byWord[lower] == nil { index.byWord[lower] = entry }
             if let first = record.name.split(separator: " ").first.map({ String($0).lowercased() }),
-               first.count >= 3, index.byWord[first] == nil { index.byWord[first] = entry }
+               first.count >= 3, isIndexable(first), index.byWord[first] == nil { index.byWord[first] = entry }
             let spoken = alnum(record.alias)
-            if !spoken.isEmpty, index.bySpoken[spoken] == nil { index.bySpoken[spoken] = entry }
+            if !spoken.isEmpty, isIndexable(spoken), index.bySpoken[spoken] == nil { index.bySpoken[spoken] = entry }
         }
         return index
     }
@@ -337,6 +354,7 @@ enum PromptFixes {
             let word = ns.substring(with: match.range)
             let lower = word.lowercased()
             if dismissed.contains(lower) { continue }
+            if PromptMarkIndex.plainWords.contains(PromptMarkIndex.alnum(lower)) { continue }
             if match.range.location > 0 {
                 let before = ns.substring(with: NSRange(location: match.range.location - 1, length: 1))
                 if "#@=/\\".contains(before) { continue }
@@ -358,7 +376,7 @@ enum PromptFixes {
                 let gap = ns.substring(with: NSRange(location: gapStart, length: following.range.location - gapStart))
                 let secondWord = ns.substring(with: following.range)
                 let joined = PromptMarkIndex.alnum(word) + PromptMarkIndex.alnum(secondWord)
-                if gap == " ", let entry = index.bySpoken[joined], !dismissed.contains(secondWord.lowercased()) {
+                if gap == " ", !PromptMarkIndex.plainWords.contains(PromptMarkIndex.alnum(secondWord)), let entry = index.bySpoken[joined], !dismissed.contains(secondWord.lowercased()) {
                     let range = NSRange(location: match.range.location, length: following.range.location + following.range.length - match.range.location)
                     result.append(PromptFix(range: range, word: word + " " + secondWord, key: lower, token: entry.token, detail: entry.detail, symbol: entry.symbol))
                     skipNext = true
