@@ -324,7 +324,7 @@ private struct Sheet {
         return build("Invitation", width: 1080, height: 1350, color: "#1D1A39", format: .png, variables: vars, pages: [{ s in
             s.block("Gold line top", x: 0.06, y: 0.035, w: 0.88, h: 0.004, fill: "#E8B04B")
             s.block("Gold line bottom", x: 0.06, y: 0.961, w: 0.88, h: 0.004, fill: "#E8B04B")
-            s.text("Kicker", "You are invited", x: 0.1, y: 0.07, w: 0.8, h: 0.04, size: 0.024, color: "#E8B04B", upper: true, font: "Futura")
+            s.text("Kicker", "You are invited", x: 0.1, y: 0.07, w: 0.8, h: 0.04, size: 0.024, color: "#E8B04B", font: "Futura", upper: true)
             s.text("Event", "{{event}}", x: 0.06, y: 0.115, w: 0.88, h: 0.15, size: 0.085, color: "#FFFFFF", font: "Snell Roundhand")
             s.text("Host", "hosted by {{host}}", x: 0.1, y: 0.28, w: 0.8, h: 0.045, size: 0.027, italic: true, color: "#C9B8F2")
             s.dot("Photo ring", x: 0.315, y: 0.335, d: 0.37, fill: "#E8B04B")
@@ -344,7 +344,7 @@ private struct Sheet {
         return build("Save the date", width: 1080, height: 1080, color: "#FDF0F0", format: .png, variables: vars, pages: [{ s in
             s.dot("Outer ring", x: 0.07, y: 0.07, d: 0.86, fill: "#F2A7B5")
             s.dot("Inner disc", x: 0.1, y: 0.1, d: 0.8, fill: "#FFF8F6")
-            s.text("Kicker", "Save the date", x: 0.2, y: 0.2, w: 0.6, h: 0.05, size: 0.03, color: "#B23A5B", upper: true, font: "Futura")
+            s.text("Kicker", "Save the date", x: 0.2, y: 0.2, w: 0.6, h: 0.05, size: 0.03, color: "#B23A5B", font: "Futura", upper: true)
             s.text("Couple", "{{couple}}", x: 0.15, y: 0.26, w: 0.7, h: 0.17, size: 0.095, color: "#7A1F3D", font: "Snell Roundhand")
             s.text("Date", "{{eventdate}}", x: 0.15, y: 0.45, w: 0.7, h: 0.08, size: 0.052, bold: true, color: "#7A1F3D", font: "Didot")
             s.text("Venue", "{{venue}}", x: 0.2, y: 0.54, w: 0.6, h: 0.05, size: 0.03, italic: true, color: "#7A1F3D")
@@ -410,7 +410,7 @@ private struct Sheet {
             s.dot("Dot 2", x: 0.2, y: 0.86, d: 0.08, fill: "#A8DADC")
             s.text("We are", "We are\nhiring", x: 0.03, y: 0.1, w: 0.32, h: 0.3, size: 0.066, bold: true, color: "#FFFFFF", align: "left", font: "Futura", upper: true)
             s.text("Role", "{{role}}", x: 0.43, y: 0.07, w: 0.52, h: 0.15, size: 0.06, bold: true, color: "#1D3557", align: "left", font: "Didot")
-            s.text("Company", "at {{company}}", x: 0.43, y: 0.23, w: 0.52, h: 0.05, size: 0.03, color: "#E63946", align: "left", bold: true)
+            s.text("Company", "at {{company}}", x: 0.43, y: 0.23, w: 0.52, h: 0.05, size: 0.03, bold: true, color: "#E63946", align: "left")
             for index in 0..<3 {
                 s.text("Requirement \(index + 1)", "\u{2022}  {{req\(index + 1)}}", x: 0.43, y: 0.33 + Double(index) * 0.095, w: 0.52, h: 0.085, size: 0.027, color: "#1D3557", align: "left")
             }
@@ -431,7 +431,7 @@ private struct Sheet {
         return build("Quotation", width: 1654, height: 2339, color: "#FFFFFF", format: .pdf, variables: vars, pages: [{ s in
             s.block("Top band", x: 0, y: 0, w: 1, h: 0.12, fill: "#0F4C5C")
             s.text("Company", "{{company}}", x: 0.07, y: 0.032, w: 0.5, h: 0.05, size: 0.035, bold: true, color: "#FFFFFF", align: "left", font: "Didot")
-            s.text("Kind", "Quotation", x: 0.55, y: 0.028, w: 0.38, h: 0.04, size: 0.03, bold: true, color: "#FB9F57", align: "right", upper: true, font: "Futura")
+            s.text("Kind", "Quotation", x: 0.55, y: 0.028, w: 0.38, h: 0.04, size: 0.03, bold: true, color: "#FB9F57", align: "right", font: "Futura", upper: true)
             s.text("Number", "No. {{number}}", x: 0.55, y: 0.074, w: 0.38, h: 0.03, size: 0.015, color: "#FFFFFF", align: "right")
             s.text("Bill to", "Quote for\n{{client}}\n{{clientaddress}}", x: 0.07, y: 0.15, w: 0.45, h: 0.09, size: 0.0145, align: "left")
             s.text("Dates", "Date: {{date}}\nValid till: {{validtill}}", x: 0.55, y: 0.15, w: 0.38, h: 0.07, size: 0.0145, align: "right")
