@@ -845,7 +845,9 @@ struct TemplateDesignerView: View {
                     ForEach(tree) { group in
                         Menu(group.category) {
                             ForEach(group.names, id: \.self) { name in
-                                Button(name) { addElementBox(DesignElementTokens.refine("{{wish:\(name)}}"), name: name) }
+                                Button { addElementBox(DesignElementTokens.refine("{{wish:\(name)}}"), name: name) } label: {
+                                    Label(name, systemImage: MediaFinder.isMediaCollection(name) ? "photo.on.rectangle" : "list.bullet.rectangle")
+                                }
                             }
                         }
                     }
@@ -1086,6 +1088,12 @@ struct TemplateDesignerView: View {
 
     /// A new text box that holds a variable, a function or a dropdown of a collection.
     private func addElementBox(_ token: String, name: String) {
+        if let collection = DesignElementTokens.mediaCollection(in: token) {
+            pushUndo()
+            addSlot(.image)
+            if let index = selectedIndex { template.slots[index].key = uniqueKey(collection) }
+            return
+        }
         pushUndo()
         addSlot(.text)
         guard let index = selectedIndex else { return }
@@ -1316,7 +1324,7 @@ extension TemplateDesignerView {
     func toggleListening() {
         if voice.isListening { voice.stop(); message = "Mic off."; return }
         message = "Listening. Say one change at a time."
-        voice.start(localeIdentifier: EzMeSpeechDictation.chosenLocale.identifier, commitDelay: 0.9) { text in runCommand(text) }
+        voice.start(localeIdentifier: DesignSpeech.commandLocale(chosen: EzMeSpeechDictation.chosenLocale.identifier), commitDelay: 0.9) { text in runCommand(text) }
     }
 
     // MARK: Variables and live content
@@ -1425,7 +1433,7 @@ extension TemplateDesignerView {
     // MARK: Commands
 
     func runCommand(_ raw: String) {
-        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = DesignSpeech.normalize(raw).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         heard = text
         var notes: [String] = []
@@ -1964,6 +1972,32 @@ extension TemplateDesignerView {
 
     var previewFields: [DesignField] { DesignFields.fields(pages: [template], variables: vars) }
 
+    @ViewBuilder var exampleCommands: some View {
+        let lines = DesignExamples.lines(appName: designTitle ?? template.name, word: commandWord, fields: previewFields)
+        if !lines.isEmpty {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Say or type it like this").font(.system(size: 11, weight: .bold)).foregroundStyle(Butter.cocoa)
+                ForEach(lines) { line in
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(line.text, forType: .string)
+                        message = "Copied: \(line.text)"
+                    } label: {
+                        HStack(alignment: .top, spacing: 6) {
+                            Text(line.label).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).frame(width: 34, alignment: .leading)
+                            Text(line.text).font(.system(size: 11)).foregroundStyle(Butter.cocoa).multilineTextAlignment(.leading)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                Text("Tap a line to copy it. Say less and KeyDo asks for whatever is missing.").font(.system(size: 10)).foregroundStyle(.secondary)
+            }
+            .padding(8).background(RoundedRectangle(cornerRadius: 9).fill(Butter.cream))
+        }
+    }
+
     var previewPane: some View {
         let format = DesignFormat.from(outputFormat) ?? .png
         return VStack(alignment: .leading, spacing: 10) {
@@ -1991,6 +2025,7 @@ extension TemplateDesignerView {
                     Text("-name to run this app anywhere").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
             }
+            exampleCommands
             DesignVoiceBar(guide: tryGuide, voice: tryGuide.voice)
             Text("Try it").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
             ScrollView {

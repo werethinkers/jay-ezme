@@ -129,10 +129,16 @@ import SwiftUI
         let hintText = (field.key + " " + field.label).lowercased()
         switch field.kind {
         case .image:
+            let said = value
             value = value.replacingOccurrences(of: " dot ", with: ".", options: .caseInsensitive)
                 .replacingOccurrences(of: " dash ", with: "-", options: .caseInsensitive)
                 .replacingOccurrences(of: " ", with: "")
             if celebrationMedia(value, clips: AppDesignContext.shared.clips) == nil && !FileManager.default.fileExists(atPath: value) {
+                // Not a shortcut name: look for media whose name or description has the words that were said.
+                if let found = MediaFinder.best(said, in: field.collection) {
+                    setValue(field.key, found.key)
+                    return true
+                }
                 note = "No shortcut called \u{201C}\(value)\u{201D}. Say the shortcut name again, or press Shortcuts to pick one."
                 return false
             }
@@ -225,7 +231,7 @@ struct DesignVoiceBar: View {
 
     private func example(_ field: DesignField) -> String {
         switch field.kind {
-        case .image: return "Say a shortcut name, like \u{201C}rohit dot media\u{201D}."
+        case .image: return "Say the media name, like \u{201C}rohit dot media\u{201D}, or words about it, like \u{201C}birthday cake\u{201D}."
         case .choice: return "Choose from: " + DesignVoiceFill.options(for: field).prefix(6).map { $0.name }.joined(separator: ", ")
         case .wish: return "Say a shortcut like ss10, a number, or words from the wish."
         case .long: return "Keep talking to add more, then say next."

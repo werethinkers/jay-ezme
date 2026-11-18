@@ -134,3 +134,63 @@ enum DesignElementTokens {
         return token
     }
 }
+
+extension DesignElementTokens {
+    /// "{{wish:Birthday photos}}" for a collection that holds pictures or videos gives that collection's name.
+    @MainActor static func mediaCollection(in token: String) -> String? {
+        let inner = token.replacingOccurrences(of: "{{", with: "").replacingOccurrences(of: "}}", with: "")
+        guard inner.lowercased().hasPrefix("wish:") else { return nil }
+        let rest = String(inner.dropFirst("wish:".count))
+        let said = (rest.split(separator: "/").first.map(String.init) ?? rest).trimmingCharacters(in: .whitespaces)
+        let name = WishPick.canonicalCollection(said)
+        return MediaFinder.isMediaCollection(name) ? name : nil
+    }
+}
+
+// MARK: - Examples of what to say or type
+
+/// Ready-made lines for running an app: one full sentence, one short one, and the typed form.
+@MainActor enum DesignExamples {
+    struct Line: Identifiable {
+        var label: String
+        var text: String
+        var id: String { label + text }
+    }
+
+    private static func sample(for field: DesignField) -> String? {
+        let key = (field.key + " " + field.label).lowercased()
+        switch field.kind {
+        case .wish: return WishPick.clips(in: field.collection ?? "").first?.key
+        case .image: return MediaFinder.search("", in: field.collection, limit: 1).first?.key
+        case .choice:
+            let record = AppDesignContext.shared.records.first { $0.collection.caseInsensitiveCompare(field.collection ?? "") == .orderedSame }
+            return record.map { $0.alias.isEmpty ? $0.name : $0.alias }
+        case .text, .long:
+            if key.contains("date") || key.contains("time") { return nil }
+            if key.contains("company") || key.contains("firm") { return "Acme Ltd" }
+            if key.contains("amount") || key.contains("price") || key.contains("total") { return "5000" }
+            if key.contains("city") { return "Pune" }
+            return "Rahul"
+        }
+    }
+
+    static func lines(appName: String, word: String, fields: [DesignField]) -> [Line] {
+        guard !fields.isEmpty else { return [] }
+        var spoken: [String] = []
+        var typed: [String] = []
+        for field in fields.prefix(4) {
+            guard let value = sample(for: field) else { continue }
+            let plain = value.trimmingCharacters(in: CharacterSet(charactersIn: "\\/"))
+            switch field.kind {
+            case .wish: spoken.append("with wish \(plain)")
+            case .image: spoken.append("with photo \(plain)")
+            default: spoken.append("for \(value)")
+            }
+            if !plain.contains("-") { typed.append(plain) }
+        }
+        var result = [Line(label: "Say", text: "Make \(appName)" + (spoken.isEmpty ? "" : " " + spoken.joined(separator: " ")))]
+        result.append(Line(label: "Short", text: "Make \(appName)"))
+        if !word.isEmpty { result.append(Line(label: "Type", text: "\\\(word)-" + typed.joined(separator: "-"))) }
+        return result
+    }
+}

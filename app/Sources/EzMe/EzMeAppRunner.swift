@@ -64,7 +64,7 @@ enum DesignFields {
         }
         for page in pages {
             for slot in page.slots where slot.kind != .logo && (slot.content ?? "").isEmpty {
-                add(DesignField(key: slot.key, label: label(slot.key), kind: slot.kind == .image ? .image : .text, defaultValue: defaultFor(slot.key)))
+                add(DesignField(key: slot.key, label: label(slot.key), kind: slot.kind == .image ? .image : .text, collection: slot.kind == .image ? MediaFinder.collectionNamed(slot.key) : nil, defaultValue: defaultFor(slot.key)))
             }
         }
         for key in variables.keys.sorted() {
@@ -84,6 +84,7 @@ struct DesignFieldRow: View {
     var field: DesignField
     @Binding var text: String
     @State private var records: [CollectionRecord] = []
+    @State private var chooserOpen = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -97,11 +98,23 @@ struct DesignFieldRow: View {
                     .background(RoundedRectangle(cornerRadius: 8).fill(Color.white)).overlay(RoundedRectangle(cornerRadius: 8).stroke(Butter.honey, lineWidth: 1))
                     .accessibilityLabel(field.label).help(field.label)
             case .image:
-                HStack(spacing: 6) {
-                    TextField(field.label + " (shortcut name or file)", text: $text).textFieldStyle(.roundedBorder)
-                        .accessibilityLabel(field.label).help(field.label)
-                    SourcePickerButton(title: "Shortcuts", symbol: "bolt", mediaOnly: true) { text = $0 }.buttonStyle(.bordered).controlSize(.small)
-                    Button { choose() } label: { Label("File", systemImage: "photo") }.buttonStyle(.bordered).controlSize(.small)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        TextField(field.label + " (media name, words about it, or a file)", text: $text).textFieldStyle(.roundedBorder)
+                            .accessibilityLabel(field.label).help(field.label)
+                            .onSubmit {
+                                if celebrationMedia(text, clips: AppDesignContext.shared.clips) == nil, let found = MediaFinder.best(text, in: field.collection) { text = found.key }
+                            }
+                        if let collection = field.collection {
+                            Button { chooserOpen = true } label: { Label("Choose", systemImage: "photo.on.rectangle") }.buttonStyle(.bordered).controlSize(.small)
+                                .popover(isPresented: $chooserOpen, arrowEdge: .bottom) {
+                                    MediaChooserList(collection: collection) { clip in text = clip.key; chooserOpen = false }.frame(width: 360, height: 440)
+                                }
+                        }
+                        SourcePickerButton(title: "Shortcuts", symbol: "bolt", mediaOnly: true) { text = $0 }.buttonStyle(.bordered).controlSize(.small)
+                        Button { choose() } label: { Label("File", systemImage: "photo") }.buttonStyle(.bordered).controlSize(.small)
+                    }
+                    MediaSuggestions(query: text, collection: field.collection) { clip in text = clip.key }
                 }
             case .wish:
                 WishChooserRow(field: field, text: $text)

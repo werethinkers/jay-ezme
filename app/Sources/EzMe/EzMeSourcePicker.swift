@@ -70,7 +70,7 @@ struct SourcePickerView: View {
     @ViewBuilder private func categoryRow(_ group: CollectionGroup) -> some View {
         let names = group.names.filter { name in
             if query.isEmpty { return !mediaOnly || !clips(in: name).isEmpty || mediaRecords(in: name).isEmpty == false }
-            return matches(name) || matches(group.category) || clips(in: name).contains { matches($0.key) || matches($0.name) } || context.records.contains { $0.collection.caseInsensitiveCompare(name) == .orderedSame && matches($0.name) }
+            return matches(name) || matches(group.category) || clips(in: name).contains { matches($0.key) || matches($0.name) || matches($0.keywords ?? "") || matches(String($0.text.prefix(300))) } || context.records.contains { $0.collection.caseInsensitiveCompare(name) == .orderedSame && matches($0.name) }
         }
         if !names.isEmpty {
             let key = "cat:" + group.category
@@ -107,7 +107,7 @@ struct SourcePickerView: View {
                     if mediaOnly { return r.files.contains { SourceMedia.isMedia($0) } }
                     return matches(r.name) || query.isEmpty || matches(name)
                 }.prefix(60), id: \.id) { record in recordRow(name, record) }
-                ForEach(shortcuts.filter { query.isEmpty || matches($0.key) || matches($0.name) || matches(name) }.prefix(80), id: \.id) { clip in shortcutLeaf(clip) }
+                ForEach(shortcuts.filter { query.isEmpty || matches($0.key) || matches($0.name) || matches($0.keywords ?? "") || matches(String($0.text.prefix(300))) || matches(name) }.prefix(80), id: \.id) { clip in shortcutLeaf(clip) }
             }
             .padding(.leading, 14)
         }
@@ -137,7 +137,7 @@ struct SourcePickerView: View {
     // MARK: All shortcuts
 
     @ViewBuilder private var shortcutsSection: some View {
-        let all = context.clips.filter { (!mediaOnly || SourceMedia.hasMedia($0)) && (query.isEmpty || matches($0.key) || matches($0.name)) }
+        let all = context.clips.filter { (!mediaOnly || SourceMedia.hasMedia($0)) && (query.isEmpty || matches($0.key) || matches($0.name) || matches($0.keywords ?? "") || matches(String($0.text.prefix(300)))) }
         if !all.isEmpty {
             let key = "all"
             row("All shortcuts", symbol: "bolt", count: all.count, open: isOpen(key) || !query.isEmpty) { toggle(key) }
