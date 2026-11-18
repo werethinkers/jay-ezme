@@ -364,7 +364,7 @@ struct TemplateDesignerView: View {
     var onMakeFile: (([String: String]) -> String)? = nil
     var onRename: ((String) -> (name: String, command: String))? = nil
     enum SideTab: Hashable { case library, box, page }
-    @State private var openSections: Set<String> = ["box", "library"]
+    @State private var openSections: Set<String> = ["add", "box", "library"]
     @State private var formValues: [String: String] = [:]
     @State private var commandWord = ""
     @State private var appName = ""
@@ -769,6 +769,9 @@ struct TemplateDesignerView: View {
     @ViewBuilder private var sidebar: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
+                section("add", "Add a box", "plus.circle.fill") {
+                    DesignerAddPanel(taken: { template.slots.map { $0.key } + DesignDataType.names(vars) }, onAdd: { addWizardElements($0) })
+                }
                 section("box", "Box", "rectangle.dashed") {
                     if let index = selectedIndex { boxEditor(index) } else {
                         hint("Click a box on the page to edit it. Drag it to move, drag the dots to resize, and drag the round arrow to turn it.")
@@ -1128,6 +1131,29 @@ struct TemplateDesignerView: View {
     }
 
     /// A new text box that holds a variable, a function or a dropdown of a collection.
+    /// Puts boxes made in the Add panel on the page, with their data types, ready values and mandatory marks.
+    private func addWizardElements(_ elements: [WizardElement]) -> String {
+        guard !elements.isEmpty else { return "" }
+        pushUndo()
+        let aspect = CGFloat(template.pixelWidth) / max(1, CGFloat(template.pixelHeight))
+        var placed = 0
+        var firstID: String?
+        for var e in elements {
+            let step = Double(template.slots.count % 8)
+            e.cx = 0.5; e.cy = min(0.9, 0.18 + 0.09 * step)
+            if e.kind == .picture || e.isMediaCollection { e.w = 0.25; e.h = 0.25 * Double(aspect); e.cy = min(0.8, e.cy + 0.08) }
+            var slot = WizardBuilder.slot(for: e)
+            slot.key = uniqueKey(slot.key)
+            template.slots.append(slot)
+            if firstID == nil { firstID = slot.id }
+            for (key, value) in WizardBuilder.variables(for: [e]) where vars[key] == nil || e.kind == .variable { vars[key] = value }
+            placed += 1
+        }
+        selectedID = firstID
+        onVariablesChange?(vars)
+        return "Added \(placed) box\(placed == 1 ? "" : "es"). Drag them into place, or change their look on the left."
+    }
+
     private func addElementBox(_ token: String, name: String) {
         if let collection = DesignElementTokens.mediaCollection(in: token) {
             pushUndo()

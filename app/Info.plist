@@ -30,6 +30,10 @@
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>KeyDo uses macOS automation to expand shortcuts in other apps.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>KeyDo uses your location only when an app of yours shows where you are, like the city or place name.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>KeyDo uses your location only when an app of yours shows where you are, like the city or place name.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>KeyDo uses the microphone when you choose voice input for builder prompts and details.</string>
 	<key>NSScreenCaptureUsageDescription</key>

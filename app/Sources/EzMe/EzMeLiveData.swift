@@ -2,6 +2,7 @@
 // sunset, air quality, exchange rates, crypto prices and a quote of the day. Formulas read the last value that was fetched,
 // so they answer at once; the values are refreshed in the background when the app starts and when a form opens.
 import Foundation
+import CoreLocation
 
 enum LiveData {
     private static let store = UserDefaults.standard
@@ -22,6 +23,8 @@ enum LiveData {
 
     /// The cached answer for a live word or function, or nil when the name is not a live one.
     static func evaluate(_ name: String, args: [String], now: Date) -> WishValue? {
+        let upper = name.uppercased()
+        if words.contains(name.lowercased()) || ["TEMP", "STATE", "AIRQUALITY"].contains(upper) { store.set(true, forKey: "ezmeLive.used") }
         func ready(_ key: String, _ fallback: String = "\u{2014}") -> WishValue {
             let found = value(key)
             if found.isEmpty { prefetchSoon(); return .text(fallback) }
@@ -31,8 +34,11 @@ enum LiveData {
         case "CITY": return ready("city")
         case "REGION", "STATE": return ready("region")
         case "COUNTRY": return ready("country")
+        case "AREA", "NEIGHBOURHOOD": return ready("area")
+        case "PLACENAME", "ADDRESS": return ready("placename")
         case "PLACE", "LOCATION":
-            let parts = [value("city"), value("region"), value("country")].filter { !$0.isEmpty }
+            let area = value("area")
+            let parts = (area.isEmpty ? [value("city"), value("region"), value("country")] : [area, value("city"), value("region")]).filter { !$0.isEmpty }
             if parts.isEmpty { prefetchSoon(); return .text("\u{2014}") }
             return .text(parts.joined(separator: ", "))
         case "COORDS": return ready("coords")
@@ -68,7 +74,7 @@ enum LiveData {
     }
 
     /// The names that work on their own, like =City or =Temperature.
-    static let words: Set<String> = ["city", "region", "country", "place", "location", "coords", "temperature", "weather", "humidity", "wind", "sunrise", "sunset", "uv", "aqi", "quote", "moon", "dayofyear", "yearleft"]
+    static let words: Set<String> = ["city", "area", "placename", "region", "country", "place", "location", "coords", "temperature", "weather", "humidity", "wind", "sunrise", "sunset", "uv", "aqi", "quote", "moon", "dayofyear", "yearleft"]
 
     private static func prefetchSoon() { Task.detached { await refresh(force: false) } }
 
@@ -108,18 +114,33 @@ enum LiveData {
         guard begin(force: force) else { return }
         defer { finish() }
 
-        // Where you are, worked out from your internet address (no permission needed, accurate to the city).
+        // Where you are: this Mac's own location (street level) when you allow it, otherwise your internet address (city level).
         var latitude: Double?, longitude: Double?
-        if let place = await json("https://ipwho.is/"), (place["success"] as? Bool) != false {
+        let allowPrompt = store.bool(forKey: "ezmeLive.used")
+        if let here = await DeviceLocator.shared.locate(allowPrompt: allowPrompt) {
+            latitude = here.coordinate.latitude
+            longitude = here.coordinate.longitude
+            if let mark = try? await CLGeocoder().reverseGeocodeLocation(here).first {
+                set("city", mark.locality ?? mark.subAdministrativeArea ?? "")
+                set("region", mark.administrativeArea ?? "")
+                set("country", mark.country ?? "")
+                store.set(mark.subLocality ?? "", forKey: "ezmeLive.area")
+                let named = mark.name ?? mark.thoroughfare ?? ""
+                store.set(named, forKey: "ezmeLive.placename")
+            }
+            store.set("device", forKey: "ezmeLive.source")
+        } else if let place = await json("https://ipwho.is/"), (place["success"] as? Bool) != false {
             set("city", place["city"] as? String ?? "")
             set("region", place["region"] as? String ?? "")
             set("country", place["country"] as? String ?? "")
+            store.removeObject(forKey: "ezmeLive.area"); store.removeObject(forKey: "ezmeLive.placename")
             latitude = place["latitude"] as? Double
             longitude = place["longitude"] as? Double
         } else if let place = await json("https://ipapi.co/json/") {
             set("city", place["city"] as? String ?? "")
             set("region", place["region"] as? String ?? "")
             set("country", place["country_name"] as? String ?? "")
+            store.removeObject(forKey: "ezmeLive.area"); store.removeObject(forKey: "ezmeLive.placename")
             latitude = place["latitude"] as? Double
             longitude = place["longitude"] as? Double
         }
@@ -239,8 +260,10 @@ enum LiveData {
 extension WishFunctionCatalog {
     /// Live and place functions. Their values come from free sources and are kept fresh in the background.
     static let live: [WishFunctionInfo] = [
-        WishFunctionInfo("CITY", "CITY()", "The city you are in now, found from your internet address.", "Live & place"),
-        WishFunctionInfo("PLACE", "PLACE()", "City, state and country, like Pune, Maharashtra, India.", "Live & place"),
+        WishFunctionInfo("CITY", "CITY()", "The city you are in now, from this Mac's location or your internet address.", "Live & place"),
+        WishFunctionInfo("PLACE", "PLACE()", "Where you are, like Koregaon Park, Pune, Maharashtra. Uses this Mac's location when allowed.", "Live & place"),
+        WishFunctionInfo("AREA", "AREA()", "The neighbourhood you are in (needs location allowed).", "Live & place"),
+        WishFunctionInfo("PLACENAME", "PLACENAME()", "The name of the spot or street you are at (needs location allowed).", "Live & place"),
         WishFunctionInfo("REGION", "REGION()", "The state or region you are in.", "Live & place"),
         WishFunctionInfo("COUNTRY", "COUNTRY()", "The country you are in.", "Live & place"),
         WishFunctionInfo("COORDS", "COORDS()", "Latitude and longitude of the city.", "Live & place"),
@@ -259,4 +282,59 @@ extension WishFunctionCatalog {
         WishFunctionInfo("DAYOFYEAR", "DAYOFYEAR()", "Which day of the year it is, 1 to 366.", "Live & place"),
         WishFunctionInfo("YEARLEFT", "YEARLEFT()", "Days left in this year.", "Live & place")
     ]
+}
+
+
+/// This Mac's own location, asked for only once something uses a place word. Without permission formulas fall back to the internet address.
+@MainActor final class DeviceLocator: NSObject, CLLocationManagerDelegate {
+    static let shared = DeviceLocator()
+    private let manager = CLLocationManager()
+    private var waiting: [CheckedContinuation<CLLocation?, Never>] = []
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+    }
+
+    func locate(allowPrompt: Bool) async -> CLLocation? {
+        guard CLLocationManager.locationServicesEnabled() else { return nil }
+        let status = manager.authorizationStatus
+        if status == .denied || status == .restricted { return nil }
+        if status == .notDetermined {
+            guard allowPrompt else { return nil }
+            manager.requestWhenInUseAuthorization()
+        }
+        return await withCheckedContinuation { (continuation: CheckedContinuation<CLLocation?, Never>) in
+            waiting.append(continuation)
+            if manager.authorizationStatus != .notDetermined { manager.requestLocation() }
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 15_000_000_000)
+                self.finish(nil)
+            }
+        }
+    }
+
+    private func finish(_ location: CLLocation?) {
+        let pending = waiting
+        waiting = []
+        for continuation in pending { continuation.resume(returning: location) }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        let first = locations.last
+        Task { @MainActor in self.finish(first) }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task { @MainActor in self.finish(nil) }
+    }
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            let status = self.manager.authorizationStatus
+            if status == .denied || status == .restricted { self.finish(nil) }
+            else if status != .notDetermined, !self.waiting.isEmpty { self.manager.requestLocation() }
+        }
+    }
 }

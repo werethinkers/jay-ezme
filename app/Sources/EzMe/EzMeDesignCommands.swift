@@ -55,6 +55,15 @@ import AppKit
 
     // MARK: Registering with the popup
 
+    /// An app made in App Designer runs as soon as its name is typed. Only a box the maker marked mandatory can stop it.
+    static func runnable(_ command: CustomBuilderCommand) -> Bool {
+        guard isDesignApp(command.app) else { return false }
+        for (index, name) in command.slotNames.enumerated() where field(app: command.app, label: name)?.required == true {
+            if index >= command.slotValues.count || command.slotValues[index].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        }
+        return true
+    }
+
     static func isDesignApp(_ app: String) -> Bool { registered().values.contains(app) }
 
     static func designID(forApp app: String) -> String? { registered().first(where: { $0.value == app })?.key }
