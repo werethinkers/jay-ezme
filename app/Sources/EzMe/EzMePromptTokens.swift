@@ -914,11 +914,14 @@ struct PromptMicButton: View {
             } label: {
                 HStack(spacing: 7) {
                     KeyDoVoiceIcon(kind: .one, size: 24, active: speech.isListening)
-                    if let left = countdown, speech.isListening {
-                        Text("Turning off in \(left)…").foregroundStyle(Butter.coral)
-                    } else {
-                        Text(speech.isListening ? "Listening… tap to stop" : "Speak").foregroundStyle(Butter.cocoa)
+                    Group {
+                        if let left = countdown, speech.isListening {
+                            Text("Turning off in \(left)…").foregroundStyle(Butter.coral)
+                        } else {
+                            Text(speech.isListening ? "Listening… tap to stop" : "Speak").foregroundStyle(Butter.cocoa)
+                        }
                     }
+                    .frame(width: 150, alignment: .leading)
                 }
             }
             .buttonStyle(.bordered)

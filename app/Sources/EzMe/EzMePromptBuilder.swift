@@ -414,6 +414,7 @@ struct PromptBuilderView: View {
     @State private var autoMarks = [PromptAutoMark]()
     @AppStorage("keydoPromptLastSite") private var lastSite = ""
     @State private var manualFiles = [PromptAttachment]()
+    @State private var lastPartialApply = Date.distantPast
     @State private var mediaList = [Clip]()
     @State private var plainList = [Clip]()
     @State private var dismissed = Set<String>()
@@ -451,19 +452,24 @@ struct PromptBuilderView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 header
-                HStack(spacing: 8) {
-                    BuilderStepPill(number: 1, title: "Write", done: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
-                    BuilderStepPill(number: 2, title: "Check", done: !finalPrompt.isEmpty)
-                    Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
-                    BuilderStepPill(number: 3, title: "Send", done: flashTarget != nil)
-                }
-                readyBar
+                PromptStepper(steps: [
+                    (1, "Write prompt", "Type or speak what you want", !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
+                    (2, "Add context", "Collections, media, files", fileCount > 0),
+                    (3, "Check", "Spelling and names fixed", !finalPrompt.isEmpty),
+                    (4, "Send", "Opens in the side panel", flashTarget != nil)
+                ])
                 HStack(alignment: .top, spacing: 16) {
-                    typingBox.frame(minWidth: 360)
-                    liveBox.frame(minWidth: 300)
+                    VStack(spacing: 16) {
+                        typingBox
+                        contextBox
+                    }
+                    .frame(minWidth: 420)
+                    VStack(spacing: 16) {
+                        liveBox
+                        sendBox
+                    }
+                    .frame(minWidth: 340, idealWidth: 400, maxWidth: 460)
                 }
-                sendBox
                 if !notice.isEmpty {
                     Label(notice, systemImage: "info.circle.fill").font(.callout).foregroundStyle(Butter.cocoa)
                         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -503,10 +509,20 @@ struct PromptBuilderView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
-            BuilderHeader(symbol: "text.bubble.fill", title: "Prompt Builder", subtitle: "Write or speak one prompt, add media with # and @, then send it to any AI site.") {
-                Button { showVoiceHelp.toggle() } label: { Label("Voice commands", systemImage: "waveform") }
-                    .buttonStyle(.bordered)
-                    .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
+            BuilderHeader(symbol: "text.bubble.fill", title: "Prompt Builder", subtitle: canSend ? "Ready: say “send to \(quickTarget?.name.lowercased() ?? "chatgpt")” or press Send." : "Write or speak one prompt, add media with # and @, then send it to any AI site.") {
+                HStack(spacing: 8) {
+                    Button { showVoiceHelp.toggle() } label: { Label("Voice commands", systemImage: "waveform") }
+                        .buttonStyle(.bordered)
+                        .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
+                    Button { copyPrompt() } label: { Label("Copy", systemImage: "doc.on.doc") }
+                        .buttonStyle(.bordered).disabled(finalPrompt.isEmpty)
+                    if let target = quickTarget {
+                        Button { send(to: target) } label: { Label("Send to \(target.name)", systemImage: "paperplane.fill") }
+                            .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(!canSend)
+                            .keyboardShortcut(.return, modifiers: .command)
+                            .help("Opens \(target.name) in the side panel, pastes your prompt and files, and sends. Shortcut: Command Return.")
+                    }
+                }
             }
             tokenGuide
         }
@@ -611,26 +627,50 @@ struct PromptBuilderView: View {
                 Spacer()
                 Button("Clear") { text = ""; notice = ""; heard = ""; voiceHint = ""; dismissed = [] }.disabled(text.isEmpty)
             }
-            HStack(spacing: 4) {
-                Text("INSERT").font(.system(size: 10, weight: .heavy)).foregroundStyle(.tertiary).padding(.trailing, 2)
-                Menu { collectionsMenu } label: { BuilderChipLabel(text: "Collections", symbol: "number") }
-                Menu { mediaMenu } label: { BuilderChipLabel(text: "Media", symbol: "photo") }
-                Button { chooseFiles() } label: { BuilderChipLabel(text: "Attach files", symbol: "paperclip") }
-                    .help("Attach pictures, videos, PDFs or any other file from your Mac. You can also drop files onto this page.")
-                Menu { appsMenu } label: { BuilderChipLabel(text: "Apps", symbol: "at") }
-                Menu { functionsMenu } label: { BuilderChipLabel(text: "Functions", symbol: "function") }
-                Spacer(minLength: 0)
+            statusRow
+            VStack(alignment: .leading, spacing: 6) {
+                markStrip
+                suggestionStrip
             }
-            .menuStyle(.borderlessButton)
-            .buttonStyle(.plain)
-            if !heard.isEmpty { Label("Heard: \(heard)", systemImage: "ear").font(.caption).foregroundStyle(.secondary).lineLimit(2) }
-            markStrip
-            suggestionStrip
-            if !voiceHint.isEmpty { Label(voiceHint, systemImage: "mic.fill").font(.caption).foregroundStyle(.secondary) }
-            attachmentChips
+            .frame(minHeight: 30, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .onDrop(of: ["public.file-url"], isTargeted: nil) { dropFiles($0) }
+    }
+
+    /// One line that always takes the same space, so what you hear and see never makes the page jump.
+    private var statusRow: some View {
+        let line = !heard.isEmpty ? "Heard: " + heard : voiceHint
+        return HStack(spacing: 6) {
+            Image(systemName: heard.isEmpty ? "mic.fill" : "waveform").font(.caption).foregroundStyle(line.isEmpty ? Color.clear : Butter.coral)
+            Text(line.isEmpty ? " " : line).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(heard.isEmpty ? .tail : .head)
+            Spacer(minLength: 0)
+        }
+        .frame(height: 20)
+        .transaction { $0.animation = nil }
+    }
+
+    private var contextBox: some View {
+        BuilderCard(step: 2, title: "Add context", symbol: "paperclip", hint: "Collections, media and files go along with your prompt. You can also drop files here.") {
+            VStack(alignment: .leading, spacing: 10) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], alignment: .leading, spacing: 8) {
+                    Menu { collectionsMenu } label: { BuilderChipLabel(text: "Collections", symbol: "number") }
+                    Menu { mediaMenu } label: { BuilderChipLabel(text: "Media", symbol: "photo") }
+                    Button { chooseFiles() } label: { BuilderChipLabel(text: "Attach files", symbol: "paperclip") }
+                        .help("Attach pictures, videos, PDFs or any other file from your Mac.")
+                    Menu { appsMenu } label: { BuilderChipLabel(text: "Apps", symbol: "at") }
+                    Menu { functionsMenu } label: { BuilderChipLabel(text: "Functions", symbol: "function") }
+                }
+                .menuStyle(.borderlessButton)
+                .buttonStyle(.plain)
+                attachmentChips
+                if composition.attachments.isEmpty && manualFiles.isEmpty {
+                    Text("Nothing attached yet. Type # for a shortcut or collection, @ for a person or app.").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .onDrop(of: ["public.file-url"], isTargeted: nil) { dropFiles($0) }
+        }
     }
 
     @ViewBuilder private var suggestionStrip: some View {
@@ -716,6 +756,13 @@ struct PromptBuilderView: View {
 
     private func heardSpeech(_ spoken: String, final: Bool) {
         heard = spoken
+        // Partial results arrive many times a second. Show them in the status line and write to the prompt a few times a second at most,
+        // so the box does not flicker; the final result always lands.
+        if !final {
+            let now = Date()
+            if now.timeIntervalSince(lastPartialApply) < 0.45 { return }
+            lastPartialApply = now
+        }
         let result = PromptVoice.apply(base: voiceBase, spoken: spoken, targets: targets, index: markIndex, dismissed: dismissed)
         dismissed.formUnion(result.dismissed)
         let marked = autoMarked(result.text, final: final)
@@ -937,7 +984,7 @@ struct PromptBuilderView: View {
         }
         if !composition.attachments.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                Text("ATTACHED MEDIA · HOVER TO PREVIEW").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+                Text("REFERENCED ITEMS · AUTO-DETECTED · HOVER TO PREVIEW").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], alignment: .leading, spacing: 8) {
                     ForEach(composition.attachments) { item in chip(item) }
                 }
@@ -981,7 +1028,7 @@ struct PromptBuilderView: View {
     // MARK: Live prompt
 
     private var liveBox: some View {
-        BuilderCard(step: 2, title: aiText == nil ? "Check the prompt" : "Polished by AI", symbol: "checkmark.seal", hint: aiText == nil ? "Spelling and names are fixed as you type." : "This version is what gets sent.", accessory: {
+        BuilderCard(step: 3, title: aiText == nil ? "Check the prompt" : "Polished by AI", symbol: "checkmark.seal", hint: aiText == nil ? "Spelling and names are fixed as you type." : "This version is what gets sent.", accessory: {
             Toggle("Auto-correct", isOn: $autoCorrect).toggleStyle(.switch).controlSize(.mini)
         }) {
             liveContent
@@ -1052,7 +1099,7 @@ struct PromptBuilderView: View {
     // MARK: Send
 
     private var sendBox: some View {
-        BuilderCard(step: 3, title: "Send to an AI site", symbol: "paperplane", hint: "Opens in the side panel and starts running.", accessory: {
+        BuilderCard(step: 4, title: "Send to an AI site", symbol: "paperplane", hint: "Opens in the side panel and starts running.", accessory: {
             HStack(spacing: 8) {
                 Button { showAddSite = true } label: { BuilderChipLabel(text: "Add site", symbol: "plus") }.buttonStyle(.plain)
                 Button { editingSites.toggle() } label: { BuilderChipLabel(text: editingSites ? "Done" : "Edit links", symbol: editingSites ? "checkmark" : "pencil") }.buttonStyle(.plain)
@@ -1534,5 +1581,36 @@ final class PromptDispatchRequest {
         let enter = "(function(){\(findScript)\(anyScript) var el=kdFind(\(editors))||kdAny(); if(!el) return 'none'; el.focus(); ['keydown','keypress','keyup'].forEach(function(t){el.dispatchEvent(new KeyboardEvent(t,{key:'Enter',code:'Enter',keyCode:13,which:13,bubbles:true}));}); return 'enter';})()"
         _ = try? await web.evaluateJavaScript(enter)
         browser.browserMessage = "The prompt is in \(name). Press send there if it did not start."
+    }
+}
+
+
+/// The four steps across the top, each with a short line under it.
+struct PromptStepper: View {
+    var steps: [(Int, String, String, Bool)]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle().fill(step.3 ? Butter.coral : Butter.coral.opacity(0.12)).frame(width: 34, height: 34)
+                        if step.3 { Image(systemName: "checkmark").font(.system(size: 13, weight: .bold)).foregroundStyle(.white) }
+                        else { Text("\(step.0)").font(.system(size: 14, weight: .heavy, design: .rounded)).foregroundStyle(Butter.coral) }
+                    }
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(step.1).font(.system(size: 13.5, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa)
+                        Text(step.2).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                if index < steps.count - 1 {
+                    Rectangle().fill(Butter.coral.opacity(0.18)).frame(height: 2).frame(maxWidth: .infinity).padding(.horizontal, 12)
+                }
+            }
+        }
+        .padding(.horizontal, 18).padding(.vertical, 12)
+        .background(.white.opacity(0.85), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Butter.coral.opacity(0.14)))
+        .transaction { $0.animation = nil }
     }
 }

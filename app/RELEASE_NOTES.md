@@ -1,6 +1,7 @@
-# KeyDo 3.80
+# KeyDo 3.81
 
-- **Smoother voice commands, one brain for voice, Siri and Shortcuts.** KeyDo now understands the whole sentence the same way wherever it comes from: "Hey Siri, KeyDo, please open the prompt builder", "go to my collection builder", "show me settings", "open youtube dot com".
-- **Open anything by name:** the main screens, every AppBuilder app (Collection Builder, MyDatabase, Prompt Builder, Template Designer and the apps you made), AppDesigner and WishStudio, your collections ("collection rohit"), your saved browser sites, web addresses, and Mac apps ("open Notes"). Greetings, "open", "the", "my", "app" and punctuation are ignored, and close mishearings still match.
-- **Siri:** "send to chatgpt" now also works with a Siri lead-in ("Hey Siri, KeyDo, send it to ChatGPT"), and the keydo:// links accept both keydo://voice?text=… and keydo://voice/open prompt builder.
+- **Prompt Builder, a more professional layout** in KeyDo's own colours:
+  - A header with Voice commands, Copy and one Send button, and a four-step bar: Write prompt, Add context, Check, Send, each ticking off as you go.
+  - Left: your prompt and an "Add context" card (collections, media, attach files, apps, functions, and the referenced items found in your prompt). Right: the live, corrected preview and the sites to send to. Sending opens the site in the browser side panel as before.
+- **No more blinking while you speak:** the "Heard…" line now has a fixed place and never moves the page, the Speak button keeps one width, and spoken words are written into the prompt a few times a second instead of on every tiny change.
 - Keyboard safety: no change to the key watcher.
