@@ -12,19 +12,19 @@ enum DesignMorePrompt {
         lines.append("Create \(count) more template options for it. Each option must look clearly different (layout, colours, type style) while keeping the same size and the same fixed content.")
         lines.append("")
         lines.append("KEEP exactly as in the pictures: every fixed text, image, logo and icon.")
-        lines.append("The blank areas in the pictures are left empty on purpose. Keep them blank, in the same places and about the same size, with no words, labels, names or sample text in them, so I can fill them later myself.")
+        lines.append("LEAVE EMPTY: the blank areas where my own content will be added later. Do not write any words, names, labels, sample text or placeholders in them, and do not put anything in them. Keep them empty, in the same places, as clean blank space of the same size.")
         for (index, page) in pages.enumerated() {
+            let texts = page.slots.filter { $0.kind == .text }
+            let pictures = page.slots.filter { $0.kind == .image }
             lines.append("")
-            lines.append("Page \(index + 1): \(page.pixelWidth) x \(page.pixelHeight) px, \(page.slots.filter { $0.kind != .logo }.count) blank area\(page.slots.filter { $0.kind != .logo }.count == 1 ? "" : "s") to keep empty.")
-            var number = 0
+            lines.append("Page \(index + 1): \(page.pixelWidth) x \(page.pixelHeight) px. Empty areas to keep: \(texts.count) for text, \(pictures.count) for a picture.")
             for slot in page.slots where slot.kind != .logo {
-                number += 1
                 let place = "centre \(Int(slot.cx * 100))% across and \(Int(slot.cy * 100))% down, \(Int(slot.w * 100))% wide, \(Int(slot.h * 100))% tall"
-                lines.append("- Blank \(slot.kind == .image ? "picture" : "text") area \(number): \(place)")
+                lines.append("- empty \(slot.kind == .text ? "text" : "picture") area: \(place)")
             }
         }
         lines.append("")
-        lines.append("Give each option a short name, then the finished picture at the same pixel size. If you cannot draw pictures, give clean HTML and CSS for each option with the blank areas left empty.")
+        lines.append("Give each option a short name, then the finished picture at the same pixel size. If you cannot draw pictures, give clean HTML and CSS for each option with the empty areas left empty.")
         return lines.joined(separator: "\n")
     }
 
