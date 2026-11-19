@@ -985,6 +985,7 @@ struct AppDesignEditor: View {
     @ObservedObject private var templates = TemplateStore.shared
     /// The template being edited: "main" is the default (temp1), otherwise the id of another template.
     @State private var templateID = "main"
+    @State private var showPrompt = false
 
     /// The pages of the template being edited.
     private func pageList(_ design: AppDesign) -> [String] {
@@ -995,10 +996,16 @@ struct AppDesignEditor: View {
     var body: some View {
         VStack(spacing: 0) {
             DesignTemplateBar(designID: designID, selected: $templateID)
+                .overlay(alignment: .trailing) {
+                    Button { showPrompt = true } label: { Label("Prompt for ChatGPT or Gemini", systemImage: "sparkles.rectangle.stack") }
+                        .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small).padding(.trailing, 12)
+                        .help("A ready prompt with your template pictures (sample words removed) to get 2 to 5 more looks")
+                }
             Divider()
             editor
         }
         .onAppear { DesignTemplates.ensure(designID) }
+        .sheet(isPresented: $showPrompt) { DesignMoreLooksSheet(designID: designID) }
         .onChange(of: templateID) { _, _ in pageIndex = 0 }
     }
 

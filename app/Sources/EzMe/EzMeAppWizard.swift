@@ -410,8 +410,57 @@ enum WizardSpec {
 
     func remove(_ id: String) { elements.removeAll { $0.id == id }; relayout() }
 
+    /// Another box like this one, right after it, with its own name.
+    func duplicate(_ id: String) {
+        guard let index = elements.firstIndex(where: { $0.id == id }) else { return }
+        var copy = elements[index]
+        copy.id = UUID().uuidString
+        let stem = copy.name.trimmingCharacters(in: CharacterSet.decimalDigits)
+        copy.name = uniqueName(stem.isEmpty ? copy.name : stem)
+        if copy.kind == .collection { copy.sub = ""; copy.defaultValue = "" }
+        elements.insert(copy, at: index + 1)
+        selection = copy.id
+        relayout()
+    }
+
+    /// The kind of value a box name usually holds, so a list of names needs no further setup.
+    static func guessType(_ name: String) -> DesignDataType {
+        let n = name.lowercased()
+        func has(_ words: [String]) -> Bool { words.contains { n.contains($0) } }
+        if has(["date", "dob", "birthday", "deadline", "due"]) { return .date }
+        if has(["time"]) { return .time }
+        if has(["amount", "price", "fee", "total", "salary", "rate", "cost", "balance", "rent", "package"]) { return .currency }
+        if has(["phone", "mobile", "whatsapp", "contact no"]) { return .phone }
+        if has(["email", "mail"]) { return .email }
+        if has(["link", "url", "website"]) { return .link }
+        if has(["quantity", "qty", "count", "age", "number"]) { return .whole }
+        if has(["address", "details", "notes", "description", "message", "body", "terms", "scope"]) { return .long }
+        return .text
+    }
+
+    /// "customer, date, amount, phone" becomes four variables with fitting types. Returns how many were added.
+    @discardableResult
+    func addNames(_ text: String) -> Int {
+        let parts = text.replacingOccurrences(of: " and ", with: ",").split(whereSeparator: { ",;\n".contains($0) })
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        guard !parts.isEmpty, parts.allSatisfy({ $0.split(separator: " ").count <= 3 }) else { return 0 }
+        var added = 0
+        for part in parts {
+            let name = part.replacingOccurrences(of: " ", with: "_").lowercased()
+            guard !elements.contains(where: { TemplateFill.normal($0.name) == TemplateFill.normal(name) }) else { continue }
+            elements.append(WizardElement(kind: .variable, name: name, type: Self.guessType(name)))
+            added += 1
+        }
+        if added > 0 { relayout() }
+        return added
+    }
+
     func fromSpoken(_ text: String) {
         let made = WizardSpec.parse(text, existing: elements)
+        if made.isEmpty, text.contains(",") || text.lowercased().contains(" and "), addNames(text) > 0 {
+            message = "Added your names as variables with matching types. Open one to change its type."
+            return
+        }
         if made.isEmpty {
             message = "I did not hear what to add. Try \u{201C}two variables string and date, one collection, one picture\u{201D}."
             return
@@ -572,6 +621,7 @@ enum WizardSpec {
 struct NewAppWizardView: View {
     var onDone: (AppDesign?) -> Void
     @StateObject private var model = NewAppWizardModel()
+    @State private var showPrompt = false
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -593,6 +643,7 @@ struct NewAppWizardView: View {
         .frame(minWidth: 960, minHeight: 680)
         .background(Butter.cream)
         .preferredColorScheme(.light)
+        .sheet(isPresented: $showPrompt) { if let id = model.designID { DesignMoreLooksSheet(designID: id) } }
     }
 
     private var header: some View {
@@ -681,19 +732,19 @@ struct NewAppWizardView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("2. Add your boxes").font(.system(size: 16, weight: .bold)).foregroundStyle(Butter.cocoa)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Say or type what you need").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
+                    Text("Say or type what you need, or just list the names").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
                     HStack {
-                        TextField("I need two variables string and date, two collections, one picture", text: $model.spokenSpec)
+                        TextField("customer, date, amount, phone   or   two variables, two collections, one picture", text: $model.spokenSpec)
                             .textFieldStyle(.roundedBorder).onSubmit { model.fromSpoken(model.spokenSpec); model.spokenSpec = "" }
                         Button("Add") { model.fromSpoken(model.spokenSpec); model.spokenSpec = "" }.buttonStyle(.borderedProminent).tint(Butter.coral)
                         VoiceDictationButton(onTranscript: { said in model.fromSpoken(said) })
                     }
                 }
                 HStack(spacing: 8) {
-                    Menu {
-                        ForEach(WizardElementKind.allCases) { kind in Button { model.add(kind) } label: { Label(kind.title, systemImage: kind.symbol) } }
-                    } label: { Label("Add a box", systemImage: "plus.circle.fill") }
-                        .menuStyle(.borderlessButton).fixedSize()
+                    ForEach(WizardElementKind.allCases) { kind in
+                        Button { model.add(kind) } label: { Label(kind.title, systemImage: kind.symbol).font(.system(size: 12, weight: .semibold)) }
+                            .buttonStyle(.bordered).controlSize(.small).tint(Butter.coral).help("Add one \(kind.title.lowercased()) box. Click again for another.")
+                    }
                     if !model.kind.suggested.isEmpty {
                         Button { model.addSuggested() } label: { Label("Add the usual boxes", systemImage: "sparkles") }.buttonStyle(.bordered).controlSize(.small)
                     }
@@ -712,7 +763,8 @@ struct NewAppWizardView: View {
                     ElementEditor(element: $element, selected: model.selection == element.id,
                                   onChange: { model.chooseDefault(for: element.id); model.relayout() },
                                   onSelect: { model.selection = element.id },
-                                  onDelete: { model.remove(element.id) })
+                                  onDelete: { model.remove(element.id) },
+                                  onDuplicate: { model.duplicate(element.id) })
                 }
             }
             .padding(20)
@@ -803,6 +855,9 @@ struct NewAppWizardView: View {
                     .id(model.tick)
                     .shadow(color: .black.opacity(0.12), radius: 6)
                 Text("Click the logo to change it, or a box to edit it.").font(.system(size: 10)).foregroundStyle(Butter.cocoa.opacity(0.6))
+                Button { showPrompt = true } label: { Label("Make a prompt for ChatGPT or Gemini", systemImage: "sparkles.rectangle.stack") }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                    .help("A ready prompt with this page's picture, without the sample words, to get 2 to 5 more looks")
             }
             Spacer()
         }
@@ -832,6 +887,7 @@ struct ElementEditor: View {
     var onChange: () -> Void
     var onSelect: () -> Void
     var onDelete: () -> Void
+    var onDuplicate: () -> Void = {}
     private var context: AppDesignContext { AppDesignContext.shared }
 
     @ViewBuilder private func fixedToggle(label: String) -> some View {
@@ -850,9 +906,34 @@ struct ElementEditor: View {
                     TextField("Name", text: $element.name).textFieldStyle(.roundedBorder).frame(maxWidth: 180)
                         .onSubmit { element.name = element.name.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: " ", with: "_"); onChange() }
                 }
-                Spacer()
-                Button(action: onDelete) { Image(systemName: "xmark.circle") }.buttonStyle(.plain).foregroundStyle(.secondary)
+                if !selected { Text(summary).font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1).truncationMode(.tail) }
+                Spacer(minLength: 4)
+                Button(action: onDuplicate) { Image(systemName: "plus.square.on.square") }.buttonStyle(.plain).foregroundStyle(.secondary).help("Add another like this one")
+                Button { onSelect() } label: { Image(systemName: selected ? "chevron.up" : "chevron.down") }.buttonStyle(.plain).foregroundStyle(Butter.coral).help(selected ? "Fold up" : "Open the details")
+                Button(action: onDelete) { Image(systemName: "xmark.circle") }.buttonStyle(.plain).foregroundStyle(.secondary).help("Remove this box")
             }
+            .contentShape(Rectangle())
+            if selected { details }
+        }
+        .padding(selected ? 10 : 7)
+        .background(RoundedRectangle(cornerRadius: 11).fill(Color.white))
+        .overlay(RoundedRectangle(cornerRadius: 11).stroke(selected ? Butter.coral : Butter.honey.opacity(0.7), lineWidth: selected ? 2 : 1))
+        .onTapGesture { onSelect() }
+    }
+
+    /// What the folded row says about the box.
+    private var summary: String {
+        switch element.kind {
+        case .variable: return element.type.title + (element.defaultValue.isEmpty ? "" : " · " + element.defaultValue)
+        case .collection: return element.sub.isEmpty ? "choose a collection" : element.category + " › " + element.sub
+        case .function: return element.formula.isEmpty ? "choose a function" : element.formula
+        case .picture: return element.defaultValue.isEmpty ? "asked each time" : "fixed picture"
+        case .text: return element.text
+        }
+    }
+
+    @ViewBuilder private var details: some View {
+        VStack(alignment: .leading, spacing: 6) {
             switch element.kind {
             case .variable:
                 VStack(alignment: .leading, spacing: 6) {
@@ -911,9 +992,5 @@ struct ElementEditor: View {
                 TextField("Words on the page", text: $element.text).textFieldStyle(.roundedBorder).onSubmit { onChange() }
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 11).fill(Color.white))
-        .overlay(RoundedRectangle(cornerRadius: 11).stroke(selected ? Butter.coral : Butter.honey.opacity(0.7), lineWidth: selected ? 2 : 1))
-        .onTapGesture { onSelect() }
     }
 }

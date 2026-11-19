@@ -1,19 +1,15 @@
-# KeyDo 3.89
+# KeyDo 3.90
 
-## File Renamer
-- A bold "Rename N files now" button is now pinned at the bottom of File Renamer (Command Return also works), with the result message right above it. Before, the button sat at the very bottom of a tall page and the messages were hidden with it.
-- If the new names are the same as the current ones (for example every file already has the prefix, which is skipped unless you allow doubles) it now says so, instead of looking like nothing happened.
-- Case-only changes (such as photo to Photo) are renamed safely.
+## AppDesigner: New app is quicker to fill
+- Boxes fold into one short row (kind, name and a summary such as "Currency" or "Customers › Retail"). Only the box you open shows its details, so a long list no longer needs endless scrolling. Open or fold with the arrow or by clicking the row.
+- One-click Variable, Collection, Function, Picture and Text buttons replace the Add a box menu. Click again for another.
+- Each box has "Add another like this one" to copy it without retyping.
+- Type just the names, for example `customer, date, amount, phone`, and each becomes a variable with a fitting type (date, currency, phone, email, link, whole number or long text). Open one to change its type. The older "two variables, one picture" wording still works.
+- Nothing was removed: every setting of every box is still there when you open it.
 
-## Prompt Builder: smaller
-- Add context is no longer a separate card. Collections, Media, Attach files, Apps, Functions and Clear are small icons in the corner of the prompt box, beside the mic, and attached files show underneath.
-- The language is a small globe with a short code (EN, HI), and the mic button is shorter. Card sub-titles are removed and the prompt box is a little shorter.
-
-## Collection Builder: Live updates
-- New "Live updates" card: give a collection a feed address (RSS or Atom) and a schedule: daily, weekly, seasonal (daily between two dates) or only when you press Update now.
-- Ready-made: News Updates (daily), Stock Updates (daily), Movie Trailers (weekly), Cricket Score (seasonal), Hindi Dance Songs and Music Label Hindi Songs (weekly).
-- Each refresh replaces that collection's live shortcuts with numbered ones, so \news1 is always the newest. Your own shortcuts in the collection are never touched. KeyDo checks every 30 minutes while it is open.
-- Ready-made ones use Google News search feeds: headlines and links, not price or score tables.
+## Prompt for ChatGPT or Gemini
+- "Make a prompt for ChatGPT or Gemini" now sits under the live preview in the New app window, and in the design editor's top bar once the design is open. It opens the ready prompt, attaches your template pictures and sends them to ChatGPT or Gemini in the side panel (or copies the prompt).
+- The pictures sent are now clean: the variable boxes are empty, so the sample words such as "Any words" are not shared. The prompt says the boxes are empty on purpose and lists them as {{placeholders}}.
 
 ## Keyboard safety
-Checked: the key tap `miniJSlashTap`, its release guard and the heartbeat watchdog were not touched. Nothing new swallows keys; the live refresh runs in the background, away from the key callback.
+Checked: this version only changes AppDesigner screens. The key tap `miniJSlashTap`, its release guard and the heartbeat watchdog were not touched, and nothing new swallows keys.

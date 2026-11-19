@@ -11,7 +11,7 @@ enum DesignMorePrompt {
         lines.append("I am designing a template called \"\(title)\". The attached picture\(pages.count == 1 ? " is" : "s are") its current page\(pages.count == 1 ? "" : "s").")
         lines.append("Create \(count) more template options for it. Each option must look clearly different (layout, colours, type style) while keeping the same size and the same content.")
         lines.append("")
-        lines.append("KEEP exactly as in the pictures: every fixed text, image, logo and icon.")
+        lines.append("KEEP exactly as in the pictures: every fixed text, image, logo and icon. The variable boxes are empty in the pictures on purpose; there is no sample text to copy.")
         lines.append("LEAVE as named placeholders, in the same place, written like {{name}}: the boxes below. These are variables, formulas and collection values that my app fills in later, so do not replace them with sample text.")
         for (index, page) in pages.enumerated() {
             lines.append("")
@@ -37,7 +37,7 @@ enum DesignMorePrompt {
         var paths = [String]()
         for (index, page) in pages.enumerated() {
             guard let base = TemplateStore.shared.basePicture(for: page),
-                  let image = TemplateRenderer.render(page, base: base, texts: nil, images: [:], useSamples: true, maxSide: 1600),
+                  let image = TemplateRenderer.render(page, base: base, texts: [:], images: [:], useSamples: false, maxSide: 1600),
                   let tiff = image.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff), let png = rep.representation(using: .png, properties: [:]) else { continue }
             let file = folder.appendingPathComponent("template-page-\(index + 1).png")
             if (try? png.write(to: file)) != nil { paths.append(file.path) }
