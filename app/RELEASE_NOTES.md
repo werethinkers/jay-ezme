@@ -1,5 +1,8 @@
-# KeyDo 3.82
+# KeyDo 3.83
 
-- **Prompt Builder:** the prompt box now shows about five lines (it scrolls for more), so Add context, the Speak button and the voice line are always on screen.
-- **MyDatabase, From Mac Contacts now brings the picture too.** Each contact's profile picture is saved with the contact (shown as a round photo in the list) and as a shortcut named after the first name: `yogesh.pic`. If that name is taken it becomes `yogeshs.pic`, then `yogeshsh.pic` and so on with more letters of the surname, and finally `yogeshshah1.pic`, `yogeshshah2.pic`. The shortcuts go into the Contacts collection and paste the picture.
+- **Contact names are read properly**, for Mac Contacts, VCF, CSV, LinkedIn and anything else you import:
+  - Titles at the start are not part of the name and are dropped: Dr., Mr., Mrs., Ms., Miss, Shri, Shree, Sri, Smt, Md, Er., Prof, Mohammad (also Mohammed, Muhammad, Mohd).
+  - A dash or hyphen ends the name. What follows is kept as extra detail in the contact's notes ("Rahul Shah - Zoho" becomes the name Rahul Shah, note Zoho).
+  - A name is never longer than 15 characters. A long one is shortened to the first name and the surname's first letter ("Yogeshwaran S"); the full name is kept in notes.
+- **Make shortcuts from contacts** now starts from the first name and includes the picture: `yogesh.pic`, `yogesh.mobile`, `yogesh.email`. If two people share a first name, the second gets `yogeshs.mobile` (more letters of the surname if needed), then a number as the last resort. Existing contacts are read with the same rules when you make shortcuts.
 - Keyboard safety: no change to the key watcher.

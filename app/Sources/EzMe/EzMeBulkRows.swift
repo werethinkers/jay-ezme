@@ -135,7 +135,7 @@ enum MacContacts {
                 item.url = contact.urlAddresses.first.map { String($0.value) } ?? ""
                 item.photo = contact.imageDataAvailable ? contact.imageData : nil
                 item.source = "Mac Contacts"
-                if !item.displayName.isEmpty { found.append(item) }
+                if !item.displayName.isEmpty { found.append(EzContactImport.cleaned(item)) }
             }
             return found
         }.value

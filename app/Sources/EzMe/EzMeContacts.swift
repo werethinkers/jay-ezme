@@ -45,6 +45,10 @@ struct EzContact: Identifiable {
     var id = UUID()
     /// The contact's picture, when the source has one (Mac Contacts).
     var photo: Data? = nil
+    /// Where the picture is saved on this Mac, once it has been written.
+    var photoPath: String? = nil
+    /// Details that came after a dash in the name, such as a company or a note.
+    var extra = ""
     var first = ""
     var last = ""
     var full = ""
@@ -64,7 +68,7 @@ struct EzContact: Identifiable {
 }
 
 enum EzContactField: String, CaseIterable, Identifiable {
-    case name, firstname, lastname, mobile, phone, email, address, company, title, card, whatsapp
+    case name, firstname, lastname, mobile, phone, email, address, company, title, card, whatsapp, pic
     var id: String { rawValue }
     var label: String {
         switch self {
@@ -79,6 +83,7 @@ enum EzContactField: String, CaseIterable, Identifiable {
         case .title: return "Job title"
         case .card: return "Full contact card"
         case .whatsapp: return "WhatsApp link"
+        case .pic: return "Picture"
         }
     }
 
@@ -99,6 +104,7 @@ enum EzContactField: String, CaseIterable, Identifiable {
         case .whatsapp:
             let digits = String((contact.mobile.isEmpty ? (contact.phones.first ?? "") : contact.mobile).filter { $0.isNumber })
             return digits.count >= 8 ? "https://wa.me/" + digits : ""
+        case .pic: return contact.photoPath ?? ""
         }
     }
 }
@@ -195,6 +201,17 @@ enum EzContactImport {
 
     /// When a name has a | sign, only the part on its left is the person's name.
     static func cleaned(_ contact: EzContact) -> EzContact {
+        var c = contact
+        let n = ContactNames.normalize(first: contact.first, last: contact.last, full: contact.full)
+        c.first = n.first
+        c.last = n.last
+        c.full = n.full
+        if !n.extra.isEmpty { c.extra = [contact.extra, n.extra].filter { !$0.isEmpty }.joined(separator: " · ") }
+        return c
+    }
+
+    /// The older, bar-only rule, kept for names typed by hand in the contact editor.
+    static func cleanedBar(_ contact: EzContact) -> EzContact {
         guard contact.full.contains("|") || contact.first.contains("|") || contact.last.contains("|") else { return contact }
         var c = contact
         let fullHadBar = c.full.contains("|")
@@ -440,16 +457,34 @@ enum EzContactImport {
         var clips: [Clip] = []
         for contact in contacts {
             var stem = style.stem(first: contact.first, last: contact.last, full: contact.full)
-            var number = 2
-            let base = stem
-            while stems.contains(stem) { stem = base + String(number); number += 1 }
+            if stems.contains(stem) {
+                // Same first name: add more letters of the surname (yogesh, yogeshs, yogeshsh), then a number.
+                let surname = String(contact.last.lowercased().filter { $0.isLetter || $0.isNumber })
+                let base = stem
+                var found = false
+                if style == .firstOnly, !surname.isEmpty {
+                    for count in 1...surname.count where !stems.contains(base + String(surname.prefix(count))) {
+                        stem = base + String(surname.prefix(count)); found = true; break
+                    }
+                }
+                if !found {
+                    var number = 1
+                    let root = style == .firstOnly ? base + surname : base
+                    while stems.contains(root + String(number)) { number += 1 }
+                    stem = root + String(number)
+                }
+            }
             stems.insert(stem)
             let searchWords = [contact.displayName, contact.company, contact.email, contact.mobile].filter { !$0.isEmpty }.joined(separator: " ")
             for field in EzContactField.allCases where fields.contains(field) {
                 let text = field.value(of: contact)
                 guard !text.isEmpty else { continue }
+                if field == .pic {
+                    clips.append(Clip(key: "/" + stem + ".pic", name: contact.displayName + " \u{00B7} Picture", text: "", group: group, files: [text], directMediaPaste: true, keywords: searchWords))
+                    continue
+                }
                 clips.append(Clip(key: "/" + stem + "." + field.rawValue,
-                                  name: contact.displayName + " · " + field.label,
+                                  name: contact.displayName + " \u{00B7} " + field.label,
                                   text: text,
                                   group: group,
                                   keywords: searchWords))
@@ -488,8 +523,8 @@ struct EzAttachmentImportCard: View {
     @State private var contacts: [EzContact] = []
     @State private var headers: [String] = []
     @State private var rows: [[String]] = []
-    @State private var style: EzContactCodeStyle = .fullFirstFullLast
-    @State private var fields: Set<EzContactField> = [.name, .firstname, .lastname, .mobile, .phone, .email, .address]
+    @State private var style: EzContactCodeStyle = .firstOnly
+    @State private var fields: Set<EzContactField> = [.name, .firstname, .lastname, .mobile, .phone, .email, .address, .pic]
     @State private var nameColumn = 0
     @State private var columns = Set<Int>()
     @State private var shortWords = false

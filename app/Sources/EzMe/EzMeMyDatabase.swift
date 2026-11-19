@@ -118,7 +118,7 @@ struct DBTable: Identifiable, Codable, Hashable {
             let duplicate = records.contains { $0.kind == "contact" && ((!mobile.isEmpty && $0.value == mobile) || (!contact.email.isEmpty && $0.email.caseInsensitiveCompare(contact.email) == .orderedSame) || (!contact.url.isEmpty && $0.notes.contains(contact.url))) }
             if duplicate { continue }
             var record = DBRecord(kind: "contact", title: name, value: mobile, email: contact.email, company: contact.company, address: contact.address, collection: collection)
-            record.notes = [contact.title, contact.url].filter { !$0.isEmpty }.joined(separator: " · ")
+            record.notes = [contact.title, contact.extra, contact.url].filter { !$0.isEmpty }.joined(separator: " · ")
             record.tags = contact.source.lowercased()
             if let data = raw.photo, let directory = photoDirectory {
                 try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -936,8 +936,8 @@ struct DBMakeShortcutsSheet: View {
     @State private var collection: String
     @State private var prefix = ""
     @State private var suffix = ""
-    @State private var style: EzContactCodeStyle = .fullFirstFullLast
-    @State private var fields: Set<EzContactField> = [.name, .mobile, .email]
+    @State private var style: EzContactCodeStyle = .firstOnly
+    @State private var fields: Set<EzContactField> = [.mobile, .email, .pic]
     @State private var nameColumn = 0
     @State private var columns = Set<Int>()
     @State private var shortWords = false
@@ -997,10 +997,11 @@ struct DBMakeShortcutsSheet: View {
         switch source.kind {
         case "contact":
             let contacts = source.records.map { record -> EzContact in
-                let name = EzContactImport.leftOfPipe(record.title)
-                let parts = name.split(separator: " ").map(String.init)
-                return EzContact(first: parts.first ?? "", last: parts.dropFirst().joined(separator: " "), full: name,
-                                 mobile: record.value, email: record.email, address: record.address, company: record.company)
+                let n = ContactNames.normalize(first: "", last: "", full: record.title)
+                var contact = EzContact(first: n.first, last: n.last, full: n.full,
+                                        mobile: record.value, email: record.email, address: record.address, company: record.company)
+                contact.photoPath = record.photo
+                return contact
             }
             return decorate(EzContactImport.shortcuts(for: contacts, style: style, fields: fields, group: group))
         case "table":
