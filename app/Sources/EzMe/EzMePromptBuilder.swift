@@ -1356,27 +1356,49 @@ final class PromptDispatchRequest {
     """
 
     /// Types the prompt into the site's prompt box. Returns false when no prompt box could be found.
+    /// Plain text boxes take the text directly. Rich editors (ChatGPT, Claude, Gemini and most image sites) only count text that arrives
+    /// as a real paste, so the prompt is pasted for real; typing it from script would show the words but leave the Send button off.
     private static func typePrompt(_ prompt: String, in web: WKWebView, editors: String) async -> Bool {
-        let script = """
+        let focus = """
         (function(){\(findScript)\(anyScript)
         var el=kdFind(\(editors))||kdAny(); if(!el) return 'none'; el.focus();
-        var text=\(literal(prompt));
         if(el.tagName==='TEXTAREA'||el.tagName==='INPUT'){
+          var text=\(literal(prompt));
           var proto=el.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;
           Object.getOwnPropertyDescriptor(proto,'value').set.call(el,text);
           el.dispatchEvent(new Event('input',{bubbles:true}));
           el.dispatchEvent(new Event('change',{bubbles:true}));
-        } else {
-          document.execCommand('selectAll',false,null);
-          var okIns=document.execCommand('insertText',false,text);
-          if(!okIns||((el.innerText||el.textContent||'').trim().length===0)){
-            el.textContent=text;
-            try{el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));}catch(e){el.dispatchEvent(new Event('input',{bubbles:true}));}
-          }
+          return 'ok';
+        }
+        document.execCommand('selectAll',false,null);
+        return 'rich';})()
+        """
+        let state = (try? await web.evaluateJavaScript(focus)) as? String
+        if state == "none" || state == nil { return false }
+        if state == "ok" { return true }
+        // A rich editor: paste the prompt for real, with the page focused.
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(prompt, forType: .string)
+        NSApp.activate(ignoringOtherApps: true)
+        web.window?.makeKeyAndOrderFront(nil)
+        web.window?.makeFirstResponder(web)
+        _ = web.tryToPerform(#selector(NSText.paste(_:)), with: nil)
+        try? await Task.sleep(nanoseconds: 450_000_000)
+        if await promptPresent(prompt, in: web, editors: editors) { return true }
+        // Last resort: put the text in from script.
+        let fallback = """
+        (function(){\(findScript)\(anyScript)
+        var el=kdFind(\(editors))||kdAny(); if(!el) return 'none'; el.focus();
+        var text=\(literal(prompt));
+        document.execCommand('selectAll',false,null);
+        var okIns=document.execCommand('insertText',false,text);
+        if(!okIns||((el.innerText||el.textContent||'').trim().length===0)){
+          el.textContent=text;
+          try{el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));}catch(e){el.dispatchEvent(new Event('input',{bubbles:true}));}
         }
         return 'ok';})()
         """
-        return ((try? await web.evaluateJavaScript(script)) as? String) == "ok"
+        return ((try? await web.evaluateJavaScript(fallback)) as? String) == "ok"
     }
 
     /// True when the prompt box still holds the start of the prompt (some sites clear it when a file is added).
