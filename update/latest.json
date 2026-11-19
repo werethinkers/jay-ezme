@@ -1,9 +1,9 @@
 {
-  "version": "3.76",
-  "build": 377,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.76-build377/EzMe-3.76-macOS.zip",
-  "sha256": "c69b8be3698ead425dea5b44a38c677258ee59f0a6e7e1d8e62542910ae28bb2",
-  "notes": "# KeyDo 3.76\n\n- **Keyboard safety fix:** KeyDo can no longer leave your keyboard stuck in other apps.\n  - KeyDo only holds on to keys while its popup is really open. If a popup mode is left on by mistake (popup gone, nothing typed for a minute, or Escape pressed), it lets go at once.\n  - If KeyDo itself ever freezes or is slow, its key watcher switches off by itself within a second and comes back when KeyDo responds again, so typing in other apps is never blocked.\n  - A half-typed slash trigger expires after 30 seconds instead of staying on.",
-  "published": "2026-11-19T05:19:02Z",
+  "version": "3.77",
+  "build": 378,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.77-build378/EzMe-3.77-macOS.zip",
+  "sha256": "3f1ef85cae3894eba5c218c0272b6ef3abccc3ca1c16594e3a37a16421a45d56",
+  "notes": "# KeyDo 3.77\n\n- **Add an AI site:** a \"Voice command\" box (one to three words, for example \"story bot\"). Saying \"send to story bot\" sends your prompt, media and files to that site. You can change it later in Edit links.\n- **Favourite sites:** in Edit links, tap the star to choose which sites are shown. Sites without a star are hidden from the page but still work by voice, so you can add many models without crowding.\n- **Unique site names:** no two sites can share a name (capitals, spaces and punctuation are ignored), and a voice command cannot match another site's name or command.\n- **Collections, safer shortcut words:** a new or changed shortcut cannot be only a command word (send, create, generate, design, make, open, write, \u2026), a pronoun (I, me, she, he, they, \u2026), or contain punctuation. KeyDo explains why and suggests a suffix such as .pic, .phone or .mobile. Bulk paste skips such rows and lists them.\n- Keyboard safety (3.76 protections) untouched by this release: the key tap code was not changed.",
+  "published": "2026-11-19T05:35:28Z",
   "minimumSystemVersion": "14.0"
 }
