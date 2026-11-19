@@ -17,9 +17,22 @@ enum SiriCommands {
         if let spoken = items.first(where: { $0.name == "text" || $0.name == "say" })?.value, !spoken.trimmingCharacters(in: .whitespaces).isEmpty {
             return spoken
         }
-        let path = ([url.host ?? ""] + url.pathComponents.filter { $0 != "/" }).filter { !$0.isEmpty }
-        let words = path.dropFirst(path.first?.lowercased() == "open" || path.first?.lowercased() == "voice" ? 1 : 0).joined(separator: " ").replacingOccurrences(of: "-", with: " ")
+        let host = (url.host ?? "").lowercased()
+        let rest = url.pathComponents.filter { $0 != "/" }.joined(separator: " ").replacingOccurrences(of: "-", with: " ")
+        if host == "voice" || host == "say" { return rest.isEmpty ? nil : rest }
+        let words = ((host == "open" || host.isEmpty) ? rest : host + " " + rest).trimmingCharacters(in: .whitespaces).replacingOccurrences(of: "-", with: " ")
         return words.isEmpty ? nil : "open " + words
+    }
+
+    /// The same, from a whole spoken sentence such as "Hey Siri, KeyDo, please send it to ChatGPT."
+    static func sendTarget(inSpoken raw: String) -> String? {
+        var text = raw.lowercased().replacingOccurrences(of: "[^a-z0-9 ]+", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression).trimmingCharacters(in: .whitespaces)
+        for _ in 0..<3 {
+            for lead in ["hey siri ", "ok siri ", "siri ", "in keydo ", "keydo ", "key do ", "ezme ", "please ", "can you ", "could you "] where text.hasPrefix(lead) { text = String(text.dropFirst(lead.count)) }
+        }
+        for tail in [" please", " now"] where text.hasSuffix(tail) { text = String(text.dropLast(tail.count)) }
+        return sendTarget(in: text)
     }
 
     /// "send to chatgpt" and its variants: the site name, when the words are a send command.
