@@ -916,12 +916,12 @@ struct PromptMicButton: View {
                     KeyDoVoiceIcon(kind: .one, size: 24, active: speech.isListening)
                     Group {
                         if let left = countdown, speech.isListening {
-                            Text("Turning off in \(left)…").foregroundStyle(Butter.coral)
+                            Text("Off in \(left)").foregroundStyle(Butter.coral)
                         } else {
-                            Text(speech.isListening ? "Listening… tap to stop" : "Speak").foregroundStyle(Butter.cocoa)
+                            Text(speech.isListening ? "Stop" : "Speak").foregroundStyle(Butter.cocoa)
                         }
                     }
-                    .frame(width: 150, alignment: .leading)
+                    .frame(width: 74, alignment: .leading)
                 }
             }
             .buttonStyle(.bordered)
@@ -931,12 +931,12 @@ struct PromptMicButton: View {
                     Button { voiceLocale = item.0 } label: { Text(item.0 == voiceLocale ? "\u{2713} \(item.1)" : item.1) }
                 }
             } label: {
-                Label(Self.languages.first(where: { $0.0 == voiceLocale })?.1 ?? voiceLocale, systemImage: "globe")
+                HStack(spacing: 3) { Image(systemName: "globe"); Text(voiceLocale.isEmpty ? "Auto" : String(voiceLocale.prefix(2)).uppercased()).font(.system(size: 11, weight: .semibold)) }
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
             .disabled(speech.isListening)
-            .help("Language you speak. Change it before tapping Speak.")
+            .help("Language you speak: \(Self.languages.first(where: { $0.0 == voiceLocale })?.1 ?? voiceLocale). Change it before tapping Speak.")
         }
         .onReceive(ticker) { _ in
             guard speech.isListening else { countdown = nil; return }

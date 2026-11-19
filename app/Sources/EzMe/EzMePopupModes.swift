@@ -122,11 +122,13 @@ struct PopupModeBanner: View {
 
 /// The popup's Enter, app pick and screenshot hooks, kept in one modifier so the main view stays quick to compile.
 struct PopupModeHooks: ViewModifier {
+    let db: DB
     var chooseFirst: () -> Void
     var pickApp: (String) -> Void
     var screenshot: () -> Void
     func body(content: Content) -> some View {
         content
+            .onAppear { LiveCollections.shared.start(db: db) }
             .onReceive(NotificationCenter.default.publisher(for: .miniJChooseFirst)) { _ in chooseFirst() }
             .onReceive(NotificationCenter.default.publisher(for: .keydoPopupPickApp)) { note in if let prefix = note.object as? String { pickApp(prefix) } }
             .onReceive(NotificationCenter.default.publisher(for: .keydoPopupFullScreenshot)) { _ in screenshot() }
