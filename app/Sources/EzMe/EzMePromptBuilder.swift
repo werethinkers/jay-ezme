@@ -516,6 +516,10 @@ struct PromptBuilderView: View {
             guard let spoken = note.object as? String else { return }
             let wanted = String(spoken.lowercased().filter { $0.isLetter || $0.isNumber })
             if ["clear", "clearlink", "clearthelink", "clearlinks", "cleartemporarylink"].contains(wanted) { tempLink = ""; notice = "Temporary link cleared."; return }
+            if ["here", "thispage", "thepage", "openpage", "currentpage", "thebrowser", "browser", "thecursor", "cursor", "mycursor", "browserpage"].contains(wanted) {
+                if canSend { sendHere() } else { notice = "Write a prompt or attach media first, then say “send here”." }
+                return
+            }
             if let target = PromptVoice.bestTarget(wanted, targets) {
                 if canSend { send(to: target) } else { notice = "Write a prompt or attach media first, then say “send to \(target.name.lowercased())”." }
             } else {
@@ -533,6 +537,10 @@ struct PromptBuilderView: View {
                         .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
                     Button { copyPrompt() } label: { Image(systemName: "doc.on.doc") }
                         .buttonStyle(.bordered).controlSize(.small).disabled(finalPrompt.isEmpty).help("Copy the prompt")
+                    Button { sendHere() } label: { Label("Send here", systemImage: "scope") }
+                        .buttonStyle(.bordered).tint(Butter.coral).controlSize(.small).disabled(!canSend)
+                        .keyboardShortcut(.return, modifiers: [.command, .option])
+                        .help(Self.sendHereHelp)
                     if let target = quickTarget {
                         Button { send(to: target) } label: { Label("Send to \(target.name)", systemImage: "paperplane.fill") }
                             .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small).disabled(!canSend)
@@ -561,6 +569,10 @@ struct PromptBuilderView: View {
             }
             Spacer(minLength: 8)
             Button { copyPrompt() } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(.bordered).disabled(!hasPrompt)
+            Button { sendHere() } label: { Label("Send here", systemImage: "scope") }
+                .buttonStyle(.bordered).tint(Butter.coral).controlSize(.large).disabled(!canSend)
+                .keyboardShortcut(.return, modifiers: [.command, .option])
+                .help(Self.sendHereHelp)
             if let target = quickTarget {
                 Button { send(to: target) } label: { Label("Send to \(target.name)", systemImage: "paperplane.fill") }
                     .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(!canSend)
@@ -1232,6 +1244,21 @@ struct PromptBuilderView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if flashTarget == target.name { flashTarget = nil } }
     }
 
+    private static let sendHereHelp = "Sends to the page already open in the browser panel, into the field where your cursor is (or the page's prompt box), and presses send. Shortcut: Option Command Return."
+
+    /// One button for whatever page is open in the browser panel. The field the cursor is in is used first.
+    private func sendHere() {
+        let fresh = PromptComposer.compose(text, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
+        let prompt = aiText ?? fresh.text
+        let files = fresh.attachments.flatMap { $0.paths } + manualFiles.flatMap { $0.paths }
+        let placeholder = PromptTarget(name: "Open page", url: "", editor: [], send: [])
+        let request = PromptDispatchRequest(target: placeholder, prompt: prompt, files: files)
+        request.here = true
+        NotificationCenter.default.post(name: .keydoSendPrompt, object: request)
+        let attached = fresh.attachments.count + manualFiles.count
+        notice = "Sending to the page open in the browser panel, into the field your cursor is in" + (attached > 0 ? ", with \(attached) attached media…" : "…")
+    }
+
     private func beginEdit(_ target: PromptTarget) {
         editSiteName = target.name
         editSiteURL = target.url
@@ -1343,6 +1370,8 @@ final class PromptDispatchRequest {
     let files: [String]
     /// Only open the page and read it (prompt box, upload slots, start button); send nothing.
     var learnOnly = false
+    /// "Send here": use the page already open in the browser panel (and the field the cursor is in) instead of opening a site.
+    var here = false
 
     init(target: PromptTarget, prompt: String, files: [String], learnOnly: Bool = false) {
         self.target = target
@@ -1355,11 +1384,63 @@ final class PromptDispatchRequest {
 @MainActor enum PromptDispatcher {
     /// Opens the site in a new browser tab, then types the prompt, pastes the media and presses send.
     static func start(_ request: PromptDispatchRequest, browser: EzMeBrowserTabs) {
+        if request.here { Task { await startHere(request, browser: browser) }; return }
         let linked = browser.splitIsLinked
         browser.newTab(request.target.url)
         let tabID = linked ? browser.secondaryID : browser.selectedID
         browser.browserMessage = "Opening \(request.target.name)…"
         Task { await run(request, tabID: tabID, browser: browser) }
+    }
+
+    /// Fields a page usually types into, used after the field the cursor is in.
+    private static let genericEditors = ["textarea", "div.ProseMirror[contenteditable='true']", "div.rich-editor[contenteditable]", "[contenteditable='true']", "div[role='textbox']", "input[type='text']", "input[type='search']", "input:not([type])"]
+    private static let genericSenders = ["button[type='submit']", "button[aria-label*='Send' i]", "button[aria-label*='Submit' i]", "button[data-testid*='send' i]"]
+
+    /// Looks at the page's focused element. If it is a place to type, marks it (and the send button nearest to it) so the normal sender can find it.
+    private static let tagScript = """
+    (function(){
+      function deep(){var e=document.activeElement;while(e&&e.shadowRoot&&e.shadowRoot.activeElement){e=e.shadowRoot.activeElement;}return e;}
+      document.querySelectorAll('[data-kd-target]').forEach(function(n){n.removeAttribute('data-kd-target');});
+      document.querySelectorAll('[data-kd-send]').forEach(function(n){n.removeAttribute('data-kd-send');});
+      var e=deep();
+      if(!e||e===document.body||e===document.documentElement) return 'none';
+      var tag=(e.tagName||'').toLowerCase();var type=(e.type||'').toLowerCase();
+      var typing=tag==='textarea'||(tag==='input'&&['text','search','','email','url'].indexOf(type)>=0)||e.isContentEditable||e.getAttribute('role')==='textbox';
+      if(!typing) return 'none';
+      e.setAttribute('data-kd-target','1');
+      var node=e;
+      for(var up=0;up<7&&node&&node.parentElement;up++){node=node.parentElement;
+        var bs=node.querySelectorAll('button[type=submit],button[aria-label*=send i],button[aria-label*=submit i],button[data-testid*=send i],[role=button][aria-label*=send i]');
+        for(var i=0;i<bs.length;i++){var r=bs[i].getBoundingClientRect();if(r.width>0&&r.height>0){bs[i].setAttribute('data-kd-send','1');return 'cursor';}}
+      }
+      return 'cursor';
+    })()
+    """
+
+    /// Sends to the page that is already open. A field the cursor is in comes first; otherwise the page's usual prompt box.
+    private static func startHere(_ request: PromptDispatchRequest, browser: EzMeBrowserTabs) async {
+        var order = [browser.selectedID]
+        if browser.splitEnabled, !browser.secondaryID.isEmpty, browser.secondaryID != browser.selectedID { order.append(browser.secondaryID) }
+        var chosen: (id: String, web: WKWebView)?
+        var cursor = false
+        for id in order {
+            guard let web = browser.webViews[id], !web.isLoading else { continue }
+            let state = (try? await web.evaluateJavaScript(tagScript)) as? String
+            if state == "cursor" { chosen = (id, web); cursor = true; break }
+            if chosen == nil { chosen = (id, web) }
+        }
+        guard let chosen, let tab = browser.tabs.first(where: { $0.id == chosen.id }), !tab.url.hasPrefix("ezme://") else {
+            browser.browserMessage = "Open the page you want in the browser panel first (an AI chat, a form, a message box), click where the text should go, then press Send here."
+            return
+        }
+        let host = URL(string: tab.url)?.host ?? tab.title
+        let name = tab.title.isEmpty || tab.title == "Web page" ? host : tab.title
+        let target = PromptTarget(name: name, url: tab.url,
+                                  editor: (cursor ? ["[data-kd-target='1']"] : []) + genericEditors,
+                                  send: (cursor ? ["[data-kd-send='1']"] : []) + genericSenders)
+        let forward = PromptDispatchRequest(target: target, prompt: request.prompt, files: request.files)
+        browser.browserMessage = cursor ? "Sending to the field your cursor is in on \(name)…" : "Sending to the open page \(name)…"
+        await run(forward, tabID: chosen.id, browser: browser)
     }
 
     private static func literal(_ items: [String]) -> String {
