@@ -490,6 +490,15 @@ struct PromptBuilderView: View {
         .sheet(isPresented: $showAddSite) { addSiteSheet }
         .sheet(item: $siteBeingEdited) { _ in editSiteSheet }
         .onReceive(NotificationCenter.default.publisher(for: .keydoPromptTargetsChanged)) { _ in targets = PromptTargets.load() }
+        .onReceive(NotificationCenter.default.publisher(for: .keydoSiriSend)) { note in
+            guard let spoken = note.object as? String else { return }
+            let wanted = String(spoken.lowercased().filter { $0.isLetter || $0.isNumber })
+            if let target = PromptVoice.bestTarget(wanted, targets) {
+                if canSend { send(to: target) } else { notice = "Write a prompt or attach media first, then say “send to \(target.name.lowercased())”." }
+            } else {
+                notice = "No site is called “\(spoken)”. Add it with Add site, or say one of your sites."
+            }
+        }
     }
 
     private var header: some View {
