@@ -1,9 +1,9 @@
 {
-  "version": "3.77",
-  "build": 378,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.77-build378/EzMe-3.77-macOS.zip",
-  "sha256": "3f1ef85cae3894eba5c218c0272b6ef3abccc3ca1c16594e3a37a16421a45d56",
-  "notes": "# KeyDo 3.77\n\n- **Add an AI site:** a \"Voice command\" box (one to three words, for example \"story bot\"). Saying \"send to story bot\" sends your prompt, media and files to that site. You can change it later in Edit links.\n- **Favourite sites:** in Edit links, tap the star to choose which sites are shown. Sites without a star are hidden from the page but still work by voice, so you can add many models without crowding.\n- **Unique site names:** no two sites can share a name (capitals, spaces and punctuation are ignored), and a voice command cannot match another site's name or command.\n- **Collections, safer shortcut words:** a new or changed shortcut cannot be only a command word (send, create, generate, design, make, open, write, \u2026), a pronoun (I, me, she, he, they, \u2026), or contain punctuation. KeyDo explains why and suggests a suffix such as .pic, .phone or .mobile. Bulk paste skips such rows and lists them.\n- Keyboard safety (3.76 protections) untouched by this release: the key tap code was not changed.",
-  "published": "2026-11-19T05:35:28Z",
+  "version": "3.78",
+  "build": 379,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.78-build379/EzMe-3.78-macOS.zip",
+  "sha256": "84ba2b3525ca9dd5ccdd6e8150bd6380069ed5e3d69480732fb9594835dc1005",
+  "notes": "# KeyDo 3.78\n\n- **Popup trigger:** the KeyDo popup now opens only from the backslash key (\\) or by voice. The slash (/), the vertical bar (|) and the question mark (?) no longer open it, so they stop clashing with other apps. Shortcuts you type still start with a backslash.\n- **Prompt Builder, prompt now reaches the site:** KeyDo now pastes the prompt into the site's prompt box as a real paste, which is what ChatGPT, Claude, Gemini and most image or video sites need before their Send button turns on. Before, the words could appear in the box while the site still saw an empty prompt, so only the media went through. Media, prompt and Send now run in that order, and the prompt is checked again after the media is added.\n- Keyboard safety: this release only makes the key watcher accept fewer keys (backslash only). The 3.76 protections are unchanged; nothing new swallows keys.",
+  "published": "2026-11-19T06:03:03Z",
   "minimumSystemVersion": "14.0"
 }
