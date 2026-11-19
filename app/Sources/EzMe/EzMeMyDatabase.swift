@@ -230,7 +230,8 @@ struct MyDatabaseView: View {
     var onMakeShortcuts: ([Clip], String) -> Void = { _, _ in }
     var attachmentDirectory: URL? = nil
     @ObservedObject private var store = MyDatabaseStore.shared
-    @State private var tab = "Contacts"
+    @State private var tab = "Organizer"
+    @State private var viewerURL: URL?
     @State private var search = ""
     @State private var collectionFilter = "All collections"
     @State private var selection = Set<String>()
@@ -248,7 +249,7 @@ struct MyDatabaseView: View {
     @State private var showBulkRename = false
 
     private let tabs: [(String, String)] = [
-        ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
+        ("Organizer", "externaldrive.badge.checkmark"), ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
         ("Tables", "tablecells"), ("Shortcuts", "bolt.fill"), ("File Renamer", "doc.badge.gearshape")
     ]
 
@@ -269,10 +270,14 @@ struct MyDatabaseView: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
+            if let viewerURL {
+                DocumentViewerView(url: viewerURL, onClose: { self.viewerURL = nil }).id(viewerURL)
+            } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     tabBar
-                    if isRecordTab { toolbar; recordList }
+                    if tab == "Organizer" { DatabaseOrganizerView(records: store.records, onOpenViewer: { viewerURL = $0 }, onEdit: { editing = $0 }) }
+                    else if isRecordTab { toolbar; recordList }
                     else if tab == "Tables" { tablesView }
                     else if tab == "Shortcuts" { shortcutsView }
                     else { fileRenamerView }
@@ -283,6 +288,10 @@ struct MyDatabaseView: View {
                 .padding(18)
                 .frame(maxWidth: 1400, alignment: .leading)
             }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .keydoOpenDocumentViewer)) { note in
+            if let path = note.object as? String { viewerURL = URL(fileURLWithPath: path) }
         }
         .sheet(item: $editing) { record in
             DBRecordEditor(record: record, collections: store.collections) { saved in store.upsert(saved); editing = nil } onCancel: { editing = nil }
@@ -349,8 +358,8 @@ struct MyDatabaseView: View {
                 .font(.system(size: 24)).foregroundStyle(.white).frame(width: 48, height: 48)
                 .background(LinearGradient(colors: [Butter.cocoa, Butter.coral], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 3) {
-                Text("MyDatabase").font(.system(size: 23, weight: .bold, design: .rounded))
-                Text("Your contacts, links, files, tables and shortcuts in one place. Organize, edit and search them.")
+                Text("Database Organizer").font(.system(size: 23, weight: .bold, design: .rounded))
+                Text("Organize, search and analyze your files, contacts, links and tables. Open PDF and Word documents with notes, highlights and tags.")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()
@@ -512,6 +521,9 @@ struct MyDatabaseView: View {
                     iconButton("doc.on.doc", "Copy link") { copy(record.value) }
                 }
                 if record.isFileLike {
+                    if DocText.isViewable(record.value) {
+                        iconButton("doc.richtext", "Open in the KeyDo Document Viewer") { viewerURL = URL(fileURLWithPath: record.value) }.disabled(missing)
+                    }
                     iconButton("arrow.up.forward.app", "Open file") { NSWorkspace.shared.open(URL(fileURLWithPath: record.value)) }.disabled(missing)
                     iconButton("folder", "Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: record.value)]) }.disabled(missing)
                     iconButton("doc.on.doc", "Copy path") { copy(record.value) }
@@ -1204,4 +1216,9 @@ struct DBMediaThumb: View {
             image = loaded
         }
     }
+}
+
+extension Notification.Name {
+    /// Object: the full path of a PDF or Word file to open in the KeyDo Document Viewer.
+    static let keydoOpenDocumentViewer = Notification.Name("KeyDoOpenDocumentViewer")
 }

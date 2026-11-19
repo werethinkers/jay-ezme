@@ -58,6 +58,9 @@ Swift cannot be compiled in the Claude workspace (Linux, no Swift), so GitHub's 
 | HBD and HWA cards | `EzMeCelebrationCard.swift` (PNG and web page, drawn locally) |
 | Prompt Builder and sending a prompt to an AI site in the side panel | `EzMePromptBuilder.swift` (`PromptBuilderView`, `PromptComposer`, `PromptTargets`, `PromptDispatcher`) |
 | Backslash popup | `final class MiniJPickerPanel` (show, hide, idle close), `struct FloatingPickerView`, `final class PickerSearch`, the key tap `miniJSlashTap` |
+| Database Organizer (was MyDatabase; the app name `MyDatabase` is kept internally), its Organizer tab | `EzMeMyDatabase.swift` (`MyDatabaseView`, tabs list), `EzMeOrganizer.swift` (`DatabaseOrganizerView`: scan, analyze, search inside documents) |
+| KeyDo Document Viewer (PDF and Word, notes, highlights, tags, media, voice) | `EzMeDocViewer.swift` (`DocumentViewerView`, `DocViewerModel`, `DocStore`: notes live in Application Support/KeyDo/DocumentNotes, never in the original file) |
+| KeyDo icon on every sheet and popover | `EzMePopupBranding.swift` (installed at launch from `applicationDidFinishLaunching`) |
 | Voice (dictation, "open popup", continuous listening) | `EzMeVoice.swift` (`KeyDoVoice`), `VoiceDictationButton`, `openVoiceDestination` in `EzMe.swift` (spoken "open ..." commands) |
 | In-app browser, tabs and side panel | `final class EzMeBrowserTabs` (`newTab`, `webViews`, `browserMessage`), `struct BrowserWorkspace`, `browserSidePanelVisible` in the root view; open requests in `EzMeButter.swift` (`EzMeOpenRequests`) |
 | AI calls and keys | `enum SharedAIClient` (`generate`, `generateImage`, `generateVideo`), `AIModelProfileStore`, `KeyStore` |

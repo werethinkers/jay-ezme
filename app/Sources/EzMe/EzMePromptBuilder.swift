@@ -516,6 +516,8 @@ struct PromptBuilderView: View {
             guard let spoken = note.object as? String else { return }
             let wanted = String(spoken.lowercased().filter { $0.isLetter || $0.isNumber })
             if ["clear", "clearlink", "clearthelink", "clearlinks", "cleartemporarylink"].contains(wanted) { tempLink = ""; notice = "Temporary link cleared."; return }
+            if wanted == "copymedia" || wanted == "copythemedia" { copyMedia(); return }
+            if wanted == "copyprompt" || wanted == "copytheprompt" { copyPrompt(); return }
             if ["here", "thispage", "thepage", "openpage", "currentpage", "thebrowser", "browser", "thecursor", "cursor", "mycursor", "browserpage"].contains(wanted) {
                 if canSend { sendHere() } else { notice = "Write a prompt or attach media first, then say “send here”." }
                 return
@@ -537,6 +539,8 @@ struct PromptBuilderView: View {
                         .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
                     Button { copyPrompt() } label: { Image(systemName: "doc.on.doc") }
                         .buttonStyle(.bordered).controlSize(.small).disabled(finalPrompt.isEmpty).help("Copy the prompt")
+                    Button { copyMedia() } label: { Image(systemName: "photo.on.rectangle") }
+                        .buttonStyle(.bordered).controlSize(.small).disabled(fileCount == 0).help("Copy the attached media, then paste it with Command V")
                     Button { sendHere() } label: { Label("Send here", systemImage: "scope") }
                         .buttonStyle(.bordered).tint(Butter.coral).controlSize(.small).disabled(!canSend)
                         .keyboardShortcut(.return, modifiers: [.command, .option])
@@ -568,7 +572,8 @@ struct PromptBuilderView: View {
                     .font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
-            Button { copyPrompt() } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(.bordered).disabled(!hasPrompt)
+            Button { copyPrompt() } label: { Label("Copy prompt", systemImage: "doc.on.doc") }.buttonStyle(.bordered).disabled(!hasPrompt)
+            Button { copyMedia() } label: { Label("Copy media", systemImage: "photo.on.rectangle") }.buttonStyle(.bordered).disabled(fileCount == 0)
             Button { sendHere() } label: { Label("Send here", systemImage: "scope") }
                 .buttonStyle(.bordered).tint(Butter.coral).controlSize(.large).disabled(!canSend)
                 .keyboardShortcut(.return, modifiers: [.command, .option])
@@ -1106,10 +1111,35 @@ struct PromptBuilderView: View {
         aiText = nil
     }
 
+    /// The words without the "[image: name]" markers, because the media travels as real files.
+    private func plainPrompt(_ base: String, _ attachments: [PromptAttachment]) -> String {
+        var prompt = base
+        for item in attachments { prompt = prompt.replacingOccurrences(of: "[\(item.kind): \(item.name)]", with: "") }
+        return prompt.replacingOccurrences(of: "[ \t]{2,}", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: " +([,.;:!?])", with: "$1", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func copyPrompt() {
+        let fresh = PromptComposer.compose(text, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(finalPrompt, forType: .string)
-        notice = "Prompt copied."
+        NSPasteboard.general.setString(plainPrompt(aiText ?? fresh.text, fresh.attachments), forType: .string)
+        notice = "Prompt copied. Click the box where it goes and press \u{2318}V."
+    }
+
+    /// Puts the attached media on the clipboard: one picture as a picture, anything else as files, ready to paste with Command V.
+    private func copyMedia() {
+        let fresh = PromptComposer.compose(text, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
+        let files = (fresh.attachments.flatMap { $0.paths } + manualFiles.flatMap { $0.paths }).filter { FileManager.default.fileExists(atPath: $0) }
+        guard !files.isEmpty else { notice = "No media is attached yet. Add some with # or @."; return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        if files.count == 1, ["png", "jpg", "jpeg", "heic", "tiff", "bmp", "gif", "webp"].contains(URL(fileURLWithPath: files[0]).pathExtension.lowercased()), let image = NSImage(contentsOfFile: files[0]) {
+            pasteboard.writeObjects([image])
+        } else {
+            pasteboard.writeObjects(files.map { URL(fileURLWithPath: $0) as NSURL })
+        }
+        notice = files.count == 1 ? "Media copied. Click the box where it goes and press \u{2318}V." : "\(files.count) media files copied. Click the box where they go and press \u{2318}V."
     }
 
     private func polishWithAI() {
@@ -1250,11 +1280,7 @@ struct PromptBuilderView: View {
     private func sendHere() {
         let fresh = PromptComposer.compose(text, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
         // The media goes in as real attachments, so the "[image: name]" markers are taken out of the words.
-        var prompt = aiText ?? fresh.text
-        for item in fresh.attachments { prompt = prompt.replacingOccurrences(of: "[\(item.kind): \(item.name)]", with: "") }
-        prompt = prompt.replacingOccurrences(of: "[ \t]{2,}", with: " ", options: .regularExpression)
-            .replacingOccurrences(of: " +([,.;:!?])", with: "$1", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let prompt = plainPrompt(aiText ?? fresh.text, fresh.attachments)
         let files = fresh.attachments.flatMap { $0.paths } + manualFiles.flatMap { $0.paths }
         let placeholder = PromptTarget(name: "Open page", url: "", editor: [], send: [])
         let request = PromptDispatchRequest(target: placeholder, prompt: prompt, files: files)
@@ -1377,6 +1403,8 @@ final class PromptDispatchRequest {
     var learnOnly = false
     /// "Send here": use the page already open in the browser panel (and the field the cursor is in) instead of opening a site.
     var here = false
+    /// Never bring KeyDo to the front or touch the clipboard; only the page's own scripts are used.
+    var quiet = false
 
     init(target: PromptTarget, prompt: String, files: [String], learnOnly: Bool = false) {
         self.target = target
@@ -1405,18 +1433,17 @@ final class PromptDispatchRequest {
     private static let tagScript = """
     (function(){
       function deep(){var e=document.activeElement;while(e&&e.shadowRoot&&e.shadowRoot.activeElement){e=e.shadowRoot.activeElement;}return e;}
-      document.querySelectorAll('[data-kd-target]').forEach(function(n){n.removeAttribute('data-kd-target');});
-      document.querySelectorAll('[data-kd-send]').forEach(function(n){n.removeAttribute('data-kd-send');});
+      window.__kdT=null;window.__kdS=null;
       var e=deep();
       if(!e||e===document.body||e===document.documentElement) return 'none';
       var tag=(e.tagName||'').toLowerCase();var type=(e.type||'').toLowerCase();
       var typing=tag==='textarea'||(tag==='input'&&['text','search','','email','url'].indexOf(type)>=0)||e.isContentEditable||e.getAttribute('role')==='textbox';
       if(!typing) return 'none';
-      e.setAttribute('data-kd-target','1');
+      window.__kdT=e;e.setAttribute('data-kd-target','1');
       var node=e;
-      for(var up=0;up<7&&node&&node.parentElement;up++){node=node.parentElement;
-        var bs=node.querySelectorAll('button[type=submit],button[aria-label*=send i],button[aria-label*=submit i],button[data-testid*=send i],[role=button][aria-label*=send i]');
-        for(var i=0;i<bs.length;i++){var r=bs[i].getBoundingClientRect();if(r.width>0&&r.height>0){bs[i].setAttribute('data-kd-send','1');return 'cursor';}}
+      for(var up=0;up<9&&node;up++){node=node.parentElement||(node.getRootNode&&node.getRootNode().host)||null;if(!node)break;
+        var bs=node.querySelectorAll('button[type=submit],button[aria-label*=send i],button[aria-label*=submit i],button[data-testid*=send i],[role=button][aria-label*=send i],button[class*=send-button]');
+        for(var i=0;i<bs.length;i++){var r=bs[i].getBoundingClientRect();if(r.width>0&&r.height>0){window.__kdS=bs[i];return 'cursor';}}
       }
       return 'cursor';
     })()
@@ -1442,8 +1469,9 @@ final class PromptDispatchRequest {
         let name = tab.title.isEmpty || tab.title == "Web page" ? host : tab.title
         let target = PromptTarget(name: name, url: tab.url,
                                   editor: (cursor ? ["[data-kd-target='1']"] : []) + genericEditors,
-                                  send: (cursor ? ["[data-kd-send='1']"] : []) + genericSenders)
+                                  send: genericSenders)
         let forward = PromptDispatchRequest(target: target, prompt: request.prompt, files: request.files)
+        forward.quiet = true
         browser.browserMessage = cursor ? "Sending to the field your cursor is in on \(name)…" : "Sending to the open page \(name)…"
         await run(forward, tabID: chosen.id, browser: browser)
     }
@@ -1459,7 +1487,9 @@ final class PromptDispatchRequest {
     }
 
     private static let findScript = """
-    function kdFind(sels){for(var i=0;i<sels.length;i++){var c=document.querySelectorAll(sels[i]);var best=null,ba=0;for(var j=0;j<c.length;j++){var r=c[j].getBoundingClientRect();var st=getComputedStyle(c[j]);if(r.width>0&&r.height>0&&st.visibility!=='hidden'&&st.display!=='none'&&c[j].type!=='search'&&!(c[j].closest&&c[j].closest('nav,header'))){var a=r.width*r.height;if(a>ba){ba=a;best=c[j];}}}if(best){return best;}}return null;}
+    function kdRoots(){var roots=[document];for(var n=0;n<roots.length&&n<60;n++){var all=roots[n].querySelectorAll('*');for(var k=0;k<all.length;k++){if(all[k].shadowRoot)roots.push(all[k].shadowRoot);}}return roots;}
+    function kdAll(sel){var out=[],roots=kdRoots();for(var n=0;n<roots.length;n++){try{var l=roots[n].querySelectorAll(sel);for(var i=0;i<l.length;i++)out.push(l[i]);}catch(e){}}return out;}
+    function kdFind(sels){if(sels.indexOf("[data-kd-target='1']")>=0&&window.__kdT&&window.__kdT.isConnected)return window.__kdT;for(var i=0;i<sels.length;i++){var c=kdAll(sels[i]);var best=null,ba=0;for(var j=0;j<c.length;j++){var r=c[j].getBoundingClientRect();var st=getComputedStyle(c[j]);if(r.width>0&&r.height>0&&st.visibility!=='hidden'&&st.display!=='none'&&c[j].type!=='search'&&!(c[j].closest&&c[j].closest('nav,header'))){var a=r.width*r.height;if(a>ba){ba=a;best=c[j];}}}if(best){return best;}}return null;}
     """
 
     /// Reads the page: visible prompt boxes, file upload inputs and buttons that look like "Generate" or "Send".
@@ -1536,7 +1566,7 @@ final class PromptDispatchRequest {
         function accepts(inp,f){var a=(inp.getAttribute('accept')||'').toLowerCase().trim();if(!a)return true;var ext='.'+f.name.split('.').pop().toLowerCase(),t=(f.type||'').toLowerCase();return a.split(',').some(function(p){p=p.trim();if(p===ext||p===t)return true;if(p.slice(-2)==='/*')return t.indexOf(p.slice(0,-1))===0;return false;});}
         function put(inp,list){var dt=new DataTransfer();list.forEach(function(f){dt.items.add(f);});inp.files=dt.files;inp.dispatchEvent(new Event('input',{bubbles:true}));inp.dispatchEvent(new Event('change',{bubbles:true}));}
         var remaining=files.slice(),placed=0;
-        [].slice.call(document.querySelectorAll('input[type=file]')).filter(function(i){return !i.disabled;}).forEach(function(inp){
+        var home=window.__kdT&&window.__kdT.isConnected?window.__kdT.getRootNode():null;kdAll('input[type=file]').filter(function(i){return !i.disabled;}).sort(function(a,b){return (b.getRootNode()===home?1:0)-(a.getRootNode()===home?1:0);}).forEach(function(inp){
           var ok=remaining.filter(function(f){return accepts(inp,f);});if(!ok.length)return;
           if(inp.multiple){put(inp,ok);remaining=remaining.filter(function(f){return ok.indexOf(f)<0;});placed+=ok.length;}
           else{put(inp,[ok[0]]);remaining=remaining.filter(function(f){return f!==ok[0];});placed+=1;}
@@ -1557,13 +1587,13 @@ final class PromptDispatchRequest {
 
     /// A prompt box found by what it is, for sites whose own selectors do not match: the biggest visible text area or editable box.
     private static let anyScript = """
-    function kdAny(){var c=[].slice.call(document.querySelectorAll('textarea,[contenteditable="true"],[contenteditable=""],[role="textbox"],input[type="text"],input:not([type])')).filter(function(e){var r=e.getBoundingClientRect();var s=getComputedStyle(e);return r.width>40&&r.height>18&&s.visibility!=='hidden'&&s.display!=='none'&&!e.disabled&&!e.readOnly&&e.type!=='search'&&e.type!=='password';});c.sort(function(a,b){var x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return y.width*y.height-x.width*x.height;});return c[0]||null;}
+    function kdAny(){var c=kdAll('textarea,[contenteditable="true"],[contenteditable=""],[role="textbox"],input[type="text"],input:not([type])').filter(function(e){var r=e.getBoundingClientRect();var s=getComputedStyle(e);return r.width>40&&r.height>18&&s.visibility!=='hidden'&&s.display!=='none'&&!e.disabled&&!e.readOnly&&e.type!=='search'&&e.type!=='password';});c.sort(function(a,b){var x=a.getBoundingClientRect(),y=b.getBoundingClientRect();return y.width*y.height-x.width*x.height;});return c[0]||null;}
     """
 
     /// Types the prompt into the site's prompt box. Returns false when no prompt box could be found.
     /// Plain text boxes take the text directly. Rich editors (ChatGPT, Claude, Gemini and most image sites) only count text that arrives
     /// as a real paste, so the prompt is pasted for real; typing it from script would show the words but leave the Send button off.
-    private static func typePrompt(_ prompt: String, in web: WKWebView, editors: String) async -> Bool {
+    private static func typePrompt(_ prompt: String, in web: WKWebView, editors: String, quiet: Bool = false) async -> Bool {
         let focus = """
         (function(){\(findScript)\(anyScript)
         var el=kdFind(\(editors))||kdAny(); if(!el) return 'none'; el.focus();
@@ -1581,6 +1611,24 @@ final class PromptDispatchRequest {
         let state = (try? await web.evaluateJavaScript(focus)) as? String
         if state == "none" || state == nil { return false }
         if state == "ok" { return true }
+        if quiet {
+            // Quiet: the page's own insert command, no clipboard and no window change.
+            let inside = """
+            (function(){\(findScript)\(anyScript)
+            var el=kdFind(\(editors))||kdAny(); if(!el) return 'none'; el.focus();
+            var text=\(literal(prompt));
+            document.execCommand('selectAll',false,null);
+            var okIns=document.execCommand('insertText',false,text);
+            if(!okIns||((el.innerText||el.textContent||'').trim().length===0)){
+              el.textContent=text;
+              try{el.dispatchEvent(new InputEvent('input',{bubbles:true,inputType:'insertText',data:text}));}catch(e){el.dispatchEvent(new Event('input',{bubbles:true}));}
+            }
+            return 'ok';})()
+            """
+            _ = try? await web.evaluateJavaScript(inside)
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            return await promptPresent(prompt, in: web, editors: editors)
+        }
         // A rich editor: paste the prompt for real, with the page focused.
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(prompt, forType: .string)
@@ -1620,11 +1668,11 @@ final class PromptDispatchRequest {
     }
 
     /// Types the prompt and checks it stayed, trying a few times because pages re-draw their box while they load.
-    private static func settlePrompt(_ prompt: String, in web: WKWebView, editors: String) async -> Bool {
+    private static func settlePrompt(_ prompt: String, in web: WKWebView, editors: String, quiet: Bool = false) async -> Bool {
         var typed = false
         for _ in 0..<3 {
             if await promptPresent(prompt, in: web, editors: editors) { return true }
-            typed = await typePrompt(prompt, in: web, editors: editors)
+            typed = await typePrompt(prompt, in: web, editors: editors, quiet: quiet)
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
         // Reading the box back can fail on odd editors even when the typing worked; only a missing box counts as failure.
@@ -1659,7 +1707,7 @@ final class PromptDispatchRequest {
         // 2. Type the prompt, and make sure it is really in the box.
         var promptOK = true
         if !request.prompt.isEmpty {
-            promptOK = await settlePrompt(request.prompt, in: web, editors: editors)
+            promptOK = await settlePrompt(request.prompt, in: web, editors: editors, quiet: request.quiet)
         } else {
             _ = try? await web.evaluateJavaScript("(function(){\(findScript)\(anyScript) var el=kdFind(\(editors))||kdAny(); if(el){el.focus();} return 'ok';})()")
         }
@@ -1669,7 +1717,9 @@ final class PromptDispatchRequest {
         if !files.isEmpty {
             try? await Task.sleep(nanoseconds: 400_000_000)
             var placed = await attach(files, to: web, editors: editors)
-            if placed == "none" {
+            if placed == "none" && request.quiet {
+                browser.browserMessage = "\(name) would not take the media quietly. Press Copy media, click the box and paste with \u{2318}V."
+            } else if placed == "none" {
                 // Last resort: a real paste from the clipboard, with the prompt box focused.
                 _ = try? await web.evaluateJavaScript("(function(){\(findScript) var el=kdFind(\(editors)); if(el){el.focus();} return 'ok';})()")
                 let pasteboard = NSPasteboard.general
@@ -1685,14 +1735,14 @@ final class PromptDispatchRequest {
                 _ = web.tryToPerform(#selector(NSText.paste(_:)), with: nil)
                 placed = "clipboard"
             }
-            browser.browserMessage = "Attached \(files.count) file\(files.count == 1 ? "" : "s") to \(name) (\(placed))…"
+            if placed != "none" { browser.browserMessage = "Attached \(files.count) file\(files.count == 1 ? "" : "s") to \(name) (\(placed))…" }
             let bytes = files.reduce(0.0) { total, path in
                 total + Double((try? FileManager.default.attributesOfItem(atPath: path)[.size] as? NSNumber)?.doubleValue ?? 0)
             }
             let wait = min(3.0 + bytes / 1_000_000 * 0.6, 25.0)
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))
             // Some sites clear the prompt box when a file is added, so put the prompt back if it went.
-            if !request.prompt.isEmpty { promptOK = await settlePrompt(request.prompt, in: web, editors: editors) }
+            if !request.prompt.isEmpty { promptOK = await settlePrompt(request.prompt, in: web, editors: editors, quiet: request.quiet) }
         } else {
             try? await Task.sleep(nanoseconds: 700_000_000)
         }
@@ -1701,10 +1751,11 @@ final class PromptDispatchRequest {
         let click = """
         (function(){\(findScript)
         var sels=\(senders);
-        for(var i=0;i<sels.length;i++){var c=document.querySelectorAll(sels[i]);for(var j=0;j<c.length;j++){var b=c[j];var r=b.getBoundingClientRect();
+        var mine=window.__kdS;if(mine&&mine.isConnected){var mr=mine.getBoundingClientRect();if(mr.width>0&&mr.height>0&&!mine.disabled&&mine.getAttribute('aria-disabled')!=='true'){mine.click();return 'clicked';}}
+        for(var i=0;i<sels.length;i++){var c=kdAll(sels[i]);for(var j=0;j<c.length;j++){var b=c[j];var r=b.getBoundingClientRect();
           if(r.width>0&&r.height>0&&!b.disabled&&b.getAttribute('aria-disabled')!=='true'){b.click();return 'clicked';}}}
         var want=\(literal(request.target.learned?.generateLabel ?? "")).toLowerCase();
-        var all=document.querySelectorAll('button,[role=button],a[class*=btn],div[class*=btn],div[class*=button]');
+        var all=kdAll('button,[role=button],a[class*=btn],div[class*=btn],div[class*=button]');
         for(var k=0;k<all.length;k++){var b=all[k];var r=b.getBoundingClientRect();if(!(r.width>0&&r.height>0))continue;
           var t=(b.innerText||b.getAttribute('aria-label')||'').replace(/\\s+/g,' ').trim().toLowerCase();if(!t||t.length>60)continue;
           var hit=want?(t===want||t.indexOf(want)===0||t.split(/[\\s(]/)[0]===want.split(/[\\s(]/)[0]):/^(generate|create|send|submit|run|start|animate|make|imagine)\\b/.test(t);

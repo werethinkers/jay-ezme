@@ -5,7 +5,7 @@ enum HomeBuilders {
     static let all: [(name: String, symbol: String, line: String, phrases: [String])] = [
         ("Collection Builder", "square.stack.3d.up.fill", "Build a collection of shortcuts with AI", ["collection builder", "build a collection", "make a collection", "create a collection"]),
         ("Prompt Builder", "text.bubble.fill", "Write a prompt, attach media, send it to any AI site", ["prompt builder", "prompt maker", "prompt writer", "write a prompt"]),
-        ("MyDatabase", "cylinder.split.1x2.fill", "Contacts, links and tables in one place", ["my database", "mydatabase", "my data base", "database"])
+        ("MyDatabase", "cylinder.split.1x2.fill", "Database Organizer: files, notes and documents", ["database organizer", "organizer", "document viewer", "my database", "mydatabase", "my data base", "database"])
     ]
 
     /// The builder named in a spoken or typed command, if any.
