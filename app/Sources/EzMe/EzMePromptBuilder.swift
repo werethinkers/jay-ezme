@@ -82,8 +82,31 @@ enum PromptTargets {
             if let url = changed[target.name], !url.isEmpty { copy.url = url }
             return copy
         }
-        return shown + custom()
+        return ordered(shown + custom())
     }
+
+    // MARK: Order and how many are shown
+
+    static let maxShown = 10
+    private static let orderKey = "keydoPromptTargetsOrder"
+    static func order() -> [String] { UserDefaults.standard.stringArray(forKey: orderKey) ?? [] }
+    /// Sites in the person's own ranking; any site not ranked yet follows in its normal place.
+    static func ordered(_ items: [PromptTarget]) -> [PromptTarget] {
+        let ranking = order()
+        guard !ranking.isEmpty else { return items }
+        let ranked = ranking.compactMap { name in items.first { $0.name == name } }
+        return ranked + items.filter { item in !ranking.contains(item.name) }
+    }
+    static func move(_ name: String, by step: Int) {
+        var names = load().map { $0.name }
+        guard let index = names.firstIndex(of: name) else { return }
+        let to = max(0, min(names.count - 1, index + step))
+        guard to != index else { return }
+        names.remove(at: index); names.insert(name, at: to)
+        UserDefaults.standard.set(names, forKey: orderKey)
+    }
+    /// The favourites, in ranking order, up to the page limit.
+    static func shown(_ items: [PromptTarget]) -> [PromptTarget] { Array(items.filter { isFavorite($0.name) }.prefix(maxShown)) }
 
     // MARK: Favourites and unique names
 
@@ -414,6 +437,8 @@ struct PromptBuilderView: View {
     @State private var autoMarks = [PromptAutoMark]()
     @AppStorage("keydoPromptLastSite") private var lastSite = ""
     @State private var manualFiles = [PromptAttachment]()
+    /// A temporary link: used for sends only, never saved as a site, gone when cleared.
+    @State private var tempLink = ""
     @State private var lastPartialApply = Date.distantPast
     @State private var mediaList = [Clip]()
     @State private var plainList = [Clip]()
@@ -499,6 +524,7 @@ struct PromptBuilderView: View {
         .onReceive(NotificationCenter.default.publisher(for: .keydoSiriSend)) { note in
             guard let spoken = note.object as? String else { return }
             let wanted = String(spoken.lowercased().filter { $0.isLetter || $0.isNumber })
+            if ["clear", "clearlink", "clearthelink", "clearlinks", "cleartemporarylink"].contains(wanted) { tempLink = ""; notice = "Temporary link cleared."; return }
             if let target = PromptVoice.bestTarget(wanted, targets) {
                 if canSend { send(to: target) } else { notice = "Write a prompt or attach media first, then say “send to \(target.name.lowercased())”." }
             } else {
@@ -1112,12 +1138,14 @@ struct PromptBuilderView: View {
     private var sendContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 10)], alignment: .leading, spacing: 10) {
-                ForEach(editingSites ? targets : targets.filter { PromptTargets.isFavorite($0.name) }) { target in
+                ForEach(editingSites ? targets : PromptTargets.shown(targets)) { target in
                     if editingSites {
                         HStack(spacing: 4) {
                             Button { PromptTargets.setFavorite(target.name, !PromptTargets.isFavorite(target.name)); targets = PromptTargets.load() } label: { Image(systemName: PromptTargets.isFavorite(target.name) ? "star.fill" : "star").foregroundStyle(Butter.coral) }
                                 .buttonStyle(.borderless).help(PromptTargets.isFavorite(target.name) ? "Favourite: shown on this page. Click to hide it (voice still works)." : "Click to show this site on this page.")
                             Text(target.name).font(.callout.weight(.semibold)).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+                            Button { PromptTargets.move(target.name, by: -1); targets = PromptTargets.load() } label: { Image(systemName: "arrow.up") }.buttonStyle(.borderless).help("Move up (higher rank)")
+                            Button { PromptTargets.move(target.name, by: 1); targets = PromptTargets.load() } label: { Image(systemName: "arrow.down") }.buttonStyle(.borderless).help("Move down")
                             Button { beginEdit(target) } label: { Image(systemName: "pencil") }.buttonStyle(.borderless).help("Edit \(target.name)")
                             Button { PromptTargets.delete(target); targets = PromptTargets.load() } label: { Image(systemName: "trash") }.buttonStyle(.borderless).foregroundStyle(.red).help("Delete \(target.name)")
                         }
@@ -1139,18 +1167,42 @@ struct PromptBuilderView: View {
                         .buttonStyle(.bordered)
                 }
             }
-            if !editingSites, targets.contains(where: { !PromptTargets.isFavorite($0.name) }) {
-                let hiddenSites = targets.filter { !PromptTargets.isFavorite($0.name) }
-                Text("\(hiddenSites.count) more site\(hiddenSites.count == 1 ? "" : "s") not shown. Say “send to \(hiddenSites[0].voice?.lowercased() ?? hiddenSites[0].name.lowercased())” or star them in Edit links.").font(.caption).foregroundStyle(.secondary)
+            if !editingSites, targets.count > PromptTargets.shown(targets).count {
+                let shownNames = Set(PromptTargets.shown(targets).map { $0.name })
+                let hiddenSites = targets.filter { !shownNames.contains($0.name) }
+                Text("\(hiddenSites.count) more site\(hiddenSites.count == 1 ? "" : "s") not shown (this page shows up to \(PromptTargets.maxShown)). Say “send to \(hiddenSites[0].voice?.lowercased() ?? hiddenSites[0].name.lowercased())” or star and rank them in Edit links.").font(.caption).foregroundStyle(.secondary)
             } else if editingSites {
-                Text("Tap the star to show a site on this page. Sites without a star are not shown, but you can still send to them by voice.").font(.caption).foregroundStyle(.secondary)
+                Text("Star a site to show it. Use the arrows to rank them: the top \(PromptTargets.maxShown) starred sites are shown, the rest still work by voice. You can add as many sites and models as you like.").font(.caption).foregroundStyle(.secondary)
             }
+            tempLinkRow
             Text("Attached media goes into the site's own upload box, so the site's own sign-in is used.")
                 .font(.caption).foregroundStyle(.secondary)
             ForEach(targets.filter { $0.learned != nil }) { target in
                 Text("\(target.name): \(target.learned?.summary ?? "")").font(.caption2).foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var tempLinkRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "link").foregroundStyle(Butter.coral)
+            TextField("Temporary link: paste a site address for this send only", text: $tempLink).textFieldStyle(.roundedBorder)
+            Button("Send to link") { sendToTempLink() }.buttonStyle(.borderedProminent).tint(Butter.coral)
+                .disabled(tempLink.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !canSend)
+            Button("Clear") { tempLink = ""; notice = "Temporary link cleared." }.buttonStyle(.bordered).disabled(tempLink.isEmpty)
+                .help("Removes the link. You can also say “clear link”.")
+        }
+        .padding(10).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Butter.honey.opacity(0.25)))
+    }
+
+    private func sendToTempLink() {
+        var address = tempLink.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !address.isEmpty else { return }
+        if !address.lowercased().hasPrefix("http") { address = "https://" + address }
+        let target = PromptTarget(name: "Temporary link", url: address,
+                                  editor: ["textarea", "div.rich-editor[contenteditable]", "div.ProseMirror[contenteditable='true']", "[contenteditable='true']", "div[role='textbox']"],
+                                  send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[aria-label*='Submit' i]"])
+        send(to: target)
     }
 
     private func send(to target: PromptTarget, raw: String? = nil) {
