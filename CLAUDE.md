@@ -16,6 +16,14 @@ Repo `werethinkers/jay-ezme` is the single source of truth. Work on `main` only.
 - Never put the service role key or any secret in the repo.
 - Do not edit `update/latest.json` by hand; the release workflow owns it.
 
+## Keyboard safety (every version)
+
+The key tap in `miniJSlashTap` sees every key typed in every app. A bug there leaves the user's keyboard dead until KeyDo is quit, so it is a release blocker. For every change that touches the tap, the popup, voice or any mode that swallows keys (`pickerActive`, `imagePromptMode`, `triggerTracking`):
+- Never return `nil` (swallow a key) unless the popup is really showing (`miniJPanelShowing`) and the guard at the top of the callback can still release it (popup gone, 60 quiet seconds, Escape).
+- Keep the heartbeat watchdog (`startTapWatchdog`) so a hung main thread cannot block typing.
+- Do no slow work inside the callback; post to the main queue instead.
+- Say in the release notes and the final report that this was checked.
+
 ## Checklist for every change
 
 1. Make the change on `main`.
