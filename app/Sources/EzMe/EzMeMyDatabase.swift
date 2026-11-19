@@ -496,8 +496,12 @@ struct MyDatabaseView: View {
                     Image(nsImage: image).resizable().scaledToFill().frame(width: 34, height: 34).clipShape(Circle())
                         .overlay(Circle().stroke(Butter.coral.opacity(0.35), lineWidth: 1))
                 } else {
-                    Image(systemName: record.kind == "contact" ? "person.crop.circle" : record.kind == "link" ? "link" : (missing ? "exclamationmark.triangle.fill" : "doc"))
-                        .foregroundStyle(missing ? Color.orange : Butter.coral).frame(width: 22).padding(.top, 2)
+                    if record.kind == "link" {
+                        WebsiteIcon(url: record.value, title: record.title, size: 24).padding(.top, 1)
+                    } else {
+                        Image(systemName: record.kind == "contact" ? "person.crop.circle" : (missing ? "exclamationmark.triangle.fill" : "doc"))
+                            .foregroundStyle(missing ? Color.orange : Butter.coral).frame(width: 22).padding(.top, 2)
+                    }
                 }
             }
             VStack(alignment: .leading, spacing: 3) {

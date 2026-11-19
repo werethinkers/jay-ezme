@@ -408,6 +408,7 @@ struct ButterHitRow: View {
     let badge: String
     let symbol: String
     var iconPath: String? = nil
+    var siteURL: String? = nil
     let action: () -> Void
     @State private var hover = false
 
@@ -415,7 +416,9 @@ struct ButterHitRow: View {
         Button(action: action) {
             HStack(spacing: 11) {
                 Group {
-                    if let path = iconPath, let image = EzMeImageCache.load(contentsOfFile: path) {
+                    if let siteURL, iconPath == nil {
+                        WebsiteIcon(url: siteURL, title: title, size: 30)
+                    } else if let path = iconPath, let image = EzMeImageCache.load(contentsOfFile: path) {
                         Image(nsImage: image).resizable().scaledToFill()
                     } else {
                         Image(systemName: symbol).font(.system(size: 22, weight: .medium)).foregroundStyle(Butter.coral)

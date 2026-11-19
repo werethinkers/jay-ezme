@@ -1,20 +1,19 @@
-# KeyDo 3.97
+# KeyDo 3.98
 
-## Prompt Builder
-- **Send here now works in LinkedIn's message popup** and other pop-up boxes. Those boxes live in a hidden layer of the page that KeyDo could not see before; it now looks inside it, types into the box your cursor is in, attaches media to the nearest upload, and presses that box's own send button.
-- Send here stays quiet: it types and attaches with the page's own commands, without bringing KeyDo to the front or using the clipboard. If a site will not take media quietly, KeyDo says so and you can use Copy media and paste.
-- **Copy prompt** and **Copy media** buttons (header and Ready bar). Copy media puts the attached pictures or files on the clipboard, ready to paste with Command V, so you can send quickly anywhere. Copy prompt leaves out the `[image: name]` markers. Voice: "copy prompt", "copy media".
+## Browser: smoother
+- **Switching tabs no longer reloads the page.** Each tab's page is kept alive and shown again as it was (scroll position, forms, video). Moving between split view and single view does not reload either.
+- **Single-page sites stay where they are.** LinkedIn, Gmail, ChatGPT, YouTube and similar sites change their own address without loading a new page. KeyDo used to send such a tab back to its first address on the next refresh of the screen; it now follows the page, and tab titles stay live.
+- **Sign-in pop-ups work** (for example "Continue with Google"): a page's own pop-up window is opened as a tab connected to the page that asked for it, so the sign-in can finish.
+- Swipe left or right with two fingers to go back and forward; pinch to zoom.
+- Sites see KeyDo as Safari, so fewer sites show a "browser not supported" page or a slimmed-down layout.
+- Saving the workspace is spread out instead of writing on every title or address change, which removes small pauses on busy pages.
 
-## Database Organizer (formerly MyDatabase)
-- New **Organizer** tab: shows how many files you have, their total size, which are missing, duplicated, very large, not changed in a year or have no tags, with one-press fixes (remove missing links, tag by file type). Add files or a whole folder (files stay where they are).
-- Search names, paths, tags and notes, and the words inside PDF and Word documents, with the matching words shown. Filter by type or problem, sort by name, date, size or type.
-- **KeyDo Document Viewer**: opens PDF, Word (.docx, .doc) and .rtf files inside KeyDo. Highlight in five colours, add notes on selected text or on the whole document, tag the document, keep pictures and media with it, copy text, and search inside it. Notes, highlights, tags and media are kept beside the file and shown in the KeyDo Document Viewer only; the original file is never changed.
-- Voice and typed commands in the viewer: "highlight green", "remove highlight", "note check the date", "tag invoice", "remove tag invoice", "find total", "next", "previous", "go to page 4", "copy", "add image", "paste image", "show notes", "close".
-- Files with a PDF or Word type get an Open in Document Viewer button in the Files and Media tabs.
-- Everywhere it was called MyDatabase, you now see Database Organizer. Saying "database organizer" or "document viewer" opens it.
+## Browser: split view, top and bottom
+- Split view can now be **top and bottom** as well as left and right. Use the new button in the split bar; the choice is remembered. Drag the bar between the two pages to resize, double-click it for equal halves.
 
-## Branding
-- Every sheet and popover now carries the KeyDo icon in its top right corner. Alerts already show the KeyDo app icon, and the backslash popup has its own KeyDo logo. The macOS file Open and Save panels are the system's and cannot carry it.
+## Website icons
+- Every website link now shows the site's own icon: the Favorites home page, the bookmarks menu, Apps & Links, links in the Database Organizer, website shortcuts, and search results. Mac apps in shortcuts show their real app icon.
+- Icons are downloaded once and **stored on this Mac**, then shown from the stored copy (also offline). KeyDo looks for the icon the site names in its own page, then its `favicon.ico`; if a site has neither, a public icon service is used as the last step. Until an icon arrives, the site's first letter is shown. Incognito and Private Mode browsing do not save icons.
 
 ## Keyboard safety
-Checked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed, and no key is swallowed by any new code. The popup branding only adds a non-clickable icon to sheet and popover windows when they appear. The release guard and the heartbeat watchdog were not touched.
+Checked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed. All changes are in the browser view, its saving, and icon display.

@@ -62,7 +62,8 @@ Swift cannot be compiled in the Claude workspace (Linux, no Swift), so GitHub's 
 | KeyDo Document Viewer (PDF and Word, notes, highlights, tags, media, voice) | `EzMeDocViewer.swift` (`DocumentViewerView`, `DocViewerModel`, `DocStore`: notes live in Application Support/KeyDo/DocumentNotes, never in the original file) |
 | KeyDo icon on every sheet and popover | `EzMePopupBranding.swift` (installed at launch from `applicationDidFinishLaunching`) |
 | Voice (dictation, "open popup", continuous listening) | `EzMeVoice.swift` (`KeyDoVoice`), `VoiceDictationButton`, `openVoiceDestination` in `EzMe.swift` (spoken "open ..." commands) |
-| In-app browser, tabs and side panel | `final class EzMeBrowserTabs` (`newTab`, `webViews`, `browserMessage`), `struct BrowserWorkspace`, `browserSidePanelVisible` in the root view; open requests in `EzMeButter.swift` (`EzMeOpenRequests`) |
+| Website icons (download once, store, show everywhere) | `EzMeWebsiteIcons.swift` (`SiteIconStore`, `WebsiteIcon`, `AppBundleIcon`), files in `SiteIconCache` (Application Support/MiniJ/SiteIcons) |
+| In-app browser, tabs and side panel | `final class EzMeBrowserTabs` (`newTab`, `webViews` (kept alive per tab and reused when tabs switch), `coordinators`, `browserMessage`), `struct BrowserWorkspace`, `browserSidePanelVisible` in the root view; open requests in `EzMeButter.swift` (`EzMeOpenRequests`) |
 | AI calls and keys | `enum SharedAIClient` (`generate`, `generateImage`, `generateVideo`), `AIModelProfileStore`, `KeyStore` |
 | WishStudio | `EzMeWish*.swift` |
 | Updater | `EzMeUpdater.swift` |

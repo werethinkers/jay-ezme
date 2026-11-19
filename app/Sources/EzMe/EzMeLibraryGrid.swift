@@ -567,7 +567,7 @@ struct LinkPreviewTile: View {
             } else {
                 LinearGradient(colors: [Color.indigo.opacity(0.28), Color.blue.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing)
                 VStack(spacing: 8) {
-                    Image(systemName: "globe").font(.system(size: 34)).foregroundStyle(.indigo)
+                    WebsiteIcon(url: "https://" + host, title: host, size: 44)
                     Text(info?.title ?? host).font(.caption.weight(.semibold)).lineLimit(2).multilineTextAlignment(.center).padding(.horizontal, 14)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

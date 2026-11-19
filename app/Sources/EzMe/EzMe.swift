@@ -939,8 +939,8 @@ struct EzMeSavedSite:Identifiable,Codable,Equatable {
 }
 @MainActor final class EzMeBrowserTabs:ObservableObject {
  static let homeTabID="ezme-default-home";static let homeURL="ezme://home"
- @Published var tabs:[EzMeBrowserTab]=[] {didSet{persist()}};@Published var saved:[EzMeSavedSite]=[] {didSet{persist()}};@Published var selectedID="" {didSet{persist()}};@Published var collections:[EzMeBrowserCollection]=[] {didSet{persist()}};@Published var tabGroups:[String:String]=[:] {didSet{persist()}};@Published var collapsedTabGroups:Set<String>=[] {didSet{persist()}};@Published var splitEnabled=false {didSet{persist()}};@Published var secondaryID="" {didSet{persist()}};@Published var splitLinked=UserDefaults.standard.object(forKey:"ezmeBrowserSplitLinked") as? Bool ?? true {didSet{UserDefaults.standard.set(splitLinked,forKey:"ezmeBrowserSplitLinked")}};private var incognitoStoreCache:WKWebsiteDataStore?;private var privateStoreCache:WKWebsiteDataStore?;private var privateKeyMemo:SymmetricKey?;@Published private(set) var isIncognito=false;@Published private(set) var isPrivateMode=false;@Published private(set) var zoomLevels:[String:Double]=[:];private var suspendedWorkspace:BrowserWorkspaceArchive?;@Published var address="https://www.google.com";@Published var downloadStatus:String?;@Published var browserMessage:String?;@Published var lastDownloadURL:URL?;var webViews:[String:WKWebView]=[:]
- init(){let home=EzMeBrowserTab(id:Self.homeTabID,title:"Home",url:Self.homeURL);let savedHome=EzMeSavedSite(id:Self.homeTabID,title:"EzYourLife",url:"https://ezyourlife.com",collection:"Favorites");if let data=UserDefaults.standard.data(forKey:"ezmeBrowserTabs"),let state=try? JSONDecoder().decode(BrowserPersisted.self,from:data){tabs=state.tabs.filter{$0.id != Self.homeTabID};tabs.insert(home,at:0);saved=state.saved.filter{$0.id != Self.homeTabID};saved.insert(savedHome,at:0)}else{tabs=[home];saved=[savedHome]};collections=(try? JSONDecoder().decode([EzMeBrowserCollection].self,from:UserDefaults.standard.data(forKey:"ezmeBrowserCollections") ?? Data())) ?? [EzMeBrowserCollection(title:"Favorites")];if !collections.contains(where:{$0.title.caseInsensitiveCompare("Favorites") == .orderedSame}){collections.insert(EzMeBrowserCollection(title:"Favorites"),at:0)};tabGroups=(try? JSONDecoder().decode([String:String].self,from:UserDefaults.standard.data(forKey:"ezmeBrowserTabGroups") ?? Data())) ?? [:];collapsedTabGroups=Set((try? JSONDecoder().decode([String].self,from:UserDefaults.standard.data(forKey:"ezmeBrowserCollapsedGroups") ?? Data())) ?? []);splitEnabled=UserDefaults.standard.bool(forKey:"ezmeBrowserSplitEnabled");secondaryID=UserDefaults.standard.string(forKey:"ezmeBrowserSplitSecondary") ?? "";selectedID=Self.homeTabID;address=Self.homeURL;persist()}
+ @Published var tabs:[EzMeBrowserTab]=[] {didSet{schedulePersist()}};@Published var saved:[EzMeSavedSite]=[] {didSet{schedulePersist()}};@Published var selectedID="" {didSet{schedulePersist()}};@Published var collections:[EzMeBrowserCollection]=[] {didSet{schedulePersist()}};@Published var tabGroups:[String:String]=[:] {didSet{schedulePersist()}};@Published var collapsedTabGroups:Set<String>=[] {didSet{schedulePersist()}};@Published var splitEnabled=false {didSet{schedulePersist()}};@Published var secondaryID="" {didSet{schedulePersist()}};@Published var splitLinked=UserDefaults.standard.object(forKey:"ezmeBrowserSplitLinked") as? Bool ?? true {didSet{UserDefaults.standard.set(splitLinked,forKey:"ezmeBrowserSplitLinked")}};private var incognitoStoreCache:WKWebsiteDataStore?;private var privateStoreCache:WKWebsiteDataStore?;private var privateKeyMemo:SymmetricKey?;@Published private(set) var isIncognito=false;@Published private(set) var isPrivateMode=false;@Published private(set) var zoomLevels:[String:Double]=[:];private var suspendedWorkspace:BrowserWorkspaceArchive?;@Published var address="https://www.google.com";@Published var downloadStatus:String?;@Published var browserMessage:String?;@Published var lastDownloadURL:URL?;var webViews:[String:WKWebView]=[:];var coordinators:[String:AnyObject]=[:]
+ init(){let home=EzMeBrowserTab(id:Self.homeTabID,title:"Home",url:Self.homeURL);let savedHome=EzMeSavedSite(id:Self.homeTabID,title:"EzYourLife",url:"https://ezyourlife.com",collection:"Favorites");if let data=UserDefaults.standard.data(forKey:"ezmeBrowserTabs"),let state=try? JSONDecoder().decode(BrowserPersisted.self,from:data){tabs=state.tabs.filter{$0.id != Self.homeTabID};tabs.insert(home,at:0);saved=state.saved.filter{$0.id != Self.homeTabID};saved.insert(savedHome,at:0)}else{tabs=[home];saved=[savedHome]};SiteIconStore.shared.prefetch(saved.map{$0.url});collections=(try? JSONDecoder().decode([EzMeBrowserCollection].self,from:UserDefaults.standard.data(forKey:"ezmeBrowserCollections") ?? Data())) ?? [EzMeBrowserCollection(title:"Favorites")];if !collections.contains(where:{$0.title.caseInsensitiveCompare("Favorites") == .orderedSame}){collections.insert(EzMeBrowserCollection(title:"Favorites"),at:0)};tabGroups=(try? JSONDecoder().decode([String:String].self,from:UserDefaults.standard.data(forKey:"ezmeBrowserTabGroups") ?? Data())) ?? [:];collapsedTabGroups=Set((try? JSONDecoder().decode([String].self,from:UserDefaults.standard.data(forKey:"ezmeBrowserCollapsedGroups") ?? Data())) ?? []);splitEnabled=UserDefaults.standard.bool(forKey:"ezmeBrowserSplitEnabled");secondaryID=UserDefaults.standard.string(forKey:"ezmeBrowserSplitSecondary") ?? "";selectedID=Self.homeTabID;address=Self.homeURL;persist()}
  var current:EzMeBrowserTab?{tabs.first{$0.id==selectedID}}
  /// Website icons shown on the tabs, by tab id.
  @Published var favicons:[String:NSImage]=[:]
@@ -988,7 +988,7 @@ struct EzMeSavedSite:Identifiable,Codable,Equatable {
  func renameGroup(_ old:String,_ new:String){let clean=new.trimmingCharacters(in:.whitespacesAndNewlines);guard !clean.isEmpty else{return};for (id,value) in tabGroups where value==old{tabGroups[id]=clean};if collapsedTabGroups.remove(old) != nil{collapsedTabGroups.insert(clean)}}
  var orderedGroups:[String]{var result=[String]();for tab in tabs{let group=tabGroups[tab.id] ?? "";if !result.contains(group){result.append(group)}};return result}
  func toggleGroup(_ group:String){if collapsedTabGroups.contains(group){collapsedTabGroups.remove(group)}else{collapsedTabGroups.insert(group)}}
- func close(_ id:String){guard id != Self.homeTabID else{return};if secondaryID==id{splitEnabled=false;secondaryID=""};tabs.removeAll{$0.id==id};tabGroups.removeValue(forKey:id);webViews.removeValue(forKey:id);favicons.removeValue(forKey:id);if tabs.isEmpty{newTab()};if !tabs.contains(where:{$0.id==selectedID}),let first=tabs.first{select(first.id)}}
+ func close(_ id:String){guard id != Self.homeTabID else{return};if secondaryID==id{splitEnabled=false;secondaryID=""};tabs.removeAll{$0.id==id};tabGroups.removeValue(forKey:id);webViews.removeValue(forKey:id);coordinators.removeValue(forKey:id);favicons.removeValue(forKey:id);if tabs.isEmpty{newTab()};if !tabs.contains(where:{$0.id==selectedID}),let first=tabs.first{select(first.id)}}
  func navigate(){guard let index=tabs.firstIndex(where:{$0.id==selectedID})else{return};var target=address.trimmingCharacters(in:.whitespacesAndNewlines);if !target.contains("://"){target="https://"+target};if let url=URL(string:target),let scheme=url.scheme,["http","https"].contains(scheme.lowercased()){tabs[index].url=url.absoluteString;address=url.absoluteString}}
  func saveCurrent(title:String,url:String,tags:[String],note:String,collection:String){let clean=collection.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Favorites":collection.trimmingCharacters(in:.whitespacesAndNewlines);ensureCollection(clean);if let i=saved.firstIndex(where:{$0.url==url}){saved[i].title=title.isEmpty ? (current?.title ?? url):title;saved[i].tags=tags;saved[i].note=note;saved[i].collection=clean}else{saved.append(EzMeSavedSite(title:title.isEmpty ? (current?.title ?? url):title,url:url,tags:tags,note:note,collection:clean))}}
  func ensureCollection(_ title:String){let value=title.trimmingCharacters(in:.whitespacesAndNewlines);guard !value.isEmpty,!collections.contains(where:{$0.title.caseInsensitiveCompare(value) == .orderedSame})else{return};collections.append(EzMeBrowserCollection(title:value))}
@@ -996,7 +996,15 @@ struct EzMeSavedSite:Identifiable,Codable,Equatable {
  func importChromeFile(_ url:URL){do{let data=try Data(contentsOf:url);let prefix=String(decoding:data.prefix(100),as:UTF8.self).trimmingCharacters(in:.whitespacesAndNewlines);let isJSON=url.pathExtension.lowercased()=="json" || prefix.hasPrefix("{");let items=isJSON ? parseChromeJSON(data):parseChromeHTML(String(decoding:data,as:UTF8.self));guard !items.isEmpty else{browserMessage="No bookmarks found. Export Chrome bookmarks as HTML or choose a Chrome profile’s Bookmarks file.";return};for item in items{ensureCollection(item.collection);if let i=saved.firstIndex(where:{$0.url==item.url}){saved[i]=item}else{saved.append(item)}};browserMessage="Imported \(items.count) Chrome bookmark(s), with folders saved as KeyDo collections."}catch{browserMessage="Could not import bookmarks: \(error.localizedDescription)"}}
  private func parseChromeJSON(_ data:Data)->[EzMeSavedSite]{guard let root=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],let roots=root["roots"] as? [String:Any]else{return []};var output=[EzMeSavedSite]();func walk(_ node:[String:Any],folder:String){let type=node["type"] as? String ?? "";if type=="url",let url=node["url"] as? String,URL(string:url) != nil{let title=node["name"] as? String ?? url;output.append(EzMeSavedSite(title:title,url:url,tags:folder.isEmpty ? ["Chrome"]:[folder],note:"Imported from Google Chrome",collection:folder.isEmpty ? "Chrome imports":folder))}else{let current=type=="folder" ? (node["name"] as? String ?? folder):folder;for child in node["children"] as? [[String:Any]] ?? []{walk(child,folder:current)}}};for value in roots.values{if let node=value as? [String:Any]{walk(node,folder:"")}};return output}
  private func parseChromeHTML(_ html:String)->[EzMeSavedSite]{guard let regex=try? NSRegularExpression(pattern:#"(?is)<h3\b[^>]*>(.*?)</h3>|<a\b([^>]*)>(.*?)</a>|</dl>"#)else{return []};let ns=html as NSString;var folders=[String]();var result=[EzMeSavedSite]();for match in regex.matches(in:html,range:NSRange(location:0,length:ns.length)){let token=ns.substring(with:match.range);if token.lowercased().hasPrefix("</dl"){if !folders.isEmpty{folders.removeLast()};continue};if match.range(at:2).location != NSNotFound,let attrRange=Range(match.range(at:2),in:html){let attrs=String(html[attrRange]);guard let hrefRegex=try? NSRegularExpression(pattern:#"(?i)href=[\"']([^\"']+)"#),let hrefMatch=hrefRegex.firstMatch(in:attrs,range:NSRange(location:0,length:(attrs as NSString).length)),let hrefRange=Range(hrefMatch.range(at:1),in:attrs),let titleRange=Range(match.range(at:3),in:html)else{continue};let url=String(attrs[hrefRange]);guard URL(string:url) != nil else{continue};let title=String(html[titleRange]).replacingOccurrences(of:"<[^>]+>",with:"",options:.regularExpression).browserHTMLDecoded;let folder=folders.last ?? "Chrome imports";result.append(EzMeSavedSite(title:title,url:url,tags:["Chrome",folder],note:"Imported from Google Chrome",collection:folder))}else if match.range(at:1).location != NSNotFound,let range=Range(match.range(at:1),in:html){folders.append(String(html[range]).replacingOccurrences(of:"<[^>]+>",with:"",options:.regularExpression).browserHTMLDecoded)}};return result}
- func update(_ id:String,title:String,url:String){guard let i=tabs.firstIndex(where:{$0.id==id})else{return};tabs[i].title=title.isEmpty ? "Web page":title;tabs[i].url=url;if selectedID==id{address=url}}
+ func update(_ id:String,title:String,url:String){guard let i=tabs.firstIndex(where:{$0.id==id})else{return};let newTitle=title.isEmpty ? "Web page":title;if tabs[i].title != newTitle{tabs[i].title=newTitle};if tabs[i].url != url{tabs[i].url=url};if selectedID==id && address != url{address=url}}
+ /// A page changed its own address (single-page sites do this without a new load). Remember it so nothing reloads the old one.
+ func syncURL(_ id:String,url:String){guard let i=tabs.firstIndex(where:{$0.id==id}),tabs[i].url != url else{return};tabs[i].url=url;if selectedID==id && address != url{address=url}}
+ func syncTitle(_ id:String,title:String){guard !title.isEmpty,let i=tabs.firstIndex(where:{$0.id==id}),tabs[i].title != title else{return};tabs[i].title=title}
+ /// Saving is spread out so a busy page does not write the whole workspace many times a second.
+ private var persistTask:Task<Void,Never>?
+ private func schedulePersist(){persistTask?.cancel();persistTask=Task{@MainActor [weak self] in try? await Task.sleep(nanoseconds:700_000_000);if Task.isCancelled{return};self?.persist()}}
+ /// A tab opened by a page's own window.open (sign-in pop-ups): the page needs the new window so the two can talk.
+ func newPopupTab(_ url:String)->String{let tab=EzMeBrowserTab(title:"Loading…",url:url);tabs.append(tab);selectedID=tab.id;address=url;return tab.id}
  func toggleIncognito(){if isPrivateMode{return};if isIncognito{isIncognito=false;incognitoStoreCache=nil;webViews.removeAll();favicons=[:];zoomLevels=[:];restoreSuspendedWorkspace();return};suspendedWorkspace=archive();incognitoStoreCache=nil;isIncognito=true;webViews.removeAll();favicons=[:];zoomLevels=[:];let home=EzMeBrowserTab(id:Self.homeTabID,title:"Home",url:Self.homeURL);tabs=[home];tabGroups=[:];collapsedTabGroups=[];selectedID=Self.homeTabID;secondaryID="";splitEnabled=false;address=Self.homeURL}
  var hasPrivatePasscode:Bool{KeyStore.load(account:"ezme.browser.private.pin") != nil}
  @discardableResult func unlockPrivateMode(passcode:String,confirmation:String?=nil)->Bool{guard passcode.count==6,passcode.allSatisfy(\.isNumber)else{return false};let account="ezme.browser.private.pin";if let savedPin=KeyStore.load(account:account){guard savedPin==passcode else{return false}}else{guard confirmation==passcode,KeyStore.save(passcode,account:account)else{return false}};if KeyStore.load(account:"ezme.browser.private.key")==nil{let randomKey=Data((0..<32).map{_ in UInt8.random(in:0...255)}).base64EncodedString();guard KeyStore.save(randomKey,account:"ezme.browser.private.key")else{return false}};if isIncognito{isIncognito=false;restoreSuspendedWorkspace()};suspendedWorkspace=archive();var privateArchive=loadPrivateArchive() ?? BrowserWorkspaceArchive.empty;if let main=suspendedWorkspace{for site in main.saved where !privateArchive.saved.contains(where:{$0.url==site.url}){privateArchive.saved.append(site)};for collection in main.collections where !privateArchive.collections.contains(where:{$0.title.caseInsensitiveCompare(collection.title) == .orderedSame}){privateArchive.collections.append(collection)}};isPrivateMode=true;webViews.removeAll();favicons=[:];zoomLevels=[:];apply(privateArchive);address=current?.url ?? Self.homeURL;return true}
@@ -1039,6 +1047,7 @@ struct BrowserWorkspace:View {
   if let secondary=state.splitSecondary{splitPages(secondary)}else{webPage(state.current).frame(maxWidth:.infinity,maxHeight:.infinity)}
  }
  @AppStorage("ezmeBrowserSplitFraction") private var splitFraction=0.5
+ @AppStorage("ezmeBrowserSplitStacked") private var splitStacked=false
  @State private var splitDragStart:Double?
  private func splitHandle(total:CGFloat)->some View{
   Rectangle().fill(Color.clear).frame(width:12)
@@ -1050,30 +1059,51 @@ struct BrowserWorkspace:View {
    .onTapGesture(count:2){withAnimation(.easeInOut(duration:0.15)){splitFraction=0.5}}
    .help("Drag to resize the two sides. Double-click for equal halves.")
  }
+ private func splitHandleStacked(total:CGFloat)->some View{
+  Rectangle().fill(Color.clear).frame(height:12)
+   .overlay(Capsule().fill(Color.gray.opacity(0.45)).frame(width:46,height:4))
+   .overlay(Rectangle().fill(Color.gray.opacity(0.25)).frame(height:1))
+   .contentShape(Rectangle())
+   .onHover{inside in if inside{NSCursor.resizeUpDown.push()}else{NSCursor.pop()}}
+   .gesture(DragGesture(minimumDistance:1,coordinateSpace:.global).onChanged{value in let start=splitDragStart ?? splitFraction;splitDragStart=start;splitFraction=min(0.85,max(0.15,start+Double(value.translation.height/total)))}.onEnded{_ in splitDragStart=nil})
+   .onTapGesture(count:2){withAnimation(.easeInOut(duration:0.15)){splitFraction=0.5}}
+   .help("Drag to resize the top and bottom. Double-click for equal halves.")
+ }
  private func splitPages(_ secondary:EzMeBrowserTab)->some View{
   VStack(spacing:6){
    scrollRow(height:32,minWidth:330){splitControls}
    GeometryReader{geo in
-    let total=max(420,geo.size.width-12)
-    let left=min(max(total*splitFraction,200),total-200)
-    HStack(spacing:0){
-     splitPane(state.current,right:false,width:left,height:geo.size.height)
-     splitHandle(total:total)
-     splitPane(secondary,right:true,width:total-left,height:geo.size.height)
-    }.frame(height:geo.size.height)
+    if splitStacked{
+     let total=max(300,geo.size.height-12)
+     let top=min(max(total*splitFraction,120),total-120)
+     VStack(spacing:0){
+      splitPane(state.current,right:false,width:geo.size.width,height:top)
+      splitHandleStacked(total:total)
+      splitPane(secondary,right:true,width:geo.size.width,height:total-top)
+     }.frame(width:geo.size.width)
+    }else{
+     let total=max(420,geo.size.width-12)
+     let left=min(max(total*splitFraction,200),total-200)
+     HStack(spacing:0){
+      splitPane(state.current,right:false,width:left,height:geo.size.height)
+      splitHandle(total:total)
+      splitPane(secondary,right:true,width:total-left,height:geo.size.height)
+     }.frame(height:geo.size.height)
+    }
    }
   }
-  .onAppear{splitAddress=secondary.url}
+ .onAppear{splitAddress=secondary.url}
   .onChange(of:secondary.url){splitAddress=$0}
  }
  private var splitControls:some View{
   HStack(spacing:8){
-   Image(systemName:"rectangle.split.2x1").foregroundStyle(Butter.coral)
+   Image(systemName:splitStacked ? "rectangle.split.1x2":"rectangle.split.2x1").foregroundStyle(Butter.coral)
    Picker("",selection:$state.splitLinked){Text("Linked").tag(true);Text("Separate").tag(false)}.pickerStyle(.segmented).labelsHidden().frame(width:176)
     .help("Linked: links and tabs opened on the left appear on the right. Separate: each side browses its own website.")
-   Text(state.splitLinked ? "Links from the left open on the right":"Each side browses on its own").font(.caption).foregroundStyle(.secondary).lineLimit(1)
+   Text(state.splitLinked ? (splitStacked ? "Links from the top open on the bottom":"Links from the left open on the right"):"Each side browses on its own").font(.caption).foregroundStyle(.secondary).lineLimit(1)
    Spacer(minLength:0)
-   splitIcon("arrow.left.arrow.right","Swap left and right"){state.swapSplit()}
+   splitIcon(splitStacked ? "rectangle.split.2x1":"rectangle.split.1x2",splitStacked ? "Side by side (left and right)":"Top and bottom (horizontal split)"){withAnimation(.easeInOut(duration:0.15)){splitStacked.toggle()}}
+   splitIcon(splitStacked ? "arrow.up.arrow.down":"arrow.left.arrow.right","Swap the two sides"){state.swapSplit()}
    splitIcon("xmark","Close split view"){state.splitEnabled=false}
   }
  }
@@ -1083,13 +1113,13 @@ struct BrowserWorkspace:View {
  private func splitPane(_ tab:EzMeBrowserTab?,right:Bool,width:CGFloat,height:CGFloat)->some View{
   VStack(spacing:0){
    HStack(spacing:6){
-    Text(right ? "RIGHT":"LEFT").font(.system(size:9,weight:.heavy)).foregroundStyle(Butter.coral)
+    Text(splitStacked ? (right ? "BOTTOM":"TOP"):(right ? "RIGHT":"LEFT")).font(.system(size:9,weight:.heavy)).foregroundStyle(Butter.coral)
     if let tab,tab.id != EzMeBrowserTabs.homeTabID{SiteIconView(icon:state.icon(for:tab),title:tab.title,size:12)}
     Text(tab?.title ?? "").font(.caption.weight(.semibold)).lineLimit(1)
     Spacer(minLength:0)
     if right{
      if !state.splitLinked{TextField("Address",text:$splitAddress).textFieldStyle(.roundedBorder).font(.caption).frame(minWidth:110,maxWidth:240).onSubmit{state.navigateSecondary(splitAddress)}}
-     Menu{ForEach(state.tabs.filter{$0.id != state.selectedID}){t in Button(t.title){state.secondaryID=t.id}}}label:{Image(systemName:"rectangle.stack").font(.system(size:12))}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Choose which tab shows on the right")
+     Menu{ForEach(state.tabs.filter{$0.id != state.selectedID}){t in Button(t.title){state.secondaryID=t.id}}}label:{Image(systemName:"rectangle.stack").font(.system(size:12))}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Choose which tab shows in this pane")
     }
    }.padding(.horizontal,8).frame(height:26).background(Color.gray.opacity(0.08))
    webPage(tab).frame(maxWidth:.infinity,maxHeight:.infinity)
@@ -1156,7 +1186,7 @@ struct BrowserWorkspace:View {
    MerlinBar(text:$bookmarkSearch,placeholder:"Search saved links")
    Divider()
    ForEach(visibleBookmarks){site in
-    Button{if site.id==EzMeBrowserTabs.homeTabID{state.goHome()}else{state.newTab(site.url)}}label:{Label(site.title,systemImage:site.id==EzMeBrowserTabs.homeTabID ? "house.fill":"bookmark")}.help("\(site.collection) · \(site.tags.joined(separator:", "))\n\(site.note)\n\(site.url)")
+    Button{if site.id==EzMeBrowserTabs.homeTabID{state.goHome()}else{state.newTab(site.url)}}label:{Label{Text(site.title)}icon:{if site.id==EzMeBrowserTabs.homeTabID{Image(systemName:"house.fill")}else if let icon=SiteIconStore.shared.menuImage(for:site.url){Image(nsImage:icon)}else{Image(systemName:"bookmark")}}}.help("\(site.collection) · \(site.tags.joined(separator:", "))\n\(site.note)\n\(site.url)")
    }
    if !visibleBookmarks.isEmpty{
     Divider()
@@ -1220,7 +1250,7 @@ private struct BrowserFavoritesHome:View{
  private func favoriteCard(_ site:EzMeSavedSite)->some View{
   Button{state.newTab(site.url)}label:{
    VStack(alignment:.leading,spacing:8){
-    Image(systemName:"globe").font(.title2).foregroundStyle(Butter.coral).frame(width:42,height:42).background(Butter.coral.opacity(0.10),in:RoundedRectangle(cornerRadius:12))
+    WebsiteIcon(url:site.url,title:site.title,size:30).frame(width:42,height:42).background(Butter.coral.opacity(0.10),in:RoundedRectangle(cornerRadius:12))
     Text(site.title).font(.headline).lineLimit(1)
     Text(site.url).font(.caption).foregroundStyle(.secondary).lineLimit(1)
     if !site.tags.isEmpty{Text(site.tags.joined(separator:" · ")).font(.caption2).foregroundStyle(Butter.coral).lineLimit(1)}
@@ -1252,18 +1282,42 @@ private struct BrowserBookmarkEditor:View{
  var body:some View{VStack(alignment:.leading,spacing:13){Text("Save link").font(.title2.bold());TextField("Name",text:$title).textFieldStyle(.roundedBorder);PageScanPanel(state:state,title:$title,url:url,shortcut:$shortcut,makeShortcut:$makeShortcut,tags:$tags,note:$note,collection:$collection);TextField("URL",text:$url).textFieldStyle(.roundedBorder);TextField("Tags · comma separated",text:$tags).textFieldStyle(.roundedBorder);TextField("Collection",text:$collection).textFieldStyle(.roundedBorder);if !state.collections.isEmpty{ScrollView(.horizontal,showsIndicators:false){HStack{ForEach(state.collections){item in Button(item.title){collection=item.title}.buttonStyle(.bordered).controlSize(.small)}}}};Text("Why save this link?").font(.subheadline.weight(.semibold));TextEditor(text:$note).frame(height:90).overlay(RoundedRectangle(cornerRadius:8).stroke(.quaternary));HStack{Spacer();Button("Cancel"){dismiss()};Button("Save bookmark",systemImage:"bookmark.fill"){let clean=url.trimmingCharacters(in:.whitespacesAndNewlines);let valid=clean.contains("://") ? clean:"https://"+clean;guard URL(string:valid) != nil else{return};state.saveCurrent(title:title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? initialTitle:title,url:valid,tags:tags.split(separator:",").map{$0.trimmingCharacters(in:.whitespacesAndNewlines)}.filter{!$0.isEmpty},note:note,collection:collection);let finalName=title.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? initialTitle:title;let cleanKey=shortcut.trimmingCharacters(in:.whitespacesAndNewlines);if makeShortcut,!cleanKey.isEmpty{NotificationCenter.default.post(name:.keydoSaveWebShortcut,object:nil,userInfo:["key":cleanKey,"name":finalName,"url":valid])};dismiss()}.buttonStyle(.borderedProminent).tint(Butter.coral)}}.padding(22).frame(width:520).onAppear{title=initialTitle;url=initialURL;collection=state.saved.first(where:{$0.url==initialURL})?.collection ?? "Favorites";tags=state.saved.first(where:{$0.url==initialURL})?.tags.joined(separator:", ") ?? "";note=state.saved.first(where:{$0.url==initialURL})?.note ?? ""}}
 }
 struct EzMeWebView:NSViewRepresentable { @ObservedObject var state:EzMeBrowserTabs;var tab:EzMeBrowserTab
- func makeCoordinator()->Coordinator{Coordinator(state:state,id:tab.id)}
- func makeNSView(context:Context)->WKWebView{let configuration=WKWebViewConfiguration();configuration.websiteDataStore=state.webDataStore;configuration.preferences.javaScriptCanOpenWindowsAutomatically=false;configuration.preferences.isElementFullscreenEnabled=true;let view=WKWebView(frame:.zero,configuration:configuration);view.navigationDelegate=context.coordinator;view.uiDelegate=context.coordinator;EzMeBrowserSafety.withRules{[weak view] list in view?.configuration.userContentController.add(list)};state.webViews[tab.id]=view;if let url=URL(string:tab.url){view.load(URLRequest(url:url))};return view}
- func updateNSView(_ view:WKWebView,context:Context){view.pageZoom=state.zoomLevels[tab.id] ?? 1.0;if view.url?.absoluteString != tab.url,let url=URL(string:tab.url){view.load(URLRequest(url:url))}}
+ func makeCoordinator()->Coordinator{if let kept=state.coordinators[tab.id] as? Coordinator{return kept};let made=Coordinator(state:state,id:tab.id);state.coordinators[tab.id]=made;return made}
+ func makeNSView(context:Context)->WKWebView{
+  let coordinator=context.coordinator
+  // Switching tabs shows the page that is already loaded instead of building and reloading it.
+  if let kept=state.webViews[tab.id]{kept.removeFromSuperview();kept.navigationDelegate=coordinator;kept.uiDelegate=coordinator;coordinator.lastLoaded=kept.url?.absoluteString ?? tab.url;return kept}
+  let configuration=WKWebViewConfiguration();configuration.websiteDataStore=state.webDataStore;configuration.preferences.javaScriptCanOpenWindowsAutomatically=false;configuration.preferences.isElementFullscreenEnabled=true
+  configuration.applicationNameForUserAgent="Version/17.6 Safari/605.1.15"
+  let view=WKWebView(frame:.zero,configuration:configuration);view.navigationDelegate=coordinator;view.uiDelegate=coordinator
+  view.allowsBackForwardNavigationGestures=true;view.allowsMagnification=true
+  EzMeBrowserSafety.withRules{[weak view] list in view?.configuration.userContentController.add(list)}
+  state.webViews[tab.id]=view;coordinator.observe(view)
+  if let url=URL(string:tab.url){coordinator.lastLoaded=tab.url;view.load(URLRequest(url:url))}
+  return view
+ }
+ func updateNSView(_ view:WKWebView,context:Context){
+  let zoom=state.zoomLevels[tab.id] ?? 1.0;if view.pageZoom != zoom{view.pageZoom=zoom}
+  // Load only when the address was changed from outside (address bar, a link in KeyDo). A page that changed its own address is left alone.
+  let coordinator=context.coordinator
+  if tab.url != coordinator.lastLoaded{coordinator.lastLoaded=tab.url;if view.url?.absoluteString != tab.url,let url=URL(string:tab.url){view.load(URLRequest(url:url))}}
+ }
  final class Coordinator:NSObject,WKNavigationDelegate,WKUIDelegate,WKDownloadDelegate {
   let state:EzMeBrowserTabs;let id:String;private var activeDownloads=[ObjectIdentifier:WKDownload]();private var downloadDestinations=[ObjectIdentifier:URL]();private var upgradedFrom:URL?;private var insecureAllowed=Set<String>()
+  var lastLoaded="";private var observers=[NSKeyValueObservation]()
   init(state:EzMeBrowserTabs,id:String){self.state=state;self.id=id}
+  /// Follows the page's own address and title, so single-page sites (LinkedIn, Gmail, ChatGPT) stay where they are and tabs show live titles.
+  func observe(_ view:WKWebView){
+   observers.append(view.observe(\.url,options:[.new]){[weak self] changed,_ in MainActor.assumeIsolated{guard let self,let link=changed.url?.absoluteString else{return};self.lastLoaded=link;self.state.syncURL(self.id,url:link)}})
+   observers.append(view.observe(\.title,options:[.new]){[weak self] changed,_ in MainActor.assumeIsolated{guard let self else{return};self.state.syncTitle(self.id,title:changed.title ?? "")}})
+  }
+  func webViewDidClose(_ webView:WKWebView){state.close(id)}
   func webView(_ webView:WKWebView,runOpenPanelWith parameters:WKOpenPanelParameters,initiatedByFrame frame:WKFrameInfo,completionHandler:@escaping ([URL]?)->Void){let panel=NSOpenPanel();panel.title="Choose a file to upload";panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=parameters.allowsMultipleSelection;panel.allowedContentTypes=[.item];panel.begin{response in completionHandler(response == .OK ? panel.urls:nil)}}
   func webView(_ webView:WKWebView,didFailProvisionalNavigation navigation:WKNavigation!,withError error:Error){guard let original=upgradedFrom,(error as NSError).code != NSURLErrorCancelled else{return};upgradedFrom=nil;if let host=original.host{insecureAllowed.insert(host)};webView.load(URLRequest(url:original))}
   func webView(_ webView:WKWebView,didCommit navigation:WKNavigation!){if let link=webView.url?.absoluteString,let host=SiteIconCache.host(link){let name=webView.title ?? "";state.update(id,title:name.isEmpty ? PageNamer.hostCore(host).capitalized:name,url:link)};state.loadFavicon(for:id,webView:webView)}
  func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!){upgradedFrom=nil;state.update(id,title:webView.title ?? "Web page",url:webView.url?.absoluteString ?? state.address);state.loadFavicon(for:id,webView:webView)}
   func webView(_ webView:WKWebView,decidePolicyFor navigationAction:WKNavigationAction,decisionHandler:@escaping (WKNavigationActionPolicy)->Void){if navigationAction.shouldPerformDownload{decisionHandler(.download);return};if navigationAction.targetFrame?.isMainFrame ?? true,let target=navigationAction.request.url,!insecureAllowed.contains(target.host ?? ""),upgradedFrom != target,let secure=EzMeBrowserSafety.httpsUpgrade(for:target){upgradedFrom=target;decisionHandler(.cancel);webView.load(URLRequest(url:secure));return};if navigationAction.navigationType == .linkActivated,navigationAction.modifierFlags.contains(.command),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.newTab(target.absoluteString);decisionHandler(.cancel);return};if navigationAction.navigationType == .linkActivated,navigationAction.targetFrame?.isMainFrame ?? true,state.shouldSendToSplit(from:id),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.openInSplit(target.absoluteString);decisionHandler(.cancel);return};decisionHandler(.allow)}
-  func webView(_ webView:WKWebView,createWebViewWith configuration:WKWebViewConfiguration,for navigationAction:WKNavigationAction,windowFeatures:WKWindowFeatures)->WKWebView?{guard navigationAction.targetFrame == nil else{return nil};if state.shouldSendToSplit(from:id),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.openInSplit(target.absoluteString);return nil};if let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.newTab(target.absoluteString);return nil};webView.load(navigationAction.request);return nil}
+  func webView(_ webView:WKWebView,createWebViewWith configuration:WKWebViewConfiguration,for navigationAction:WKNavigationAction,windowFeatures:WKWindowFeatures)->WKWebView?{guard navigationAction.targetFrame == nil else{return nil};if !state.shouldSendToSplit(from:id),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""),navigationAction.navigationType == .other{let popupID=state.newPopupTab(target.absoluteString);let popup=WKWebView(frame:.zero,configuration:configuration);let owner=Coordinator(state:state,id:popupID);owner.lastLoaded=target.absoluteString;popup.navigationDelegate=owner;popup.uiDelegate=owner;popup.allowsBackForwardNavigationGestures=true;owner.observe(popup);state.coordinators[popupID]=owner;state.webViews[popupID]=popup;return popup};if state.shouldSendToSplit(from:id),let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.openInSplit(target.absoluteString);return nil};if let target=navigationAction.request.url,["http","https"].contains(target.scheme?.lowercased() ?? ""){state.newTab(target.absoluteString);return nil};webView.load(navigationAction.request);return nil}
   func webView(_ webView:WKWebView,decidePolicyFor navigationResponse:WKNavigationResponse,decisionHandler:@escaping (WKNavigationResponsePolicy)->Void){let attachment=(navigationResponse.response as? HTTPURLResponse)?.value(forHTTPHeaderField:"Content-Disposition")?.localizedCaseInsensitiveContains("attachment") ?? false;let mime=navigationResponse.response.mimeType?.lowercased() ?? "";if attachment || !navigationResponse.canShowMIMEType{decisionHandler(.download)}else{decisionHandler(.allow)};_=mime}
   func webView(_ webView:WKWebView,navigationAction:WKNavigationAction,didBecome download:WKDownload){begin(download)}
   func webView(_ webView:WKWebView,navigationResponse:WKNavigationResponse,didBecome download:WKDownload){begin(download)}
@@ -2726,7 +2780,7 @@ struct EzMeAppLink:Identifiable,Codable{var id=UUID().uuidString;var name:String
 struct AppsLinksView:View{
  @ObservedObject var store:EzMeAppLinks;var open:(String)->Void
  @State private var showing=false;@State private var editing:EzMeAppLink?;@State private var name="";@State private var url="";@State private var category="Apps"
- var body:some View{VStack(alignment:.leading,spacing:18){EzMeSectionHero(title:"Apps & Links",subtitle:"Your favorite websites and tools, one click away.",symbol:"globe.americas.fill",eyebrow:"YOUR DIGITAL SHORTCUTS",colors:[Color(red:0.10,green:0.39,blue:0.64),Butter.cocoa]);HStack{Button("Add link",systemImage:"plus"){startNew()}.buttonStyle(.borderedProminent).tint(Butter.coral);Spacer()};LazyVGrid(columns:[GridItem(.adaptive(minimum:240),spacing:12)],spacing:12){ForEach(store.items){item in VStack(alignment:.leading,spacing:12){Image(systemName:"globe.americas.fill").font(.title2).foregroundStyle(Color(red:0.12,green:0.30,blue:0.48)).frame(width:44,height:44).background(Color.blue.opacity(0.08),in:RoundedRectangle(cornerRadius:12));Text(item.name).font(.headline);Text(item.url).font(.caption).foregroundStyle(.secondary).lineLimit(1);Text(item.category).font(.caption.bold()).padding(.horizontal,9).padding(.vertical,5).background(Butter.coral.opacity(0.08),in:Capsule());HStack{Button("Open in KeyDo",systemImage:"arrow.up.right"){open(item.url)}.buttonStyle(.borderedProminent);Menu{Button("Edit"){editing=item;name=item.name;url=item.url;category=item.category;showing=true};Button("Delete",role:.destructive){store.items.removeAll{$0.id==item.id}}}label:{Image(systemName:"ellipsis").frame(width:30,height:28)} }.frame(maxWidth:.infinity,alignment:.leading)}.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(.background,in:RoundedRectangle(cornerRadius:16)).overlay(RoundedRectangle(cornerRadius:16).stroke(.quaternary))}};Spacer(minLength:0)}.sheet(isPresented:$showing){VStack(alignment:.leading,spacing:14){Text(editing == nil ? "Add app or website":"Edit app or website").font(.title2.bold());TextField("Name",text:$name);TextField("Website URL (https://…)",text:$url);TextField("Category",text:$category);HStack{Spacer();Button("Cancel"){showing=false};Button("Save"){save()}.buttonStyle(.borderedProminent).disabled(name.isEmpty || url.isEmpty)}.padding(.top,8)}.textFieldStyle(.roundedBorder).padding(24).frame(width:420)}}
+ var body:some View{VStack(alignment:.leading,spacing:18){EzMeSectionHero(title:"Apps & Links",subtitle:"Your favorite websites and tools, one click away.",symbol:"globe.americas.fill",eyebrow:"YOUR DIGITAL SHORTCUTS",colors:[Color(red:0.10,green:0.39,blue:0.64),Butter.cocoa]);HStack{Button("Add link",systemImage:"plus"){startNew()}.buttonStyle(.borderedProminent).tint(Butter.coral);Spacer()};LazyVGrid(columns:[GridItem(.adaptive(minimum:240),spacing:12)],spacing:12){ForEach(store.items){item in VStack(alignment:.leading,spacing:12){WebsiteIcon(url:item.url,title:item.name,size:32).frame(width:44,height:44).background(Color.blue.opacity(0.08),in:RoundedRectangle(cornerRadius:12));Text(item.name).font(.headline);Text(item.url).font(.caption).foregroundStyle(.secondary).lineLimit(1);Text(item.category).font(.caption.bold()).padding(.horizontal,9).padding(.vertical,5).background(Butter.coral.opacity(0.08),in:Capsule());HStack{Button("Open in KeyDo",systemImage:"arrow.up.right"){open(item.url)}.buttonStyle(.borderedProminent);Menu{Button("Edit"){editing=item;name=item.name;url=item.url;category=item.category;showing=true};Button("Delete",role:.destructive){store.items.removeAll{$0.id==item.id}}}label:{Image(systemName:"ellipsis").frame(width:30,height:28)} }.frame(maxWidth:.infinity,alignment:.leading)}.padding(16).frame(maxWidth:.infinity,alignment:.leading).background(.background,in:RoundedRectangle(cornerRadius:16)).overlay(RoundedRectangle(cornerRadius:16).stroke(.quaternary))}};Spacer(minLength:0)}.sheet(isPresented:$showing){VStack(alignment:.leading,spacing:14){Text(editing == nil ? "Add app or website":"Edit app or website").font(.title2.bold());TextField("Name",text:$name);TextField("Website URL (https://…)",text:$url);TextField("Category",text:$category);HStack{Spacer();Button("Cancel"){showing=false};Button("Save"){save()}.buttonStyle(.borderedProminent).disabled(name.isEmpty || url.isEmpty)}.padding(.top,8)}.textFieldStyle(.roundedBorder).padding(24).frame(width:420)}}
  func startNew(){editing=nil;name="";url="https://";category="Apps";showing=true}
  func save(){let value=url.trimmingCharacters(in:.whitespacesAndNewlines);let normalized=value.contains("://") ? value:"https://"+value;guard let parsed=URL(string:normalized),["http","https"].contains(parsed.scheme?.lowercased() ?? ""),parsed.host != nil else{return};if var old=editing{old.name=name;old.url=parsed.absoluteString;old.category=category;if let i=store.items.firstIndex(where:{$0.id==old.id}){store.items[i]=old}}else{store.items.append(EzMeAppLink(name:name,url:parsed.absoluteString,category:category))};showing=false}
 }
@@ -3249,7 +3303,7 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
                 ButterAccordion("Websites",subtitle:"\(webClips.count+saved.count) found",icon:"globe",open:plain.isEmpty && cards.isEmpty){
                     VStack(spacing:7){
                         clipColumn(webClips)
-                        ForEach(saved){site in ButterHitRow(title:site.title,subtitle:site.url,badge:"WEBSITE",symbol:"globe"){openSavedSite(site)}}
+                        ForEach(saved){site in ButterHitRow(title:site.title,subtitle:site.url,badge:"WEBSITE",symbol:"globe",siteURL:site.url){openSavedSite(site)}}
                     }
                 }
             }
@@ -3376,8 +3430,7 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
                     } else if let url=desktopIconURL(clip) {
                         Image(nsImage:NSWorkspace.shared.icon(forFile:url.path)).resizable().aspectRatio(contentMode:.fit).padding(8).frame(width:68,height:58).background(Color.white.opacity(0.78))
                     } else {
-                        Image(systemName:clip.webURL != nil ? "globe":(clip.appBundleIdentifier != nil ? "app.dashed":"text.alignleft"))
-                            .font(.system(size:25,weight:.medium)).foregroundStyle(Butter.coral.gradient)
+                        Group{if let web=clip.webURL,!web.isEmpty{WebsiteIcon(url:web,title:clip.name,size:36)}else if let bundle=clip.appBundleIdentifier,!bundle.isEmpty{AppBundleIcon(bundleID:bundle,size:40)}else{Image(systemName:"text.alignleft").font(.system(size:25,weight:.medium)).foregroundStyle(Butter.coral.gradient)}}
                             .frame(width:68,height:58).background(LinearGradient(colors:[Butter.coral.opacity(0.13),Color.blue.opacity(0.10)],startPoint:.topLeading,endPoint:.bottomTrailing))
                     }
                 }
@@ -3716,7 +3769,7 @@ final class MiniJAppDelegate:NSObject,NSApplicationDelegate {
  static weak var current:MiniJAppDelegate?
  override init(){super.init();Self.current=self}
  var lastExternalApp:NSRunningApplication?;var typedCleared=false;var pickerActive=false;var triggerTracking=false;var imagePromptMode=false;var triggerBuffer="";var queryBuffer="";var slashTap:CFMachPort?;var slashSource:CFRunLoopSource?;var permissionTimer:Timer?;var tapFailureReported=false
- func applicationDidFinishLaunching(_ notification:Notification){KeyDoPopupBranding.install();DispatchQueue.main.asyncAfter(deadline:.now()+3){KeyDoVoice.shared.armWatchdog()};NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(appActivated(_:)),name:NSWorkspace.didActivateApplicationNotification,object:nil);if AXIsProcessTrusted(){installSlashTap()}}
+ func applicationDidFinishLaunching(_ notification:Notification){KeyDoPopupBranding.install();DispatchQueue.main.asyncAfter(deadline:.now()+5){SiteIconStore.shared.prefetch(MyDatabaseStore.shared.records.filter{$0.kind=="link"}.map{$0.value})};DispatchQueue.main.asyncAfter(deadline:.now()+3){KeyDoVoice.shared.armWatchdog()};NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(appActivated(_:)),name:NSWorkspace.didActivateApplicationNotification,object:nil);if AXIsProcessTrusted(){installSlashTap()}}
  func requestSlashPermission(){if AXIsProcessTrusted(){installSlashTap();return};let options=[kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String:true] as CFDictionary;_ = AXIsProcessTrustedWithOptions(options);permissionTimer=Timer.scheduledTimer(withTimeInterval:1,repeats:true){[weak self] t in guard let self=self else{return};if AXIsProcessTrusted(){t.invalidate();self.permissionTimer=nil;self.installSlashTap()}}}
  func installSlashTap(){guard slashTap==nil else{return};let mask=CGEventMask(1)<<CGEventType.keyDown.rawValue;guard let tap=CGEvent.tapCreate(tap:.cgSessionEventTap,place:.headInsertEventTap,options:.defaultTap,eventsOfInterest:mask,callback:miniJSlashTap,userInfo:Unmanaged.passUnretained(self).toOpaque())else{if !tapFailureReported{tapFailureReported=true;DispatchQueue.main.async{NotificationCenter.default.post(name:.ezmeTapFailed,object:nil)}};if permissionTimer==nil{permissionTimer=Timer.scheduledTimer(withTimeInterval:2,repeats:true){[weak self] timer in guard let self else{return};if self.slashTap != nil{timer.invalidate();self.permissionTimer=nil}else{self.installSlashTap()}}};return};permissionTimer?.invalidate();permissionTimer=nil;tapFailureReported=false;slashTap=tap;slashSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,tap,0);if let source=slashSource{CFRunLoopAddSource(CFRunLoopGetMain(),source,.commonModes)};CGEvent.tapEnable(tap:tap,enable:true);startTapWatchdog()}
  var tapWatchdog:DispatchSourceTimer?;var tapPausedByWatchdog=false
