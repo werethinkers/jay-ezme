@@ -1249,14 +1249,19 @@ struct PromptBuilderView: View {
     /// One button for whatever page is open in the browser panel. The field the cursor is in is used first.
     private func sendHere() {
         let fresh = PromptComposer.compose(text, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
-        let prompt = aiText ?? fresh.text
+        // The media goes in as real attachments, so the "[image: name]" markers are taken out of the words.
+        var prompt = aiText ?? fresh.text
+        for item in fresh.attachments { prompt = prompt.replacingOccurrences(of: "[\(item.kind): \(item.name)]", with: "") }
+        prompt = prompt.replacingOccurrences(of: "[ \t]{2,}", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: " +([,.;:!?])", with: "$1", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let files = fresh.attachments.flatMap { $0.paths } + manualFiles.flatMap { $0.paths }
         let placeholder = PromptTarget(name: "Open page", url: "", editor: [], send: [])
         let request = PromptDispatchRequest(target: placeholder, prompt: prompt, files: files)
         request.here = true
         NotificationCenter.default.post(name: .keydoSendPrompt, object: request)
         let attached = fresh.attachments.count + manualFiles.count
-        notice = "Sending to the page open in the browser panel, into the field your cursor is in" + (attached > 0 ? ", with \(attached) attached media…" : "…")
+        notice = "Sending quietly to the open page, into the field your cursor is in" + (attached > 0 ? ", with \(attached) attached media…" : "…")
     }
 
     private func beginEdit(_ target: PromptTarget) {

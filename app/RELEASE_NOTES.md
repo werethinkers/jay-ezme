@@ -1,12 +1,9 @@
-# KeyDo 3.95
+# KeyDo 3.96
 
-## Prompt Builder: Send here
-- A new **Send here** button (next to Send in the header and in the Ready bar) sends your prompt and any attached media to the page that is already open in the browser panel. It does not open a new tab.
-- The field where your cursor is in that page comes first. Click into any message box, form or chat box in the browser panel, then press Send here: the prompt is typed into that field and the send button nearest to it is pressed. If no field has the cursor, the page's usual prompt box is used.
-- With a split browser, the page that has your cursor wins; if neither does, the main page is used.
-- Voice: say "send here" (also "send to this page", "send to the browser", "send to my cursor"). Keyboard: Option Command Return.
-- If the browser panel is showing Home, KeyDo asks you to open a page first.
-- Send to a named site (ChatGPT and the others) works as before.
+## Prompt Builder: Send here, quieter
+- Send here no longer puts the `[image: name]` markers in the message. The media is attached for real, so the words are just what you wrote.
+- Send here works in the background of the browser: it does not open a tab or a link, and it does not pop the side panel open or move you away from where you are. The message and attachments go into the field where your cursor is on the open page, and send is pressed there.
+- Sending to a named site (ChatGPT and the others) still opens that site and still shows the side panel, as before.
 
 ## Keyboard safety
-Checked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed. Send here only runs page scripts in the browser panel after a button press, never inside the key tap callback. The release guard and the heartbeat watchdog were not touched.
+Checked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed. The change is in the Prompt Builder text and the send request only. The release guard and the heartbeat watchdog were not touched.
