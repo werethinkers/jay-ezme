@@ -1,3 +1,5 @@
-# KeyDo 3.73
+# KeyDo 3.74
 
-- **Collections:** deleting selected shortcuts (or all of them with Select all) now removes them in one go and the list updates straight away. Before, the shortcuts were removed in the background but the collection list kept showing them until you switched collections.
+- **Home page:** new "Builders" row with Collection Builder, Prompt Builder and MyDatabase, one click each.
+- **Voice:** say "open collection builder", "open prompt builder" or "open my database" (also "build a collection", "write a prompt") to open them.
+- **Prompt Builder:** new "Attach files" button, and you can drop files onto the page. Pictures, videos, PDFs and any other file go to the AI site with your prompt, next to media added with # and @. Remove a file with its x.

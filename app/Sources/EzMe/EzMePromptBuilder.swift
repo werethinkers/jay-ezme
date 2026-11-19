@@ -167,7 +167,7 @@ enum PromptComposer {
         clip.files.filter { FileManager.default.fileExists(atPath: $0) }
     }
 
-    private static func kind(of path: String) -> String {
+    static func kind(of path: String) -> String {
         let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
         if imageTypes.contains(ext) { return "Image" }
         if videoTypes.contains(ext) { return "Video" }
@@ -370,6 +370,7 @@ struct PromptBuilderView: View {
     @State private var markIndex = PromptMarkIndex()
     @State private var apps = [PromptAppEntry]()
     @State private var autoMarks = [PromptAutoMark]()
+    @State private var manualFiles = [PromptAttachment]()
     @State private var mediaList = [Clip]()
     @State private var plainList = [Clip]()
     @State private var dismissed = Set<String>()
@@ -391,7 +392,7 @@ struct PromptBuilderView: View {
     @State private var newSiteURL = ""
 
     private var finalPrompt: String { aiText ?? composition.text }
-    private var canSend: Bool { !finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !composition.attachments.isEmpty }
+    private var canSend: Bool { !finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !composition.attachments.isEmpty || !manualFiles.isEmpty }
 
     private var suggestions: [PromptSuggestion] {
         guard let token = PromptSuggestions.lastToken(in: text) else { return [] }
@@ -528,6 +529,8 @@ struct PromptBuilderView: View {
                 Text("INSERT").font(.system(size: 10, weight: .heavy)).foregroundStyle(.tertiary).padding(.trailing, 2)
                 Menu { collectionsMenu } label: { BuilderChipLabel(text: "Collections", symbol: "number") }
                 Menu { mediaMenu } label: { BuilderChipLabel(text: "Media", symbol: "photo") }
+                Button { chooseFiles() } label: { BuilderChipLabel(text: "Attach files", symbol: "paperclip") }
+                    .help("Attach pictures, videos, PDFs or any other file from your Mac. You can also drop files onto this page.")
                 Menu { appsMenu } label: { BuilderChipLabel(text: "Apps", symbol: "at") }
                 Menu { functionsMenu } label: { BuilderChipLabel(text: "Functions", symbol: "function") }
                 Spacer(minLength: 0)
@@ -541,6 +544,7 @@ struct PromptBuilderView: View {
             attachmentChips
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+        .onDrop(of: ["public.file-url"], isTargeted: nil) { dropFiles($0) }
     }
 
     @ViewBuilder private var suggestionStrip: some View {
@@ -800,7 +804,51 @@ struct PromptBuilderView: View {
 
     // MARK: Attachments with hover preview
 
+    private func addFiles(_ urls: [URL]) {
+        for url in urls {
+            let path = url.path
+            guard !manualFiles.contains(where: { $0.paths == [path] }) else { continue }
+            manualFiles.append(PromptAttachment(id: "file:" + path, name: url.lastPathComponent, kind: PromptComposer.kind(of: path), paths: [path]))
+        }
+        if !urls.isEmpty { notice = "Attached \(urls.count) file\(urls.count == 1 ? "" : "s"). They go to the AI site with your prompt." }
+    }
+
+    private func chooseFiles() {
+        let panel = NSOpenPanel()
+        panel.title = "Attach pictures, videos or other files"
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK else { return }
+        addFiles(panel.urls)
+    }
+
+    private func dropFiles(_ providers: [NSItemProvider]) -> Bool {
+        var accepted = false
+        for provider in providers where provider.hasItemConformingToTypeIdentifier("public.file-url") {
+            accepted = true
+            provider.loadItem(forTypeIdentifier: "public.file-url", options: nil) { item, _ in
+                var found: URL?
+                if let data = item as? Data { found = URL(dataRepresentation: data, relativeTo: nil) } else if let url = item as? URL { found = url }
+                if let found { DispatchQueue.main.async { addFiles([found]) } }
+            }
+        }
+        return accepted
+    }
+
     @ViewBuilder private var attachmentChips: some View {
+        if !manualFiles.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("YOUR FILES").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], alignment: .leading, spacing: 8) {
+                    ForEach(manualFiles) { item in
+                        HStack(spacing: 4) {
+                            chip(item)
+                            Button { manualFiles.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).foregroundStyle(.secondary).help("Remove this file")
+                        }
+                    }
+                }
+            }
+        }
         if !composition.attachments.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("ATTACHED MEDIA · HOVER TO PREVIEW").font(.caption2.weight(.bold)).foregroundStyle(.secondary)
@@ -969,9 +1017,9 @@ struct PromptBuilderView: View {
         let source = raw ?? text
         let fresh = PromptComposer.compose(source, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
         let prompt = (raw == nil ? aiText : nil) ?? fresh.text
-        let files = fresh.attachments.flatMap { $0.paths }
+        let files = fresh.attachments.flatMap { $0.paths } + manualFiles.flatMap { $0.paths }
         NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: prompt, files: files))
-        let attached = fresh.attachments.count
+        let attached = fresh.attachments.count + manualFiles.count
         notice = prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty
             ? "Opening \(target.name). The prompt is empty, so there is nothing to send yet."
             : "Opening \(target.name) in the side panel and sending your prompt" + (attached > 0 ? " with \(attached) attached media…" : "…")
