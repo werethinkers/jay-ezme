@@ -1,9 +1,9 @@
 {
-  "version": "3.83",
-  "build": 384,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.83-build384/EzMe-3.83-macOS.zip",
-  "sha256": "681433b11ba0cb508918dfa457e8e906a4856ee3fcef5daed5a894ad163ec7c1",
-  "notes": "# KeyDo 3.83\n\n- **Contact names are read properly**, for Mac Contacts, VCF, CSV, LinkedIn and anything else you import:\n  - Titles at the start are not part of the name and are dropped: Dr., Mr., Mrs., Ms., Miss, Shri, Shree, Sri, Smt, Md, Er., Prof, Mohammad (also Mohammed, Muhammad, Mohd).\n  - A dash or hyphen ends the name. What follows is kept as extra detail in the contact's notes (\"Rahul Shah - Zoho\" becomes the name Rahul Shah, note Zoho).\n  - A name is never longer than 15 characters. A long one is shortened to the first name and the surname's first letter (\"Yogeshwaran S\"); the full name is kept in notes.\n- **Make shortcuts from contacts** now starts from the first name and includes the picture: `yogesh.pic`, `yogesh.mobile`, `yogesh.email`. If two people share a first name, the second gets `yogeshs.mobile` (more letters of the surname if needed), then a number as the last resort. Existing contacts are read with the same rules when you make shortcuts.\n- Keyboard safety: no change to the key watcher.",
-  "published": "2026-11-19T08:25:15Z",
+  "version": "3.84",
+  "build": 385,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.84-build385/EzMe-3.84-macOS.zip",
+  "sha256": "09b11aafcbfd5e6f050e35da2378c5cb2becac9536defb8ad1071d269a54f27b",
+  "notes": "# KeyDo 3.84\n\n## File Renamer\n- No double prefix or suffix by default: a name that already starts (or ends) with what you add is left alone. A switch in File Renamer allows doubles when you want them.\n- Every prefix in the list is editable: the \"Prefixes in this list\" row lets you change one prefix and it changes everywhere it appears.\n- Each file's name is still editable by hand (pencil), the whole name apart from its extension.\n- The rename command is shown in plain words above the Rename button.\n- New \"Undo last rename\" button: one-time undo that puts the files, and the saved MyDatabase links, back to their earlier names.\n\n## Prompt Builder\n- New \"Temporary link\" box: paste a site address, \"Send to link\", and clear it with Clear or by saying \"clear link\". It is never saved as a site.\n- Sites can be ranked with the up and down arrows in Edit links. The page shows up to 10 starred sites in your order; you can add as many sites and models as you like, and unshown ones still work by voice.\n\n## Keyboard safety\nChecked: the key tap (`miniJSlashTap`), its release guard and the heartbeat watchdog were not touched in this version. Nothing new swallows keys.",
+  "published": "2026-11-19T09:23:54Z",
   "minimumSystemVersion": "14.0"
 }
