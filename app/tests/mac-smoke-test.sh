@@ -26,6 +26,8 @@ for f in KeyDoLogo VybesLogo KeyDoVoiceCommand KeyDoFillByVoice KeyDoVoiceOne Ez
   [ -f "$A/Contents/Resources/$f.png" ] || fail "missing resource $f.png"
 done
 
+[ "$(ls "$A/Contents/Resources/Gifting"/*.jpg 2>/dev/null | wc -l | tr -d " ")" -ge 60 ] || fail "Gifting product photos are missing"
+
 # 1b. Email sign-in is switched on for the cloud project
 SETTINGS="$(curl -s "https://vfmuqfbmklupzzqfhdjz.supabase.co/auth/v1/settings" -H 'apikey: sb_publishable_tiCUvyFpz0GgyZJF6Ux4cQ_9LTKN3pq')"
 echo "Auth settings: $(echo "$SETTINGS" | head -c 600)"

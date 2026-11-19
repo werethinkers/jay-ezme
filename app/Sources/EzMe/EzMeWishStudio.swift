@@ -833,7 +833,7 @@ final class WishStudioModel: ObservableObject {
         case .builder:
             return builder.hints
         case .gifting:
-            return ["make it burgundy with a gold ribbon", "add perfume and a diffuser", "put flowers on top", "show unboxing", "show inside", "box 12", "card to Priya from Rahul", "place order"]
+            return ["make it burgundy with a gold ribbon", "add the coconut candle and a tea set", "put flowers on top", "show unboxing", "show inside", "box 12", "card to Priya from Rahul", "place order"]
         case .app:
             if selected != nil {
                 return ["bigger", "smaller", "make it gold", "move left", "bold", "hide it", "done"]
@@ -1491,7 +1491,7 @@ struct WishHomeView: View {
     private var giftingCard: some View {
         AppGalleryCard(
             title: "Gifting",
-            description: "30 VYBES gift boxes, \u{20B9}3,000 to \u{20B9}10,000. Change colours, decoration and items by voice, see inside, unbox, add a card and order.",
+            description: "30 VYBES hampers built from real catalogue products, \u{20B9}3,000 to \u{20B9}10,000. Change colours, decoration and products by voice, see inside, unbox, add a card and order.",
             sample: "",
             category: "Gifting",
             icon: "gift.fill",

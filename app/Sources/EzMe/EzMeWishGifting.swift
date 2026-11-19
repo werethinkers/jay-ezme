@@ -78,7 +78,6 @@ func giftRupees(_ n: Int) -> String {
 struct GiftItem: Identifiable, Hashable {
     let id: String
     let name: String
-    let emoji: String
     let category: String
     let price: Int
     let words: [String]
@@ -95,40 +94,98 @@ enum GiftRange {
     static let min = 3000
     static let max = 10000
     static let slots = 6
+    /// The same-size VYBES box, ribbon, lining and card, added to the products inside.
+    static let boxFee = 500
+}
+
+/// Product photographs cropped from the Diwali catalogues, bundled in Resources/Gifting.
+enum GiftPhoto {
+    private static var cache: [String: NSImage] = [:]
+
+    static func image(_ id: String) -> NSImage? {
+        if let c = cache[id] { return c }
+        guard let url = Bundle.main.url(forResource: id, withExtension: "jpg", subdirectory: "Gifting"), let img = NSImage(contentsOf: url) else { return nil }
+        cache[id] = img
+        return img
+    }
+}
+
+struct GiftPhotoView: View {
+    let id: String
+    var body: some View {
+        if let img = GiftPhoto.image(id) {
+            Image(nsImage: img).resizable().scaledToFill()
+        } else {
+            Color.gray.opacity(0.25)
+        }
+    }
 }
 
 enum GiftCatalogue {
     static let items: [GiftItem] = [
-        GiftItem(id: "reed", name: "Reed diffuser", emoji: "\u{1F3FA}", category: "Diffuser", price: 1450, words: ["reed diffuser", "diffuser", "diffusers", "reed"]),
-        GiftItem(id: "ultra", name: "Ultrasonic diffuser", emoji: "\u{1F4A8}", category: "Diffuser", price: 2400, words: ["ultrasonic diffuser", "ultrasonic", "aroma lamp"]),
-        GiftItem(id: "candle", name: "Soy candle", emoji: "\u{1F56F}\u{FE0F}", category: "Candle", price: 650, words: ["soy candle", "candle", "candles"]),
-        GiftItem(id: "trio", name: "Candle trio", emoji: "\u{1F56F}\u{FE0F}", category: "Candle", price: 1250, words: ["candle trio", "candle set", "three candles"]),
-        GiftItem(id: "incense", name: "Incense and holder", emoji: "\u{1F33F}", category: "Diffuser", price: 480, words: ["incense", "agarbatti", "incense sticks"]),
-        GiftItem(id: "edp", name: "Eau de parfum", emoji: "\u{1F9F4}", category: "Perfume", price: 2200, words: ["eau de parfum", "perfume", "perfumes", "fragrance", "parfum"]),
-        GiftItem(id: "luxe", name: "Luxe perfume 50ml", emoji: "\u{1F9F4}", category: "Perfume", price: 3200, words: ["luxe perfume", "luxury perfume", "premium perfume"]),
-        GiftItem(id: "attar", name: "Oud attar", emoji: "\u{1F4A7}", category: "Perfume", price: 1900, words: ["oud attar", "attar", "oud"]),
-        GiftItem(id: "minis", name: "Perfume minis", emoji: "\u{1F9F4}", category: "Perfume", price: 1100, words: ["perfume minis", "mini perfumes", "miniatures", "perfume set"]),
-        GiftItem(id: "choc", name: "Belgian chocolates", emoji: "\u{1F36B}", category: "Eatable", price: 1100, words: ["belgian chocolates", "chocolate", "chocolates"]),
-        GiftItem(id: "truffle", name: "Truffle box", emoji: "\u{1F36B}", category: "Eatable", price: 1600, words: ["truffle box", "truffle", "truffles"]),
-        GiftItem(id: "dry", name: "Premium dry fruits", emoji: "\u{1F95C}", category: "Eatable", price: 1400, words: ["dry fruits", "dry fruit", "dryfruits", "nuts", "almonds", "cashews"]),
-        GiftItem(id: "cookies", name: "Artisan cookies", emoji: "\u{1F36A}", category: "Eatable", price: 700, words: ["artisan cookies", "cookie", "cookies", "biscuits"]),
-        GiftItem(id: "mithai", name: "Mithai assortment", emoji: "\u{1F36C}", category: "Eatable", price: 1000, words: ["mithai", "sweets", "sweet", "ladoo", "barfi"]),
-        GiftItem(id: "honey", name: "Wild honey", emoji: "\u{1F36F}", category: "Eatable", price: 550, words: ["wild honey", "honey"]),
-        GiftItem(id: "tea", name: "Gourmet tea tin", emoji: "\u{1F375}", category: "Eatable", price: 750, words: ["tea tin", "tea", "chai"]),
-        GiftItem(id: "coffee", name: "Specialty coffee", emoji: "\u{2615}", category: "Eatable", price: 850, words: ["specialty coffee", "coffee"]),
-        GiftItem(id: "journal", name: "Leather journal", emoji: "\u{1F4D3}", category: "Gift", price: 1500, words: ["leather journal", "journal", "diary", "notebook"]),
-        GiftItem(id: "pen", name: "Signature pen", emoji: "\u{1F58A}\u{FE0F}", category: "Gift", price: 1200, words: ["signature pen", "pen"]),
-        GiftItem(id: "frame", name: "Photo frame", emoji: "\u{1F5BC}\u{FE0F}", category: "Gift", price: 900, words: ["photo frame", "frame"]),
-        GiftItem(id: "plant", name: "Mini plant", emoji: "\u{1FAB4}", category: "Gift", price: 600, words: ["mini plant", "plant", "succulent"]),
-        GiftItem(id: "scarf", name: "Silk scarf", emoji: "\u{1F9E3}", category: "Gift", price: 1900, words: ["silk scarf", "scarf", "stole"]),
-        GiftItem(id: "teddy", name: "Soft teddy", emoji: "\u{1F9F8}", category: "Gift", price: 800, words: ["soft teddy", "teddy", "soft toy"]),
-        GiftItem(id: "clock", name: "Desk clock", emoji: "\u{1F570}\u{FE0F}", category: "Gift", price: 1700, words: ["desk clock", "clock"]),
-        GiftItem(id: "rose", name: "Preserved rose", emoji: "\u{1F339}", category: "Gift", price: 1300, words: ["preserved rose", "roses"]),
-        GiftItem(id: "spa", name: "Spa soap set", emoji: "\u{1F9FC}", category: "Gift", price: 950, words: ["spa soap", "spa set", "soap", "soaps", "spa"]),
-        GiftItem(id: "wallet", name: "Leather wallet", emoji: "\u{1F45B}", category: "Gift", price: 2100, words: ["leather wallet", "wallet", "purse"]),
-        GiftItem(id: "pendant", name: "Silver pendant", emoji: "\u{1F48E}", category: "Gift", price: 2800, words: ["silver pendant", "pendant", "jewellery", "jewelry"]),
-        GiftItem(id: "diya", name: "Diya set", emoji: "\u{1FA94}", category: "Gift", price: 600, words: ["diya set", "diya", "diyas"]),
-        GiftItem(id: "bamboo", name: "Lucky bamboo", emoji: "\u{1F38B}", category: "Gift", price: 700, words: ["lucky bamboo", "bamboo"]),
+        GiftItem(id: "cheese-popper", name: "Gold Cheese Popper Set", category: "Serving", price: 1000, words: ["cheese popper", "cheese labels"]),
+        GiftItem(id: "ice-cream-scoop", name: "Crystal Ice Cream Scoop", category: "Serving", price: 1000, words: ["ice cream scoop", "scoop"]),
+        GiftItem(id: "coconut-candle", name: "Coconut Shell Neroli Candle", category: "Candle", price: 1000, words: ["coconut candle", "coconut shell candle", "neroli candle"]),
+        GiftItem(id: "botanical-diffuser", name: "Botanical Diffuser Set", category: "Fragrance", price: 1000, words: ["botanical diffuser"]),
+        GiftItem(id: "mushroom-chimes", name: "Mushroom Wind Chime Set", category: "Decor", price: 1000, words: ["wind chime", "mushroom chimes", "chimes"]),
+        GiftItem(id: "elephant-trunk", name: "Blue Elephant Heritage Trunk", category: "Keepsake", price: 1000, words: ["elephant trunk", "heritage trunk", "blue elephant"]),
+        GiftItem(id: "peshkari-frame", name: "Peshkari Peacock Photo Frame", category: "Frame", price: 1000, words: ["peshkari frame", "peacock frame"]),
+        GiftItem(id: "roman-frame", name: "Roman Black and White Frame", category: "Frame", price: 1000, words: ["roman frame", "rome frame"]),
+        GiftItem(id: "royal-bee-frame", name: "Royal Bee Ivory Frame", category: "Frame", price: 1000, words: ["royal bee frame", "bee frame"]),
+        GiftItem(id: "diya-gift-set", name: "Couture Charm Mini Diya Set", category: "Devotion", price: 1000, words: ["mini diya set", "couture diya", "diya set"]),
+        GiftItem(id: "silk-candle-box", name: "Turquoise Silk Candle Box", category: "Candle", price: 1000, words: ["silk candle box", "turquoise candle box", "candle gift box"]),
+        GiftItem(id: "mustang-frame-3", name: "Mustang 3.0 Photo Frame", category: "Frame", price: 1000, words: ["mustang 3 frame", "mustang three frame"]),
+        GiftItem(id: "mustang-frame-2", name: "Mustang 2.0 Photo Frame", category: "Frame", price: 1000, words: ["mustang 2 frame", "mustang two frame", "mustang frame"]),
+        GiftItem(id: "blossom-jar", name: "Silver Blossom Trinket Jar", category: "Decor", price: 1000, words: ["blossom jar", "silver blossom", "trinket jar"]),
+        GiftItem(id: "crystal-trinket", name: "Crystal Trinket Box Pair", category: "Decor", price: 1000, words: ["crystal trinket", "trinket box"]),
+        GiftItem(id: "dot-visage-frame", name: "Dot Visage Photo Frame", category: "Frame", price: 1000, words: ["dot visage frame", "visage frame", "dot frame"]),
+        GiftItem(id: "royal-heritage", name: "Royal Heritage Gift Set", category: "Keepsake", price: 1000, words: ["royal heritage", "heritage set"]),
+        GiftItem(id: "hammered-dome", name: "Hammered Metal Dessert Dome", category: "Serving", price: 1000, words: ["dessert dome", "hammered dome"]),
+        GiftItem(id: "book-chest", name: "Artisan Book Chest", category: "Keepsake", price: 1500, words: ["artisan book chest", "book chest"]),
+        GiftItem(id: "literary-legacy", name: "Literary Legacy Keepsake", category: "Keepsake", price: 1500, words: ["literary legacy"]),
+        GiftItem(id: "neelam-tea", name: "Neelam Heritage Tea Cups", category: "Tea", price: 1500, words: ["neelam", "tea cups", "chai cups"]),
+        GiftItem(id: "lumiere-essence", name: "Lumiere Essence Bottle", category: "Fragrance", price: 1500, words: ["lumiere", "essence bottle"]),
+        GiftItem(id: "shubh-aarambh", name: "Shubh Aarambh Ensemble", category: "Fragrance", price: 1500, words: ["shubh aarambh", "incense box"]),
+        GiftItem(id: "heritage-tray", name: "Mustang Heritage Serving Tray", category: "Serving", price: 1500, words: ["heritage tray", "mustang heritage tray"]),
+        GiftItem(id: "cake-server", name: "Gold Cake Cutting Set", category: "Serving", price: 1500, words: ["cake cutting set", "cake server", "cake knife"]),
+        GiftItem(id: "regal-candle-bowl", name: "Regal Candle Bowl", category: "Candle", price: 1500, words: ["regal candle bowl", "jewelled candle"]),
+        GiftItem(id: "three-wick-bowl", name: "Regal Glow Three-Wick Candle", category: "Candle", price: 1500, words: ["three wick", "regal glow"]),
+        GiftItem(id: "gold-centrepiece", name: "Antique Gold Centrepiece Bowl", category: "Decor", price: 1500, words: ["centrepiece bowl", "gold bowl", "potpourri bowl"]),
+        GiftItem(id: "black-hibiscus", name: "Black Hibiscus Candle", category: "Candle", price: 1500, words: ["black hibiscus"]),
+        GiftItem(id: "white-hibiscus", name: "White Hibiscus Candle", category: "Candle", price: 1500, words: ["white hibiscus"]),
+        GiftItem(id: "harlequin-tea-box", name: "Harlequin Tea Storage Box", category: "Tea", price: 1500, words: ["harlequin", "tea storage box", "tea box"]),
+        GiftItem(id: "arch-tray", name: "Arch Architectural Serving Tray", category: "Serving", price: 1500, words: ["arch tray", "architectural tray"]),
+        GiftItem(id: "gita-set", name: "Bhagavad Gita Gift Set", category: "Devotion", price: 1500, words: ["bhagavad gita", "gita set", "gita"]),
+        GiftItem(id: "motif-tray", name: "Mustang Horse Motif Tray", category: "Serving", price: 1500, words: ["motif tray", "horse tray"]),
+        GiftItem(id: "cheese-utensils", name: "Cheese Serving Utensils", category: "Serving", price: 1500, words: ["cheese utensils", "cheese knives", "cheese set"]),
+        GiftItem(id: "dome-candle", name: "Glass Dome Botanical Candle", category: "Candle", price: 1500, words: ["glass dome candle", "dome candle", "botanical candle"]),
+        GiftItem(id: "envelope-chest", name: "Decorative Envelope and Tag Chest", category: "Keepsake", price: 1500, words: ["envelope chest", "tag chest", "envelope set"]),
+        GiftItem(id: "marble-platter", name: "Marble Inlay Cheese Platter", category: "Serving", price: 1500, words: ["marble platter", "cheese platter"]),
+        GiftItem(id: "serenade-tea", name: "Serenade Tea Collection", category: "Tea", price: 2000, words: ["serenade", "tea set", "tea collection", "teapot"]),
+        GiftItem(id: "imperial-devotion", name: "Imperial Devotion Collection", category: "Devotion", price: 2000, words: ["imperial devotion", "devotion box", "pooja box"]),
+        GiftItem(id: "atelier-office", name: "Atelier Office Collection", category: "Office", price: 2000, words: ["atelier office", "desk set", "office set", "desk organiser"]),
+        GiftItem(id: "royal-keepsake", name: "Royal Keepsake Collection", category: "Keepsake", price: 2000, words: ["royal keepsake", "chess bookends", "bookends"]),
+        GiftItem(id: "krishna-lantern", name: "Radha Krishna Glow Lantern", category: "Candle", price: 2000, words: ["radha krishna lantern", "glow lantern", "lantern"]),
+        GiftItem(id: "marble-tray-set", name: "Marble Finish Tray Set", category: "Decor", price: 2000, words: ["marble tray", "marble finish tray"]),
+        GiftItem(id: "triple-glow", name: "Triple Glow Candle Set", category: "Candle", price: 2000, words: ["triple glow", "candle bowls"]),
+        GiftItem(id: "mustang-tea-box", name: "Mustang Horse Tea Box", category: "Tea", price: 2000, words: ["mustang tea box", "horse tea box"]),
+        GiftItem(id: "blue-glass-diya", name: "Royal Blue Glass Diya Set", category: "Devotion", price: 2000, words: ["blue glass diya", "glass diya"]),
+        GiftItem(id: "noorwood", name: "Noorwood Collection", category: "Decor", price: 2500, words: ["noorwood"]),
+        GiftItem(id: "marble-aura", name: "Ivory Marble Aura Diyas", category: "Devotion", price: 2500, words: ["marble aura", "marble diyas", "ivory marble"]),
+        GiftItem(id: "imperial-glow", name: "Imperial Glow Ensemble", category: "Decor", price: 2500, words: ["imperial glow"]),
+        GiftItem(id: "woodland-elegance", name: "Woodland Elegance Ensemble", category: "Decor", price: 2500, words: ["woodland elegance", "woodland"]),
+        GiftItem(id: "luna-living", name: "Luna Living Ensemble", category: "Decor", price: 2500, words: ["luna living", "luna"]),
+        GiftItem(id: "monochrome-atelier", name: "Monochrome Atelier Tea Set", category: "Tea", price: 2500, words: ["monochrome atelier", "monochrome"]),
+        GiftItem(id: "noor-nectar", name: "Noor and Nectar Ensemble", category: "Keepsake", price: 2500, words: ["noor and nectar", "noor nectar", "nectar"]),
+        GiftItem(id: "heirloom-showcase", name: "Heirloom Showcase", category: "Keepsake", price: 2500, words: ["heirloom showcase", "heirloom"]),
+        GiftItem(id: "aroma-atelier", name: "Aroma Atelier Collection", category: "Fragrance", price: 2500, words: ["aroma atelier", "aroma collection", "aroma oils"]),
+        GiftItem(id: "krishna-box", name: "Radha Krishna Keepsake Box", category: "Devotion", price: 2500, words: ["radha krishna box", "krishna box", "keepsake box"]),
+        GiftItem(id: "bamboo-set", name: "Bamboo Corporate Gift Set", category: "Office", price: 2500, words: ["bamboo set", "corporate set", "bamboo"]),
+        GiftItem(id: "floral-atomizer", name: "Ornate Crystal Perfume Atomizer", category: "Fragrance", price: 2500, words: ["perfume atomizer", "atomizer", "crystal perfume"]),
+        GiftItem(id: "rose-jar", name: "Floral Rose Ceramic Jar Pair", category: "Decor", price: 2500, words: ["rose jar", "ceramic jar", "storage jar"]),
+        GiftItem(id: "wicker-hamper", name: "Tea and Treats Wicker Hamper", category: "Tea", price: 2500, words: ["wicker hamper", "tea and treats", "tea treats"]),
+        GiftItem(id: "art-candle-box", name: "Architectural Art Candle Box", category: "Candle", price: 2500, words: ["art candle", "architectural candle"]),
+        GiftItem(id: "tin-duo", name: "Floral Tin Duo Gift Set", category: "Keepsake", price: 2500, words: ["tin duo", "floral tin"]),
     ]
 
     static func item(_ id: String) -> GiftItem? {
@@ -173,63 +230,50 @@ struct GiftBox: Identifiable, Hashable {
     let tissueHex: String
     let decor: [String]
     let items: [String]
-    let packaging: Int
 
     var price: Int {
-        var sum = packaging
+        var sum = GiftRange.boxFee
         for i in items { sum += GiftCatalogue.item(i)?.price ?? 0 }
         return sum
     }
 }
 
 enum GiftBoxes {
-    static let all: [GiftBox] = build()
+    static let all: [GiftBox] = [
+        GiftBox(id: 1, name: "Calm Hour", boxHex: "#7A1F3D", ribbonHex: "#D4A84A", tissueHex: "#F8E1E7", decor: ["flowers"], items: ["coconut-candle", "silk-candle-box", "botanical-diffuser"]),
+        GiftBox(id: 2, name: "Velvet Whisper", boxHex: "#2B2B30", ribbonHex: "#D8AE55", tissueHex: "#F4EFE6", decor: ["stars"], items: ["mustang-tea-box", "cheese-popper"]),
+        GiftBox(id: 3, name: "Golden Pause", boxHex: "#EFE4D0", ribbonHex: "#C9A24B", tissueHex: "#FBF4E6", decor: ["hearts"], items: ["diya-gift-set", "gita-set"]),
+        GiftBox(id: 4, name: "Blush Bloom", boxHex: "#1F5A45", ribbonHex: "#E0B85A", tissueHex: "#DDF0E5", decor: ["leaves"], items: ["mustang-frame-3", "mustang-frame-2", "dot-visage-frame"]),
+        GiftBox(id: 5, name: "Ivory Embrace", boxHex: "#C0603A", ribbonHex: "#F4E3C8", tissueHex: "#FDE6D8", decor: ["butterflies"], items: ["shubh-aarambh", "botanical-diffuser"]),
+        GiftBox(id: 6, name: "Plum Reverie", boxHex: "#5B2A6B", ribbonHex: "#C27C4E", tissueHex: "#EBDDF3", decor: ["confetti"], items: ["motif-tray", "cheese-utensils"]),
+        GiftBox(id: 7, name: "Teal Escape", boxHex: "#1D2F5C", ribbonHex: "#C9CED8", tissueHex: "#E3ECFA", decor: ["balloons"], items: ["atelier-office", "elephant-trunk"]),
+        GiftBox(id: 8, name: "Midnight Muse", boxHex: "#2A4DB0", ribbonHex: "#E6B94F", tissueHex: "#E1EAFB", decor: ["flowers"], items: ["literary-legacy", "envelope-chest", "elephant-trunk"]),
+        GiftBox(id: 9, name: "Terracotta Glow", boxHex: "#146B73", ribbonHex: "#E2B04A", tissueHex: "#DCF2F2", decor: ["stars"], items: ["marble-tray-set", "mushroom-chimes", "blossom-jar"]),
+        GiftBox(id: 10, name: "Royal Cheer", boxHex: "#E9B8C2", ribbonHex: "#B76E79", tissueHex: "#FFF6F0", decor: ["hearts"], items: ["mustang-tea-box", "monochrome-atelier"]),
+        GiftBox(id: 11, name: "Aroma Haven", boxHex: "#7A1F3D", ribbonHex: "#D4A84A", tissueHex: "#F8E1E7", decor: ["leaves"], items: ["coconut-candle", "silk-candle-box", "regal-candle-bowl", "botanical-diffuser"]),
+        GiftBox(id: 12, name: "Sweet Surrender", boxHex: "#2B2B30", ribbonHex: "#D8AE55", tissueHex: "#F4EFE6", decor: ["butterflies"], items: ["mustang-tea-box", "monochrome-atelier"]),
+        GiftBox(id: 13, name: "Garden Grace", boxHex: "#EFE4D0", ribbonHex: "#C9A24B", tissueHex: "#FBF4E6", decor: ["confetti"], items: ["diya-gift-set", "gita-set", "imperial-devotion"]),
+        GiftBox(id: 14, name: "Festive Spark", boxHex: "#1F5A45", ribbonHex: "#E0B85A", tissueHex: "#DDF0E5", decor: ["balloons"], items: ["mustang-frame-3", "mustang-frame-2", "dot-visage-frame", "peshkari-frame", "roman-frame"]),
+        GiftBox(id: 15, name: "Boardroom Thanks", boxHex: "#C0603A", ribbonHex: "#F4E3C8", tissueHex: "#FDE6D8", decor: ["flowers"], items: ["shubh-aarambh", "aroma-atelier", "botanical-diffuser"]),
+        GiftBox(id: 16, name: "Wellness Ritual", boxHex: "#5B2A6B", ribbonHex: "#C27C4E", tissueHex: "#EBDDF3", decor: ["stars"], items: ["cheese-popper", "ice-cream-scoop", "hammered-dome", "heritage-tray", "cake-server"]),
+        GiftBox(id: 17, name: "Rose and Ritual", boxHex: "#1D2F5C", ribbonHex: "#C9CED8", tissueHex: "#E3ECFA", decor: ["hearts"], items: ["atelier-office", "bamboo-set", "literary-legacy"]),
+        GiftBox(id: 18, name: "Gourmet Delight", boxHex: "#2A4DB0", ribbonHex: "#E6B94F", tissueHex: "#E1EAFB", decor: ["leaves"], items: ["noor-nectar", "heirloom-showcase", "elephant-trunk"]),
+        GiftBox(id: 19, name: "Little Joy", boxHex: "#146B73", ribbonHex: "#E2B04A", tissueHex: "#DCF2F2", decor: ["butterflies"], items: ["marble-tray-set", "noorwood", "mushroom-chimes", "blossom-jar"]),
+        GiftBox(id: 20, name: "Warm Welcome", boxHex: "#E9B8C2", ribbonHex: "#B76E79", tissueHex: "#FFF6F0", decor: ["confetti"], items: ["mustang-tea-box", "monochrome-atelier", "wicker-hamper"]),
+        GiftBox(id: 21, name: "Cedar and Silk", boxHex: "#7A1F3D", ribbonHex: "#D4A84A", tissueHex: "#F8E1E7", decor: ["balloons"], items: ["coconut-candle", "silk-candle-box", "regal-candle-bowl", "three-wick-bowl", "black-hibiscus"]),
+        GiftBox(id: 22, name: "Opal Evening", boxHex: "#2B2B30", ribbonHex: "#D8AE55", tissueHex: "#F4EFE6", decor: ["flowers"], items: ["mustang-tea-box", "monochrome-atelier", "wicker-hamper"]),
+        GiftBox(id: 23, name: "Saffron Dusk", boxHex: "#EFE4D0", ribbonHex: "#C9A24B", tissueHex: "#FBF4E6", decor: ["stars"], items: ["diya-gift-set", "gita-set", "imperial-devotion", "blue-glass-diya", "coconut-candle"]),
+        GiftBox(id: 24, name: "Heirloom Hamper", boxHex: "#1F5A45", ribbonHex: "#E0B85A", tissueHex: "#DDF0E5", decor: ["hearts"], items: ["mustang-frame-3", "mustang-frame-2", "dot-visage-frame", "peshkari-frame", "roman-frame", "royal-bee-frame"]),
+        GiftBox(id: 25, name: "Crystal Morning", boxHex: "#C0603A", ribbonHex: "#F4E3C8", tissueHex: "#FDE6D8", decor: ["leaves"], items: ["shubh-aarambh", "aroma-atelier", "floral-atomizer", "botanical-diffuser"]),
+        GiftBox(id: 26, name: "Imperial Oud", boxHex: "#5B2A6B", ribbonHex: "#C27C4E", tissueHex: "#EBDDF3", decor: ["butterflies"], items: ["heritage-tray", "cake-server", "arch-tray", "motif-tray", "cheese-utensils", "cheese-popper"]),
+        GiftBox(id: 27, name: "Moonlit Indulgence", boxHex: "#1D2F5C", ribbonHex: "#C9CED8", tissueHex: "#E3ECFA", decor: ["confetti"], items: ["atelier-office", "bamboo-set", "noor-nectar", "elephant-trunk"]),
+        GiftBox(id: 28, name: "Grand Gratitude", boxHex: "#2A4DB0", ribbonHex: "#E6B94F", tissueHex: "#E1EAFB", decor: ["balloons"], items: ["elephant-trunk", "royal-heritage", "book-chest", "literary-legacy", "envelope-chest", "royal-keepsake"]),
+        GiftBox(id: 29, name: "Signature Vybe", boxHex: "#146B73", ribbonHex: "#E2B04A", tissueHex: "#DCF2F2", decor: ["flowers"], items: ["marble-tray-set", "noorwood", "imperial-glow", "mushroom-chimes", "blossom-jar"]),
+        GiftBox(id: 30, name: "The Maharaja Edit", boxHex: "#E9B8C2", ribbonHex: "#B76E79", tissueHex: "#FFF6F0", decor: ["stars"], items: ["mustang-tea-box", "monochrome-atelier", "wicker-hamper", "neelam-tea"]),
+    ]
 
     static func box(_ id: Int) -> GiftBox {
         return all.first { $0.id == id } ?? all[0]
-    }
-
-    private static func build() -> [GiftBox] {
-        let names = [
-            "Calm Hour", "Velvet Whisper", "Golden Pause", "Blush Bloom", "Ivory Embrace", "Plum Reverie", "Teal Escape", "Midnight Muse",
-            "Terracotta Glow", "Royal Cheer", "Aroma Haven", "Sweet Surrender", "Garden Grace", "Festive Spark", "Boardroom Thanks",
-            "Wellness Ritual", "Rose and Ritual", "Gourmet Delight", "Little Joy", "Warm Welcome", "Cedar and Silk", "Opal Evening",
-            "Saffron Dusk", "Heirloom Hamper", "Crystal Morning", "Imperial Oud", "Moonlit Indulgence", "Grand Gratitude", "Signature Vybe", "The Maharaja Edit",
-        ]
-        let themes: [[String]] = [
-            ["reed", "candle", "spa", "tea"], ["edp", "attar", "choc", "rose"], ["choc", "mithai", "cookies", "dry"], ["candle", "frame", "plant", "tea"],
-            ["diya", "dry", "mithai", "candle"], ["journal", "pen", "coffee", "tea"], ["tea", "honey", "spa", "reed"], ["edp", "rose", "truffle", "candle"],
-            ["coffee", "honey", "cookies", "dry"], ["teddy", "choc", "cookies", "plant"],
-        ]
-        let palettes: [(String, String, String)] = [
-            ("#7A1F3D", "#D4A84A", "#F8E1E7"), ("#1F5A45", "#E0B85A", "#DDF0E5"), ("#1D2F5C", "#C9CED8", "#E3ECFA"), ("#F2C9D2", "#B76E79", "#FFF6F0"),
-            ("#F3EBDD", "#C9A24B", "#FBF4E6"), ("#5B2A6B", "#C27C4E", "#EBDDF3"), ("#146B73", "#E2B04A", "#DCF2F2"), ("#2B2B30", "#D8AE55", "#F4EFE6"),
-            ("#C0603A", "#F4E3C8", "#FDE6D8"), ("#2A4DB0", "#E6B94F", "#E1EAFB"),
-        ]
-        let decors = ["flowers", "stars", "hearts", "leaves", "butterflies", "confetti", "balloons"]
-        let expensiveFirst = GiftCatalogue.items.sorted { $0.price > $1.price }.map { $0.id }
-        let cheapFirst = Array(expensiveFirst.reversed())
-        var out: [GiftBox] = []
-        for i in 0..<names.count {
-            let target = 3000 + Int((Double(i) * 699.0 / Double(names.count - 1)).rounded()) * 10
-            let budget = target - 450
-            let pool = themes[i % themes.count] + (i < 10 ? cheapFirst : expensiveFirst)
-            var ids: [String] = []
-            var sum = 0
-            for id in pool {
-                if ids.count >= GiftRange.slots { break }
-                if ids.contains(id) { continue }
-                guard let item = GiftCatalogue.item(id) else { continue }
-                if sum + item.price <= budget {
-                    ids.append(id)
-                    sum += item.price
-                }
-            }
-            let p = palettes[(i * 7) % palettes.count]
-            out.append(GiftBox(id: i + 1, name: names[i], boxHex: p.0, ribbonHex: p.1, tissueHex: p.2,
-                               decor: [decors[i % decors.count]], items: ids, packaging: target - sum))
-        }
-        return out
     }
 }
 
@@ -243,7 +287,7 @@ struct GiftConfig: Codable, Equatable {
     var tissueHex: String = "#F8E1E7"
     var decor: [String] = []
     var items: [String] = []
-    var packaging: Int = 600
+    var packaging: Int = GiftRange.boxFee
     var cardStyle: String = "classic"
     var cardTo: String = ""
     var cardFrom: String = ""
@@ -264,7 +308,7 @@ struct GiftConfig: Codable, Equatable {
         tissueHex = box.tissueHex
         decor = box.decor
         items = box.items
-        packaging = box.packaging
+        packaging = GiftRange.boxFee
     }
 
     var itemsTotal: Int {
@@ -306,12 +350,13 @@ final class GiftingState: ObservableObject {
     @Published var isPlaying = false
     @Published var message: String = "Pick a box, or say what you want, like \u{201C}make it burgundy with a gold ribbon and add perfume\u{201D}."
     @Published var search: String = ""
+    @Published var itemCategory: String = "All"
     @Published var maxPrice: Int = GiftRange.max
     @Published var placed: GiftOrder? = nil
 
     private var history: [GiftConfig] = []
     private var unboxTask: Task<Void, Never>?
-    private static let key = "keydoGiftingConfig"
+    private static let key = "keydoGiftingConfig2"
 
     init() {
         if let data = UserDefaults.standard.data(forKey: GiftingState.key), let saved = try? JSONDecoder().decode(GiftConfig.self, from: data) {
@@ -498,10 +543,11 @@ final class GiftingState: ObservableObject {
         for id in config.items {
             if let item = GiftCatalogue.item(id), !cats.contains(item.category) { cats.append(item.category) }
         }
-        if cats.contains("Perfume") { sentences.append("A first spritz of fragrance sets the mood.") }
-        if cats.contains("Diffuser") || cats.contains("Candle") { sentences.append("Set the aroma going and the room slowly fills with calm.") }
-        if cats.contains("Eatable") { sentences.append("Something sweet to taste and share.") }
-        if cats.contains("Gift") { sentences.append("Small keepsakes stay long after the box is gone.") }
+        if cats.contains("Fragrance") || cats.contains("Candle") { sentences.append("Light a candle or open a fragrance and the room slowly fills with calm.") }
+        if cats.contains("Tea") || cats.contains("Serving") { sentences.append("Pour, serve and share: the set turns a quiet moment into an occasion.") }
+        if cats.contains("Devotion") { sentences.append("A few diyas and a prayer corner make the festival feel complete.") }
+        if cats.contains("Frame") || cats.contains("Keepsake") || cats.contains("Decor") { sentences.append("Keepsakes for a shelf or console stay long after the box is gone.") }
+        if cats.contains("Office") { sentences.append("A desk set that makes everyday work feel a little more special.") }
         sentences.append("The card makes it personal before anything else is opened.")
         return sentences.joined(separator: " ")
     }
@@ -521,7 +567,7 @@ final class GiftingState: ObservableObject {
         var lines: [String] = ["VYBES \u{2014} Gift the Vibe", "Order \(id)", ""]
         lines.append("Box \(config.boxID): \(config.boxName)")
         for itemID in config.items {
-            if let item = GiftCatalogue.item(itemID) { lines.append("\u{2022} \(item.emoji) \(item.name): \(giftRupees(item.price))") }
+            if let item = GiftCatalogue.item(itemID) { lines.append("\u{2022} \(item.name): \(giftRupees(item.price))") }
         }
         let decorNames = config.decor.compactMap { d in GiftCatalogue.decorations.first { $0.id == d }?.name }
         if !decorNames.isEmpty { lines.append("Decoration: " + decorNames.joined(separator: ", ")) }
@@ -585,9 +631,9 @@ final class GiftingState: ObservableObject {
 
     func savePicture() {
         let sheet = HStack(spacing: 14) {
-            GiftBoxOutside(config: config).frame(width: 380, height: 380)
-            GiftBoxInside(config: config, tissueOpen: 1, itemsShown: 99, showCard: true, labels: true).frame(width: 380, height: 380)
-            GiftCardArt(config: config, compact: false).frame(width: 380, height: 270)
+            GiftLidTop(config: config).frame(width: 540, height: 360)
+            GiftBoxInside(config: config, tissueOpen: 1, itemsShown: 99, showCard: true, labels: true).frame(width: 540, height: 360)
+            GiftCardArt(config: config, compact: false).frame(width: 400, height: 276)
         }
         .padding(24)
         .background(Color(wishHex: GiftColor.shade(config.tissueHex, 1.1)))
@@ -611,6 +657,13 @@ final class GiftingState: ObservableObject {
         var kind: String
         var value: String
     }
+
+    private let kinds: [(String, [String])] = [
+        ("Candle", ["candle", "candles"]), ("Frame", ["frame", "frames", "photo frame", "photo frames"]), ("Tea", ["tea", "chai"]),
+        ("Serving", ["tray", "trays", "platter", "serving"]), ("Devotion", ["diya", "diyas", "pooja", "devotion"]),
+        ("Fragrance", ["perfume", "perfumes", "fragrance", "diffuser", "diffusers", "aroma", "incense"]), ("Office", ["office", "desk"]),
+        ("Keepsake", ["keepsake", "keepsakes", "chest"]), ("Decor", ["decor", "showpiece", "showpieces"]),
+    ]
 
     private let markers: [(String, String)] = [
         ("card to ", "to"), ("card for ", "to"), ("card from ", "from"), ("card message ", "msg"), ("message ", "msg"),
@@ -827,7 +880,17 @@ final class GiftingState: ObservableObject {
         if has(text, ["show all", "all boxes", "clear filter", "reset filter"]) {
             search = ""
             maxPrice = GiftRange.max
-            notes.append("Showing all boxes.")
+            itemCategory = "All"
+            notes.append("Showing all boxes and items.")
+        }
+        if has(text, ["show", "see", "browse", "list"]) {
+            for (kind, words) in kinds where has(text, words) {
+                itemCategory = kind
+                notes.append("Showing \(kind.lowercased()) items.")
+                var t = text
+                for w in words { t = t.replacingOccurrences(of: " " + w + " ", with: "  ") }
+                text = t
+            }
         }
         if let m = capture("(?:under|below|within|upto|up to|budget|less than)\\s*(\\d+)\\s*(k|thousand)?", in: text), var n = Int(m[1]) {
             if !m[2].isEmpty || n < 100 { n *= 1000 }
@@ -933,7 +996,31 @@ final class GiftingState: ObservableObject {
                     }
                 }
             }
-            for id in findItems(in: rest).ids {
+            let foundIDs = findItems(in: rest).ids
+            if foundIDs.isEmpty {
+                for (kind, words) in kinds where has(rest, words) {
+                    if mode == "remove" {
+                        for owned in work.items where GiftCatalogue.item(owned)?.category == kind {
+                            if removeItem(owned, from: &work) == nil {
+                                notes.append("\(GiftCatalogue.item(owned)?.name ?? owned) removed.")
+                                changed = true
+                            }
+                        }
+                    } else {
+                        let options = GiftCatalogue.items.filter { $0.category == kind && !work.items.contains($0.id) }.sorted { $0.price < $1.price }
+                        var added = false
+                        for o in options where !added {
+                            if addItem(o.id, to: &work) == nil {
+                                notes.append("\(o.name) added.")
+                                changed = true
+                                added = true
+                            }
+                        }
+                        if !added { notes.append("No \(kind.lowercased()) item fits right now.") }
+                    }
+                }
+            }
+            for id in foundIDs {
                 let name = GiftCatalogue.item(id)?.name ?? id
                 if mode == "remove" {
                     if work.items.contains(id) {
@@ -990,91 +1077,103 @@ final class GiftingState: ObservableObject {
     }
 }
 
-// MARK: - Drawing: closed box
+// MARK: - Drawing: the lid seen from above
 
-struct GiftBoxOutside: View {
+/// The box is always the same landscape size, 3 : 2.
+private let giftAspect: CGFloat = 1.5
+
+struct GiftLidTop: View {
     let config: GiftConfig
-    var lid: CGFloat = 0
+    var lift: CGFloat = 0
     var ribbonOn: Bool = true
 
     var body: some View {
         GeometryReader { geo in
-            let s = min(geo.size.width, geo.size.height)
+            let w = min(geo.size.width, geo.size.height * giftAspect)
+            let h = w / giftAspect
             ZStack {
-                Ellipse().fill(Color.black.opacity(0.14)).frame(width: s * 0.8, height: s * 0.07).position(x: s / 2, y: s * 0.94)
-                bodyPart(s)
-                lidPart(s)
+                lid(w, h)
             }
-            .frame(width: s, height: s)
+            .frame(width: w, height: h)
+            .scaleEffect(1 + lift * 0.18)
+            .offset(y: -lift * h * 0.08)
+            .opacity(1 - Double(lift))
             .frame(width: geo.size.width, height: geo.size.height)
         }
     }
 
-    private func bodyPart(_ s: CGFloat) -> some View {
-        let box = Color(wishHex: config.boxHex)
-        let band = Color(wishHex: config.ribbonHex)
+    private func lid(_ w: CGFloat, _ h: CGFloat) -> some View {
+        let top = Color(wishHex: GiftColor.shade(config.boxHex, 1.12))
+        let bottom = Color(wishHex: GiftColor.shade(config.boxHex, 0.82))
+        let gold = Color(wishHex: config.ribbonHex)
         return ZStack {
-            RoundedRectangle(cornerRadius: s * 0.03).fill(box).frame(width: s * 0.80, height: s * 0.46)
-            RoundedRectangle(cornerRadius: s * 0.03)
-                .fill(LinearGradient(colors: [Color.white.opacity(0.16), Color.clear, Color.black.opacity(0.10)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: s * 0.80, height: s * 0.46)
-            Rectangle().fill(band).frame(width: s * 0.09, height: s * 0.46).opacity(ribbonOn ? 1 : 0)
-            plate(s)
+            RoundedRectangle(cornerRadius: h * 0.04)
+                .fill(LinearGradient(colors: [top, bottom], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .shadow(color: Color.black.opacity(0.35), radius: h * 0.05, x: 0, y: h * 0.03)
+            RoundedRectangle(cornerRadius: h * 0.04).stroke(gold.opacity(0.9), lineWidth: max(1, h * 0.010)).padding(h * 0.02)
+            RoundedRectangle(cornerRadius: h * 0.03)
+                .stroke(gold.opacity(0.6), style: StrokeStyle(lineWidth: max(1, h * 0.005), dash: [h * 0.02, h * 0.012]))
+                .padding(h * 0.05)
+            bands(w, h, gold)
+            studs(w, h, gold)
+            plate(w, h, gold)
+            decorations(w, h)
         }
-        .frame(width: s * 0.80, height: s * 0.46)
-        .position(x: s / 2, y: s * 0.70)
+        .frame(width: w, height: h)
     }
 
-    private func plate(_ s: CGFloat) -> some View {
-        return RoundedRectangle(cornerRadius: s * 0.02)
+    private func bands(_ w: CGFloat, _ h: CGFloat, _ gold: Color) -> some View {
+        let dark = Color(wishHex: GiftColor.shade(config.ribbonHex, 0.78))
+        return ZStack {
+            Rectangle().fill(LinearGradient(colors: [dark, gold, dark], startPoint: .leading, endPoint: .trailing)).frame(width: w * 0.07, height: h)
+            Rectangle().fill(LinearGradient(colors: [dark, gold, dark], startPoint: .top, endPoint: .bottom)).frame(width: w, height: h * 0.11)
+        }
+        .opacity(ribbonOn ? 1 : 0)
+        .mask(RoundedRectangle(cornerRadius: h * 0.04))
+    }
+
+    private func studs(_ w: CGFloat, _ h: CGFloat, _ gold: Color) -> some View {
+        let r = h * 0.022
+        let xs: [CGFloat] = [-1, 1, -1, 1]
+        let ys: [CGFloat] = [-1, -1, 1, 1]
+        return ZStack {
+            ForEach(0..<4, id: \.self) { i in
+                Circle()
+                    .fill(RadialGradient(colors: [Color.white.opacity(0.9), gold, Color(wishHex: GiftColor.shade(config.ribbonHex, 0.7))], center: .topLeading, startRadius: 0, endRadius: r * 1.6))
+                    .frame(width: r * 2, height: r * 2)
+                    .offset(x: xs[i] * (w / 2 - h * 0.085), y: ys[i] * (h / 2 - h * 0.085))
+            }
+        }
+    }
+
+    private func plate(_ w: CGFloat, _ h: CGFloat, _ gold: Color) -> some View {
+        let pw = w * 0.34
+        let ph = pw / 1.57
+        return RoundedRectangle(cornerRadius: h * 0.02)
             .fill(Color(wishHex: "#FAF4F0"))
-            .frame(width: s * 0.42, height: s * 0.27)
-            .overlay(VybesLogoView().padding(s * 0.012))
-            .overlay(RoundedRectangle(cornerRadius: s * 0.02).stroke(Color(wishHex: config.ribbonHex), lineWidth: max(1, s * 0.006)))
-            .shadow(color: Color.black.opacity(0.2), radius: s * 0.01, x: 0, y: s * 0.004)
+            .frame(width: pw, height: ph)
+            .overlay(VybesLogoView().padding(ph * 0.04))
+            .overlay(RoundedRectangle(cornerRadius: h * 0.02).stroke(gold, lineWidth: max(1, h * 0.008)))
+            .shadow(color: Color.black.opacity(0.3), radius: h * 0.02, x: 0, y: h * 0.01)
     }
 
-    private func lidPart(_ s: CGFloat) -> some View {
-        let lidColor = Color(wishHex: GiftColor.shade(config.boxHex, 0.86))
-        let band = Color(wishHex: config.ribbonHex)
-        return ZStack {
-            RoundedRectangle(cornerRadius: s * 0.03).fill(lidColor).frame(width: s * 0.86, height: s * 0.20)
-            Rectangle().fill(band).frame(width: s * 0.09, height: s * 0.20).opacity(ribbonOn ? 1 : 0)
-            decorations(s)
-            bow(s).opacity(ribbonOn ? 1 : 0)
-        }
-        .frame(width: s * 0.86, height: s * 0.20)
-        .rotationEffect(.degrees(Double(lid) * -9))
-        .opacity(1 - Double(lid) * 0.3)
-        .position(x: s / 2, y: s * 0.40 - lid * s * 0.30)
-    }
-
-    private func bow(_ s: CGFloat) -> some View {
-        let band = Color(wishHex: config.ribbonHex)
-        let knot = Color(wishHex: GiftColor.shade(config.ribbonHex, 0.8))
-        return ZStack {
-            Ellipse().fill(band).frame(width: s * 0.16, height: s * 0.09).rotationEffect(.degrees(-22)).offset(x: -s * 0.07, y: -s * 0.115)
-            Ellipse().fill(band).frame(width: s * 0.16, height: s * 0.09).rotationEffect(.degrees(22)).offset(x: s * 0.07, y: -s * 0.115)
-            Circle().fill(knot).frame(width: s * 0.05, height: s * 0.05).offset(x: 0, y: -s * 0.10)
-        }
-    }
-
-    private func decorations(_ s: CGFloat) -> some View {
+    private func decorations(_ w: CGFloat, _ h: CGFloat) -> some View {
         let symbols = config.decor.compactMap { GiftCatalogue.decorEmoji($0) }
-        let slots: [(CGFloat, CGFloat, CGFloat)] = [(-0.34, 0.0, 0.085), (0.34, 0.0, 0.085), (-0.22, 0.0, 0.07), (0.22, 0.0, 0.07), (-0.40, -0.13, 0.07), (0.40, -0.13, 0.07)]
+        let slots: [(CGFloat, CGFloat)] = [(-0.30, -0.26), (0.30, -0.26), (-0.30, 0.26), (0.30, 0.26), (-0.40, 0.0), (0.40, 0.0)]
         return ZStack {
             if !symbols.isEmpty {
                 ForEach(0..<slots.count, id: \.self) { i in
                     Text(symbols[i % symbols.count])
-                        .font(.system(size: s * slots[i].2))
-                        .offset(x: s * slots[i].0, y: s * slots[i].1)
+                        .font(.system(size: h * 0.12))
+                        .shadow(color: Color.black.opacity(0.25), radius: h * 0.01, x: 0, y: h * 0.006)
+                        .offset(x: w * slots[i].0, y: h * slots[i].1)
                 }
             }
         }
     }
 }
 
-// MARK: - Drawing: inside the box
+// MARK: - Drawing: the open box seen from above, products laid out inside
 
 struct GiftBoxInside: View {
     let config: GiftConfig
@@ -1085,95 +1184,107 @@ struct GiftBoxInside: View {
 
     var body: some View {
         GeometryReader { geo in
-            let s = min(geo.size.width, geo.size.height)
+            let w = min(geo.size.width, geo.size.height * giftAspect)
+            let h = w / giftAspect
             ZStack {
-                lidUnderside(s)
-                walls(s)
-                cells(s)
-                flaps(s)
-                cardPiece(s)
+                shell(w, h)
+                strip(w, h)
+                cells(w, h)
+                flaps(w, h)
             }
-            .frame(width: s, height: s)
+            .frame(width: w, height: h)
             .frame(width: geo.size.width, height: geo.size.height)
         }
     }
 
-    private func lidUnderside(_ s: CGFloat) -> some View {
-        return RoundedRectangle(cornerRadius: s * 0.03)
-            .fill(Color(wishHex: GiftColor.shade(config.boxHex, 0.8)))
-            .frame(width: s * 0.86, height: s * 0.17)
-            .overlay(
-                RoundedRectangle(cornerRadius: s * 0.015)
-                    .fill(Color(wishHex: "#FAF4F0"))
-                    .frame(width: s * 0.26, height: s * 0.13)
-                    .overlay(VybesLogoView().padding(s * 0.006))
-            )
-            .position(x: s / 2, y: s * 0.09)
-    }
-
-    private func walls(_ s: CGFloat) -> some View {
+    private func shell(_ w: CGFloat, _ h: CGFloat) -> some View {
+        let gold = Color(wishHex: config.ribbonHex)
         return ZStack {
-            RoundedRectangle(cornerRadius: s * 0.03).fill(Color(wishHex: config.boxHex)).frame(width: s * 0.92, height: s * 0.76)
-            RoundedRectangle(cornerRadius: s * 0.02).fill(Color(wishHex: GiftColor.shade(config.tissueHex, 0.97))).frame(width: s * 0.82, height: s * 0.66)
+            RoundedRectangle(cornerRadius: h * 0.04)
+                .fill(LinearGradient(colors: [Color(wishHex: GiftColor.shade(config.boxHex, 1.1)), Color(wishHex: GiftColor.shade(config.boxHex, 0.8))], startPoint: .top, endPoint: .bottom))
+                .shadow(color: Color.black.opacity(0.35), radius: h * 0.05, x: 0, y: h * 0.03)
+            RoundedRectangle(cornerRadius: h * 0.03)
+                .fill(LinearGradient(colors: [Color(wishHex: GiftColor.shade(config.tissueHex, 1.1)), Color(wishHex: GiftColor.shade(config.tissueHex, 0.92))], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .padding(h * 0.03)
+            RoundedRectangle(cornerRadius: h * 0.03).stroke(gold.opacity(0.85), lineWidth: max(1, h * 0.007)).padding(h * 0.03)
         }
-        .position(x: s / 2, y: s * 0.62)
     }
 
-    private func cells(_ s: CGFloat) -> some View {
+    /// The top band: VYBES plate in the middle, the card tucked in at the right.
+    private func strip(_ w: CGFloat, _ h: CGFloat) -> some View {
+        let gold = Color(wishHex: config.ribbonHex)
+        let ph = h * 0.115
+        return ZStack {
+            RoundedRectangle(cornerRadius: h * 0.015)
+                .fill(Color(wishHex: "#FAF4F0"))
+                .frame(width: ph * 1.57, height: ph)
+                .overlay(VybesLogoView().padding(ph * 0.04))
+                .overlay(RoundedRectangle(cornerRadius: h * 0.015).stroke(gold, lineWidth: max(1, h * 0.006)))
+                .shadow(color: Color.black.opacity(0.2), radius: h * 0.01, x: 0, y: h * 0.005)
+            GiftCardArt(config: config, compact: true)
+                .frame(width: h * 0.17, height: h * 0.115)
+                .rotationEffect(.degrees(4))
+                .offset(x: w * 0.30 + (showCard ? 0 : w * 0.4))
+                .opacity(showCard ? 1 : 0)
+        }
+        .position(x: w / 2, y: h * 0.115)
+    }
+
+    private func cells(_ w: CGFloat, _ h: CGFloat) -> some View {
+        let gap = w * 0.018
+        let cw = (w * 0.90 - gap * 2) / 3
+        let ch = (h * 0.70 - gap) / 2
         return ZStack {
             ForEach(0..<GiftRange.slots, id: \.self) { i in
-                cell(i, s)
-                    .position(x: s * (0.5 + (CGFloat(i % 3) - 1) * 0.265), y: s * (0.62 + (CGFloat(i / 3) - 0.5) * 0.32))
+                cell(i, cw, ch, h)
+                    .position(x: w * 0.05 + cw / 2 + CGFloat(i % 3) * (cw + gap), y: h * 0.23 + ch / 2 + CGFloat(i / 3) * (ch + gap))
             }
         }
     }
 
     @ViewBuilder
-    private func cell(_ i: Int, _ s: CGFloat) -> some View {
+    private func cell(_ i: Int, _ cw: CGFloat, _ ch: CGFloat, _ h: CGFloat) -> some View {
         if i < config.items.count, i < itemsShown, let item = GiftCatalogue.item(config.items[i]) {
-            VStack(spacing: s * 0.008) {
-                Text(item.emoji).font(.system(size: s * 0.12))
+            ZStack(alignment: .bottom) {
+                GiftPhotoView(id: item.id).frame(width: cw, height: ch).clipped()
                 if labels {
                     Text(item.name)
-                        .font(.system(size: max(7, s * 0.032), weight: .semibold))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .foregroundStyle(Color(wishHex: "#3A2A20"))
+                        .font(.system(size: max(7, h * 0.034), weight: .semibold, design: .serif))
+                        .foregroundStyle(Color.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .frame(width: cw, height: h * 0.07)
+                        .background(Color.black.opacity(0.55))
                 }
             }
-            .frame(width: s * 0.245, height: s * 0.30)
-            .background(RoundedRectangle(cornerRadius: s * 0.02).fill(Color.white.opacity(0.75)))
-            .shadow(color: Color.black.opacity(0.12), radius: s * 0.01, x: 0, y: s * 0.004)
+            .frame(width: cw, height: ch)
+            .clipShape(RoundedRectangle(cornerRadius: h * 0.02))
+            .overlay(RoundedRectangle(cornerRadius: h * 0.02).stroke(Color(wishHex: config.ribbonHex), lineWidth: max(1, h * 0.006)))
+            .shadow(color: Color.black.opacity(0.3), radius: h * 0.015, x: 0, y: h * 0.008)
             .transition(.scale.combined(with: .opacity))
         } else {
-            RoundedRectangle(cornerRadius: s * 0.02)
-                .stroke(Color.black.opacity(0.10), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                .frame(width: s * 0.245, height: s * 0.30)
+            RoundedRectangle(cornerRadius: h * 0.02)
+                .stroke(Color.black.opacity(0.12), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                .frame(width: cw, height: ch)
         }
     }
 
-    private func flaps(_ s: CGFloat) -> some View {
+    private func flaps(_ w: CGFloat, _ h: CGFloat) -> some View {
         let tissue = Color(wishHex: config.tissueHex)
         let open = Double(tissueOpen)
+        let rw = w * 0.45
+        let rh = h * 0.72
         return ZStack {
-            Rectangle().fill(tissue).frame(width: s * 0.41, height: s * 0.66)
-                .rotationEffect(.degrees(-open * 18))
-                .offset(x: -s * 0.205 - CGFloat(open) * s * 0.35)
-            Rectangle().fill(tissue.opacity(0.94)).frame(width: s * 0.41, height: s * 0.66)
-                .rotationEffect(.degrees(open * 18))
-                .offset(x: s * 0.205 + CGFloat(open) * s * 0.35)
+            Rectangle().fill(tissue).frame(width: rw, height: rh)
+                .rotationEffect(.degrees(-open * 14))
+                .offset(x: -rw / 2 - CGFloat(open) * w * 0.35)
+            Rectangle().fill(tissue.opacity(0.94)).frame(width: rw, height: rh)
+                .rotationEffect(.degrees(open * 14))
+                .offset(x: rw / 2 + CGFloat(open) * w * 0.35)
         }
-        .opacity(1 - open * 0.92)
-        .position(x: s / 2, y: s * 0.62)
-    }
-
-    private func cardPiece(_ s: CGFloat) -> some View {
-        return GiftCardArt(config: config, compact: true)
-            .frame(width: s * 0.30, height: s * 0.22)
-            .rotationEffect(.degrees(7))
-            .position(x: s * 0.80, y: s * 0.86)
-            .offset(x: showCard ? 0 : s * 0.6)
-            .opacity(showCard ? 1 : 0)
+        .opacity(1 - open * 0.95)
+        .position(x: w / 2, y: h * 0.23 + rh / 2)
+        .allowsHitTesting(false)
     }
 }
 
@@ -1235,8 +1346,8 @@ struct GiftStage: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 18)
-                .fill(LinearGradient(colors: [Color(wishHex: GiftColor.shade(state.config.tissueHex, 1.15)), Color(wishHex: GiftColor.shade(state.config.tissueHex, 0.98))], startPoint: .top, endPoint: .bottom))
-            content.padding(16)
+                .fill(RadialGradient(colors: [Color(wishHex: "#F7F1E8"), Color(wishHex: "#D9CDBB")], center: .center, startRadius: 20, endRadius: 360))
+            content.padding(18)
         }
         .animation(.easeInOut(duration: 0.5), value: state.unboxStep)
     }
@@ -1245,7 +1356,7 @@ struct GiftStage: View {
     private var content: some View {
         switch state.view {
         case .closed:
-            GiftBoxOutside(config: state.config, lid: 0, ribbonOn: true)
+            GiftLidTop(config: state.config, lift: 0, ribbonOn: true)
         case .inside:
             GiftBoxInside(config: state.config, tissueOpen: 1, itemsShown: 99, showCard: true, labels: true)
         case .card:
@@ -1258,9 +1369,13 @@ struct GiftStage: View {
     @ViewBuilder
     private var unbox: some View {
         if state.unboxStep <= 1 {
-            GiftBoxOutside(config: state.config, lid: 0, ribbonOn: state.unboxStep == 0).transition(.opacity)
+            GiftLidTop(config: state.config, lift: 0, ribbonOn: state.unboxStep == 0).transition(.opacity)
         } else if state.unboxStep == 2 {
-            GiftBoxOutside(config: state.config, lid: 1, ribbonOn: false).transition(.opacity)
+            ZStack {
+                GiftBoxInside(config: state.config, tissueOpen: 0, itemsShown: 0, showCard: false, labels: true)
+                GiftLidTop(config: state.config, lift: 1, ribbonOn: false)
+            }
+            .transition(.opacity)
         } else {
             GiftBoxInside(config: state.config, tissueOpen: state.unboxStep >= 4 ? 1 : 0,
                           itemsShown: state.unboxStep >= 6 ? 99 : state.itemsShown, showCard: state.unboxStep >= 6, labels: true)
@@ -1273,7 +1388,6 @@ struct GiftStage: View {
 
 struct GiftingView: View {
     @ObservedObject var state: GiftingState
-    @State private var category = "All"
 
     var body: some View {
         HStack(spacing: 0) {
@@ -1308,7 +1422,7 @@ struct GiftingView: View {
                 .frame(width: 130)
             }
             ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150, maximum: 190), spacing: 12)], spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 190, maximum: 250), spacing: 12)], spacing: 12) {
                     ForEach(state.boxes) { box in tile(box) }
                 }
                 .padding(.bottom, 12)
@@ -1324,13 +1438,13 @@ struct GiftingView: View {
             state.select(box.id)
         } label: {
             VStack(spacing: 4) {
-                GiftBoxOutside(config: cfg).frame(height: 118)
+                GiftBoxInside(config: cfg, tissueOpen: 1, itemsShown: 99, showCard: true, labels: false).aspectRatio(1.5, contentMode: .fit)
                 Text("\(box.id). \(box.name)").font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                Text(cfg.items.compactMap { GiftCatalogue.item($0)?.emoji }.joined()).font(.system(size: 12)).lineLimit(1)
+                Text("\(cfg.items.count) products").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
                 Text(giftRupees(cfg.unitPrice)).font(.system(size: 12, weight: .bold)).foregroundStyle(WishTheme.accent)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 196)
+            .frame(height: 176)
             .padding(6)
             .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(selected ? WishTheme.accent : WishTheme.line, lineWidth: selected ? 3 : 1))
@@ -1350,7 +1464,7 @@ struct GiftingView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                GiftStage(state: state).frame(height: 360)
+                GiftStage(state: state).frame(height: 310)
                 stageCaption
                 colourSection
                 decorSection
@@ -1453,31 +1567,34 @@ struct GiftingView: View {
     // Items
 
     private var shownItems: [GiftItem] {
-        return category == "All" ? GiftCatalogue.items : GiftCatalogue.items.filter { $0.category == category }
+        return state.itemCategory == "All" ? GiftCatalogue.items : GiftCatalogue.items.filter { $0.category == state.itemCategory }
     }
 
     private var itemsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Inside the box", "Tap to add or remove, or say \u{201C}add a diffuser and perfume, remove the candle\u{201D}. Stays within \(giftRupees(GiftRange.min))\u{2013}\(giftRupees(GiftRange.max)).")
+            sectionTitle("Products inside the box", "Real catalogue products. Prices are the catalogue bands (under \u{20B9}1,000 to \u{20B9}2,500) until exact prices are set. Tap, or say \u{201C}add the coconut candle and a tea set, remove the frame\u{201D}. Stays within \(giftRupees(GiftRange.min))\u{2013}\(giftRupees(GiftRange.max)).")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     ForEach(["All"] + GiftCatalogue.categories, id: \.self) { c in
-                        Button(c) { category = c }
+                        Button(c) { state.itemCategory = c }
                             .buttonStyle(.bordered).controlSize(.small)
-                            .tint(category == c ? WishTheme.accent : Color.gray)
+                            .tint(state.itemCategory == c ? WishTheme.accent : Color.gray)
                     }
                 }
             }
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 8)], spacing: 8) {
                 ForEach(shownItems) { item in
                     let included = state.config.items.contains(item.id)
                     Button { state.toggleItem(item.id) } label: {
                         VStack(spacing: 3) {
-                            Text(item.emoji).font(.system(size: 26))
-                            Text(item.name).font(.system(size: 11, weight: .semibold)).lineLimit(1)
+                            GiftPhotoView(id: item.id)
+                                .aspectRatio(1.5, contentMode: .fill)
+                                .frame(maxWidth: .infinity)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            Text(item.name).font(.system(size: 11, weight: .semibold, design: .serif)).lineLimit(2).multilineTextAlignment(.center)
                             Text(giftRupees(item.price)).font(.system(size: 10)).foregroundStyle(WishTheme.muted)
                         }
-                        .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        .frame(maxWidth: .infinity).padding(6)
                         .background(RoundedRectangle(cornerRadius: 10).fill(included ? WishTheme.accentSoft : Color.white))
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(included ? WishTheme.accent : WishTheme.line, lineWidth: included ? 2 : 1))
                     }
@@ -1545,10 +1662,10 @@ struct GiftingView: View {
             VStack(alignment: .leading, spacing: 3) {
                 ForEach(state.config.items, id: \.self) { id in
                     if let item = GiftCatalogue.item(id) {
-                        HStack { Text("\(item.emoji) \(item.name)"); Spacer(); Text(giftRupees(item.price)) }.font(.system(size: 12))
+                        HStack { Text(item.name); Spacer(); Text(giftRupees(item.price)) }.font(.system(size: 12))
                     }
                 }
-                HStack { Text("Box, ribbon, tissue and VYBES packaging"); Spacer(); Text(giftRupees(state.config.packaging)) }.font(.system(size: 12))
+                HStack { Text("VYBES box, ribbon, lining and card"); Spacer(); Text(giftRupees(state.config.packaging)) }.font(.system(size: 12))
                 if state.config.extraDecor > 0 {
                     HStack { Text("Extra decoration"); Spacer(); Text(giftRupees(state.config.extraDecor)) }.font(.system(size: 12))
                 }

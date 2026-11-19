@@ -23,6 +23,8 @@ xcrun swiftc "${SWIFT_OPT:--O}" -wmo -num-threads "$(sysctl -n hw.ncpu)" -parse-
   -o "$APP/Contents/MacOS/EzMe"
 
 cp Sources/EzMe/Resources/*.png Sources/EzMe/Resources/AppIcon.icns "$APP/Contents/Resources/"
+mkdir -p "$APP/Contents/Resources/Gifting"
+cp Sources/EzMe/Resources/Gifting/*.jpg "$APP/Contents/Resources/Gifting/"
 # The installed file stays EzMe.app so existing installs update in place; Finder and the menu bar show KeyDo.
 mkdir -p "$APP/Contents/Resources/en.lproj"
 printf '"CFBundleDisplayName" = "KeyDo";\n"CFBundleName" = "KeyDo";\n' > "$APP/Contents/Resources/en.lproj/InfoPlist.strings"
