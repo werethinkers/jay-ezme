@@ -1,9 +1,9 @@
 {
-  "version": "3.91",
-  "build": 393,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.91-build393/EzMe-3.91-macOS.zip",
-  "sha256": "3cccc1964beee2894f391d2e20bdde407d8fb3b460ab3bd68cd8e4f129e960fc",
-  "notes": "# KeyDo 3.91\n\n## The typed backslash and command are removed completely\n- When an app's output is ready in the popup, KeyDo now deletes the `\\` and the command you typed (for example `\\hbd`) from the app you were using, such as WhatsApp, straight away. Before, this only happened at the moment of pasting, so using Share\u2026 or sending the result another way left the typed command in the text box.\n- Paste into current app no longer deletes a second time, and an app that already ran from a complete command (`\\hbd-Rahul` and Space) is not deleted twice.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, its release guard and the heartbeat watchdog were not touched. The new clean-up runs on the main thread after the output exists, deletes only the characters KeyDo counted as typed, and needs Accessibility to be allowed (as pasting already does).",
-  "published": "2026-11-19T13:51:25Z",
+  "version": "3.92",
+  "build": 394,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.92-build394/EzMe-3.92-macOS.zip",
+  "sha256": "09da57d486b59d9b7728bc9a0c00b0b191d10e7630e344e1517c12cbdeba9e58",
+  "notes": "# KeyDo 3.92\n\n## AppDesigner: the prompt for ChatGPT or Gemini has no placeholders\n- The prompt no longer contains {{names}}, variable names, function or collection names, or starting values. Nothing about how your app is built is shared.\n- It now says only that the blank areas are empty on purpose and must stay empty, listing each as \"Blank text area 1\" or \"Blank picture area 2\" with its place and size. The pictures sent already had the sample words removed.\n- Fixed text, logos and icons are still kept as they are.\n\n## Keyboard safety\nChecked: this version only changes the wording of one prompt. The key tap, its release guard and the heartbeat watchdog were not touched.",
+  "published": "2026-11-19T14:43:01Z",
   "minimumSystemVersion": "14.0"
 }
