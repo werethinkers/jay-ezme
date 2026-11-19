@@ -527,15 +527,15 @@ struct PromptBuilderView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             BuilderHeader(symbol: "text.bubble.fill", title: "Prompt Builder", subtitle: canSend ? "Ready: say “send to \(quickTarget?.name.lowercased() ?? "chatgpt")” or press Send." : "Write or speak one prompt, add media with # and @, then send it to any AI site.") {
-                HStack(spacing: 8) {
-                    Button { showVoiceHelp.toggle() } label: { Label("Voice commands", systemImage: "waveform") }
-                        .buttonStyle(.bordered)
+                HStack(spacing: 6) {
+                    Button { showVoiceHelp.toggle() } label: { Image(systemName: "waveform") }
+                        .buttonStyle(.bordered).controlSize(.small).help("Voice commands")
                         .popover(isPresented: $showVoiceHelp, arrowEdge: .bottom) { voiceHelp }
-                    Button { copyPrompt() } label: { Label("Copy", systemImage: "doc.on.doc") }
-                        .buttonStyle(.bordered).disabled(finalPrompt.isEmpty)
+                    Button { copyPrompt() } label: { Image(systemName: "doc.on.doc") }
+                        .buttonStyle(.bordered).controlSize(.small).disabled(finalPrompt.isEmpty).help("Copy the prompt")
                     if let target = quickTarget {
                         Button { send(to: target) } label: { Label("Send to \(target.name)", systemImage: "paperplane.fill") }
-                            .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(!canSend)
+                            .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small).disabled(!canSend)
                             .keyboardShortcut(.return, modifiers: .command)
                             .help("Opens \(target.name) in the side panel, pastes your prompt and files, and sends. Shortcut: Command Return.")
                     }

@@ -1,4 +1,4 @@
-# KeyDo 3.86
+# KeyDo 3.87
 
 ## Prompt Builder: compact and temporary link up front
 - The temporary link box now sits at the top of Prompt Builder with a bold border, instead of at the bottom. Paste a link, Send to link, Clear (or say "clear link").
