@@ -133,14 +133,7 @@ struct DatabaseOrganizerView: View {
         if typeFilter != "All types" { list = list.filter { ($0.ext.isEmpty ? "no extension" : $0.ext) == typeFilter } }
         let words = query.lowercased().split(separator: " ").map(String.init)
         if !words.isEmpty {
-            list = list.filter { file in
-                if insideHits[file.id] != nil { return true }
-                let side = sidecars[file.record.value]
-                let notes = (side?.marks.map { $0.note + " " + $0.quote }.joined(separator: " ") ?? "") + " " + (side?.general ?? "")
-                let hay = [file.record.title, file.record.value, file.record.tags, file.record.notes, file.record.collection,
-                           (side?.tags.joined(separator: " ") ?? ""), notes].joined(separator: " ").lowercased()
-                return words.allSatisfy { hay.contains($0) }
-            }
+            list = list.filter { file in matches(file, words) }
         }
         switch sort {
         case "Newest": list.sort { ($0.modified ?? .distantPast) > ($1.modified ?? .distantPast) }
@@ -149,6 +142,23 @@ struct DatabaseOrganizerView: View {
         default: list.sort { $0.record.title.localizedStandardCompare($1.record.title) == .orderedAscending }
         }
         return list
+    }
+
+    /// True when every search word is in the file's name, path, tags, notes or saved document notes, or the file was found by its inside words.
+    private func matches(_ file: OrganizerFile, _ words: [String]) -> Bool {
+        if insideHits[file.id] != nil { return true }
+        var parts: [String] = [file.record.title, file.record.value, file.record.tags, file.record.notes, file.record.collection]
+        if let side = sidecars[file.record.value] {
+            parts.append(side.tags.joined(separator: " "))
+            parts.append(side.general)
+            for mark in side.marks {
+                parts.append(mark.note)
+                parts.append(mark.quote)
+            }
+        }
+        let hay: String = parts.joined(separator: " ").lowercased()
+        for word in words where !hay.contains(word) { return false }
+        return true
     }
 
     // MARK: Screen
