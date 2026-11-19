@@ -1,9 +1,9 @@
 {
   "version": "3.92",
-  "build": 394,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.92-build394/EzMe-3.92-macOS.zip",
-  "sha256": "09da57d486b59d9b7728bc9a0c00b0b191d10e7630e344e1517c12cbdeba9e58",
-  "notes": "# KeyDo 3.92\n\n## AppDesigner: the prompt for ChatGPT or Gemini has no placeholders\n- The prompt no longer contains {{names}}, variable names, function or collection names, or starting values. Nothing about how your app is built is shared.\n- It now says only that the blank areas are empty on purpose and must stay empty, listing each as \"Blank text area 1\" or \"Blank picture area 2\" with its place and size. The pictures sent already had the sample words removed.\n- Fixed text, logos and icons are still kept as they are.\n\n## Keyboard safety\nChecked: this version only changes the wording of one prompt. The key tap, its release guard and the heartbeat watchdog were not touched.",
-  "published": "2026-11-19T14:43:01Z",
+  "build": 395,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.92-build395/EzMe-3.92-macOS.zip",
+  "sha256": "427c3e7468999fc7a1fb6944550de8242ce8702196f4836a178da62fee62d869",
+  "notes": "# KeyDo 3.92\n\n## AppDesigner prompt: no placeholders\n- The prompt sent to ChatGPT, Gemini or copied no longer contains box names, `{{placeholders}}`, variables, functions or starting values. It only says how many empty text and picture areas the page has and where they sit, and asks for them to be kept empty.\n- The pictures were already sent with those boxes empty, so nothing from the boxes reaches the AI.\n- The Prompt window text is still editable before sending.\n\n## Keyboard safety\nChecked: only the prompt text changed. The key tap `miniJSlashTap`, its release guard and the heartbeat watchdog were not touched.",
+  "published": "2026-11-19T15:06:16Z",
   "minimumSystemVersion": "14.0"
 }
