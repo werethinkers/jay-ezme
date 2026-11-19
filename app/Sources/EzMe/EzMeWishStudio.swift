@@ -60,6 +60,7 @@ enum WishPage: Equatable {
     case home
     case app(String)
     case builder
+    case gifting
 }
 
 enum WishInspectorTab: String, CaseIterable {
@@ -77,6 +78,7 @@ final class WishStudioModel: ObservableObject {
     let voice = WishVoiceController()
     let web = WishWebController()
     let builder = WishBuilderState()
+    let gifting = GiftingState()
 
     @Published var page: WishPage = .home
     @Published var appID: String = ""
@@ -144,13 +146,22 @@ final class WishStudioModel: ObservableObject {
         switch page {
         case .home: return "Pick an app, or say its name."
         case .builder: return "Describe the app you want, or say it with the mic."
+        case .gifting: return "Pick a box, then say what to change."
         case .app: return "Tap the mic and say one thing to change, like \u{201C}make it pink\u{201D}."
         }
     }
 
     func goHome() {
         voiceGuard()
+        gifting.stopUnbox()
         page = .home
+        selected = nil
+        status = defaultStatus
+    }
+
+    func openGifting() {
+        voiceGuard()
+        page = .gifting
         selected = nil
         status = defaultStatus
     }
@@ -539,6 +550,9 @@ final class WishStudioModel: ObservableObject {
         switch page {
         case .builder:
             builder.handle(text)
+        case .gifting:
+            gifting.handle(text)
+            status = gifting.message
         case .home:
             handleHome(text)
         case .app:
@@ -548,6 +562,10 @@ final class WishStudioModel: ObservableObject {
 
     private func handleHome(_ text: String) {
         let lower = text.lowercased()
+        if lower.contains("gifting") || lower.contains("gift box") || lower.contains("vybes") || lower.contains("hamper") {
+            openGifting()
+            return
+        }
         if lower.contains("builder") || lower.contains("create") || lower.contains("new app") || lower.contains("\u{092C}\u{093F}\u{0932}\u{094D}\u{0921}\u{0930}") || lower.contains("\u{0928}\u{092F}\u{093E}") {
             openBuilder()
             return
@@ -814,6 +832,8 @@ final class WishStudioModel: ObservableObject {
             return ["open Happy Birthday", "open Happy Diwali", "open Infographics", "WishBuilder", "\u{0916}\u{094B}\u{0932}\u{094B} \u{0926}\u{093F}\u{0935}\u{093E}\u{0932}\u{0940}"]
         case .builder:
             return builder.hints
+        case .gifting:
+            return ["make it burgundy with a gold ribbon", "add perfume and a diffuser", "put flowers on top", "show unboxing", "show inside", "box 12", "card to Priya from Rahul", "place order"]
         case .app:
             if selected != nil {
                 return ["bigger", "smaller", "make it gold", "move left", "bold", "hide it", "done"]
@@ -829,6 +849,7 @@ final class WishStudioModel: ObservableObject {
         switch page {
         case .home: return "Say or type an app name, like \u{201C}Happy Birthday\u{201D}"
         case .builder: return builder.placeholder
+        case .gifting: return "Say or type, like \u{201C}make it navy, add chocolates, show unboxing\u{201D}"
         case .app: return "Say or type one command, like \u{201C}make it pink\u{201D}"
         }
     }
@@ -837,6 +858,7 @@ final class WishStudioModel: ObservableObject {
         switch page {
         case .home: return "WishStudio \u{00B7} Home"
         case .builder: return "WishBuilder \u{00B7} " + builder.contextLine
+        case .gifting: return "Gifting \u{00B7} " + gifting.config.boxName
         case .app: return app.name + " \u{00B7} " + (selected.map { "\($0) selected" } ?? "whole card")
         }
     }
@@ -988,7 +1010,7 @@ struct WishStudioWorkspace: View {
         .onChange(of: collections) { _ in
             model.collections = collections
         }
-        .onDisappear { model.voice.stop() }
+        .onDisappear { model.voice.stop(); model.gifting.stopUnbox() }
     }
 
     @ViewBuilder
@@ -998,6 +1020,8 @@ struct WishStudioWorkspace: View {
             WishHomeView(model: model, store: model.store)
         case .builder:
             WishBuilderView(model: model, store: model.store, builder: model.builder)
+        case .gifting:
+            GiftingView(state: model.gifting)
         case .app:
             WishStudioView(model: model, store: model.store)
         }
@@ -1422,6 +1446,7 @@ struct WishHomeView: View {
                     ForEach(store.apps) { item in
                         appCard(item)
                     }
+                    giftingCard
                     builderCard
                 }
                 if !store.templates.isEmpty {
@@ -1461,6 +1486,24 @@ struct WishHomeView: View {
         .contextMenu {
             Button("Duplicate") { if let id = store.duplicateApp(item.id) { model.status = "Made a copy: \(store.app(id: id)?.name ?? "")." } }
         }
+    }
+
+    private var giftingCard: some View {
+        AppGalleryCard(
+            title: "Gifting",
+            description: "30 VYBES gift boxes, \u{20B9}3,000 to \u{20B9}10,000. Change colours, decoration and items by voice, see inside, unbox, add a card and order.",
+            sample: "",
+            category: "Gifting",
+            icon: "gift.fill",
+            iconPath: "",
+            coverPath: "",
+            credits: "",
+            colors: [Color(wishHex: "#7A1F3D"), Color(wishHex: "#D4A84A"), Color(wishHex: "#F2C9D2")],
+            action: { model.openGifting() },
+            coverFraming: WishFraming(),
+            showsCredits: false,
+            badge: "WISH"
+        )
     }
 
     private var builderCard: some View {
