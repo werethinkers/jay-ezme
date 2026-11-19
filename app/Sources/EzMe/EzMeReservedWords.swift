@@ -17,7 +17,7 @@ enum ReservedShortcutWords {
         "calculate", "compare", "list", "describe", "analyze", "analyse", "review", "plan", "draft", "publish", "sync", "backup",
         "restore", "import", "export", "join", "invite", "follow", "like", "mute", "unmute", "lock", "unlock", "enable", "disable",
         "toggle", "hide", "display", "bring", "fetch", "load", "refresh", "search", "lookup", "remember", "forget", "repeat", "skip",
-        "next", "previous", "back", "continue", "finish", "begin", "help", "enter", "return", "yes", "no"
+        "next", "previous", "back", "continue", "finish", "begin", "help", "enter", "return", "yes", "no", "r", "reply"
     ]
 
     /// The starting list: action words plus pronouns and small words that dictation says all the time.
@@ -29,8 +29,11 @@ enum ReservedShortcutWords {
 
     static var enabled: Bool { UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true }
 
+    static let alwaysReserved = ["r", "reply"]
+
     static func list() -> [String] {
-        if let saved = UserDefaults.standard.stringArray(forKey: storageKey) { return saved.sorted() }
+        // "reply" and "r" belong to the Reply app and always stay reserved, even in a list saved earlier.
+        if let saved = UserDefaults.standard.stringArray(forKey: storageKey) { return Array(Set(saved + alwaysReserved)).sorted() }
         return defaultList
     }
 

@@ -1,15 +1,19 @@
-# KeyDo 3.84
+# KeyDo 3.85
 
-## File Renamer
-- No double prefix or suffix by default: a name that already starts (or ends) with what you add is left alone. A switch in File Renamer allows doubles when you want them.
-- Every prefix in the list is editable: the "Prefixes in this list" row lets you change one prefix and it changes everywhere it appears.
-- Each file's name is still editable by hand (pencil), the whole name apart from its extension.
-- The rename command is shown in plain words above the Rename button.
-- New "Undo last rename" button: one-time undo that puts the files, and the saved MyDatabase links, back to their earlier names.
+## Backslash popup: modes
+- `\$` shows only your apps. Type a name and press Enter. Apps with 1 to 3 values show the quick command (for example `\hbd-Rahul`); apps with more values open the form so you fill it in by voice, then copy and paste.
+- `\@` is for people and the shortcuts that belong to them.
+- `\#` is for collections: type part of a collection name and only its shortcuts show.
+- `\=` is for calculations, for example `\=12*8+5`.
+- A plain `\` stays the common search over everything.
+- The search bar shows which mode you are in, and a bar under it explains it.
 
-## Prompt Builder
-- New "Temporary link" box: paste a site address, "Send to link", and clear it with Clear or by saying "clear link". It is never saved as a site.
-- Sites can be ranked with the up and down arrows in Edit links. The page shows up to 10 starred sites in your order; you can add as many sites and models as you like, and unshown ones still work by voice.
+## Screenshots
+- New icon in the popup for a screenshot of the whole screen, beside Select area.
+- Type `\$s` and Space: KeyDo takes a screenshot of the whole screen and pastes it where you were typing.
+
+## Reply
+- "reply" and "r" are reserved for the Reply app. They cannot be used for any other shortcut, even if you saved your own word list earlier.
 
 ## Keyboard safety
-Checked: the key tap (`miniJSlashTap`), its release guard and the heartbeat watchdog were not touched in this version. Nothing new swallows keys.
+Checked: the key tap `miniJSlashTap` changed in one place only. The characters `@`, `#`, `$` and `=` now keep a typed trigger going instead of ending it, and the key still reaches the app you are typing in. Nothing new swallows keys, and the release guard (popup gone, 60 quiet seconds, Escape) and the heartbeat watchdog are unchanged.
