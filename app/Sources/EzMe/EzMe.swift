@@ -3417,7 +3417,7 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
 }
 @MainActor final class EzMeKeyablePickerWindow:NSPanel { override var canBecomeKey:Bool{true} }
 @MainActor final class MiniJPickerPanel: NSObject,NSWindowDelegate {
-    private var panel: NSPanel?
+    private var panel: NSPanel? { didSet { miniJPanelShowing = (panel != nil) } }
     private let search = PickerSearch()
     private var phraseObserver:NSObjectProtocol?
     private var database: DB?
@@ -3681,16 +3681,37 @@ final class MiniJAppDelegate:NSObject,NSApplicationDelegate {
  var lastExternalApp:NSRunningApplication?;var pickerActive=false;var triggerTracking=false;var imagePromptMode=false;var triggerBuffer="";var queryBuffer="";var slashTap:CFMachPort?;var slashSource:CFRunLoopSource?;var permissionTimer:Timer?;var tapFailureReported=false
  func applicationDidFinishLaunching(_ notification:Notification){DispatchQueue.main.asyncAfter(deadline:.now()+3){KeyDoVoice.shared.armWatchdog()};NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(appActivated(_:)),name:NSWorkspace.didActivateApplicationNotification,object:nil);if AXIsProcessTrusted(){installSlashTap()}}
  func requestSlashPermission(){if AXIsProcessTrusted(){installSlashTap();return};let options=[kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String:true] as CFDictionary;_ = AXIsProcessTrustedWithOptions(options);permissionTimer=Timer.scheduledTimer(withTimeInterval:1,repeats:true){[weak self] t in guard let self=self else{return};if AXIsProcessTrusted(){t.invalidate();self.permissionTimer=nil;self.installSlashTap()}}}
- func installSlashTap(){guard slashTap==nil else{return};let mask=CGEventMask(1)<<CGEventType.keyDown.rawValue;guard let tap=CGEvent.tapCreate(tap:.cgSessionEventTap,place:.headInsertEventTap,options:.defaultTap,eventsOfInterest:mask,callback:miniJSlashTap,userInfo:Unmanaged.passUnretained(self).toOpaque())else{if !tapFailureReported{tapFailureReported=true;DispatchQueue.main.async{NotificationCenter.default.post(name:.ezmeTapFailed,object:nil)}};if permissionTimer==nil{permissionTimer=Timer.scheduledTimer(withTimeInterval:2,repeats:true){[weak self] timer in guard let self else{return};if self.slashTap != nil{timer.invalidate();self.permissionTimer=nil}else{self.installSlashTap()}}};return};permissionTimer?.invalidate();permissionTimer=nil;tapFailureReported=false;slashTap=tap;slashSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,tap,0);if let source=slashSource{CFRunLoopAddSource(CFRunLoopGetMain(),source,.commonModes)};CGEvent.tapEnable(tap:tap,enable:true)}
+ func installSlashTap(){guard slashTap==nil else{return};let mask=CGEventMask(1)<<CGEventType.keyDown.rawValue;guard let tap=CGEvent.tapCreate(tap:.cgSessionEventTap,place:.headInsertEventTap,options:.defaultTap,eventsOfInterest:mask,callback:miniJSlashTap,userInfo:Unmanaged.passUnretained(self).toOpaque())else{if !tapFailureReported{tapFailureReported=true;DispatchQueue.main.async{NotificationCenter.default.post(name:.ezmeTapFailed,object:nil)}};if permissionTimer==nil{permissionTimer=Timer.scheduledTimer(withTimeInterval:2,repeats:true){[weak self] timer in guard let self else{return};if self.slashTap != nil{timer.invalidate();self.permissionTimer=nil}else{self.installSlashTap()}}};return};permissionTimer?.invalidate();permissionTimer=nil;tapFailureReported=false;slashTap=tap;slashSource=CFMachPortCreateRunLoopSource(kCFAllocatorDefault,tap,0);if let source=slashSource{CFRunLoopAddSource(CFRunLoopGetMain(),source,.commonModes)};CGEvent.tapEnable(tap:tap,enable:true);startTapWatchdog()}
+ var tapWatchdog:DispatchSourceTimer?;var tapPausedByWatchdog=false
+ /// If the app's main thread hangs, every key typed anywhere would wait for it. Switch the tap off from a background timer until the app answers again.
+ func startTapWatchdog(){guard tapWatchdog==nil else{return};let timer=DispatchSource.makeTimerSource(queue:DispatchQueue.global(qos:.userInteractive));timer.schedule(deadline:.now()+0.4,repeating:0.4);timer.setEventHandler{[weak self] in guard let self,let tap=self.slashTap else{return};DispatchQueue.main.async{miniJMainBeat=CFAbsoluteTimeGetCurrent()};let silent=CFAbsoluteTimeGetCurrent()-miniJMainBeat;if silent>0.9{if !self.tapPausedByWatchdog{self.tapPausedByWatchdog=true;CGEvent.tapEnable(tap:tap,enable:false)}}else if self.tapPausedByWatchdog{self.tapPausedByWatchdog=false;CGEvent.tapEnable(tap:tap,enable:true)}};timer.resume();tapWatchdog=timer}
  @objc func appActivated(_ note:Notification){guard let app=note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,app.bundleIdentifier != Bundle.main.bundleIdentifier else{return};lastExternalApp=app}
 }
 private var miniJTriggerStamp:CFAbsoluteTime=0
+/// True only while the KeyDo popup is on screen. The key tap uses it to make sure it never keeps eating keys with no popup to show for them.
+private var miniJPanelShowing=false
+private var miniJModeSince:CFAbsoluteTime=0
+private var miniJLastSwallow:CFAbsoluteTime=0
+private var miniJMainBeat:CFAbsoluteTime=CFAbsoluteTimeGetCurrent()
 private func miniJSlashTap(_ proxy:CGEventTapProxy,_ type:CGEventType,_ event:CGEvent,_ userInfo:UnsafeMutableRawPointer?)->Unmanaged<CGEvent>? {
  guard let p=userInfo else{return Unmanaged.passUnretained(event)}
  let app=Unmanaged<MiniJAppDelegate>.fromOpaque(p).takeUnretainedValue()
- if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {if let tap=app.slashTap{CGEvent.tapEnable(tap:tap,enable:true)};return Unmanaged.passUnretained(event)}
+ if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {app.pickerActive=false;app.imagePromptMode=false;app.triggerTracking=false;miniJModeSince=0;if let tap=app.slashTap,!app.tapPausedByWatchdog{CGEvent.tapEnable(tap:tap,enable:true)};return Unmanaged.passUnretained(event)}
  guard type == .keyDown else{return Unmanaged.passUnretained(event)}
  let key=event.getIntegerValueField(.keyboardEventKeycode)
+ // Keyboard safety. KeyDo may only hold on to keys while its popup is really open. If a mode is stuck on (popup gone, or no key handled for a minute), let go at once so the keyboard works in every app.
+ if app.pickerActive || app.imagePromptMode {
+  let now=CFAbsoluteTimeGetCurrent()
+  if miniJModeSince==0{miniJModeSince=now}
+  let quiet=now-max(miniJModeSince,miniJLastSwallow)
+  if key==Int64(kVK_Escape) || !miniJPanelShowing && now-miniJModeSince>1.5 || quiet>60{
+   app.pickerActive=false;app.imagePromptMode=false;app.triggerTracking=false;miniJModeSince=0
+   DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)}
+   return Unmanaged.passUnretained(event)
+  }
+  miniJLastSwallow=now
+ }else{miniJModeSince=0}
+ if app.triggerTracking,CFAbsoluteTimeGetCurrent()-miniJTriggerStamp>30{app.triggerTracking=false;DispatchQueue.main.async{NotificationCenter.default.post(name:.miniJClosePicker,object:app)}}
  // Capture image prompt keys directly while the floating panel remains non-activating.
  if app.imagePromptMode {
   let flags=event.flags
