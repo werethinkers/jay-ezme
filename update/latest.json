@@ -1,9 +1,9 @@
 {
-  "version": "3.86",
-  "build": 388,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.86-build388/EzMe-3.86-macOS.zip",
-  "sha256": "dcccb757bc9f2e469abbb198a7c32e4c952f7b157ffa27ce2e649105a9642700",
-  "notes": "# KeyDo 3.86\n\n## Prompt Builder: compact and temporary link up front\n- The temporary link box now sits at the top of Prompt Builder with a bold border, instead of at the bottom. Paste a link, Send to link, Clear (or say \"clear link\").\n- Compact layout for a browser panel of about a third of the screen: the page drops to one column when it is narrow, the step bar hides when there is no room, and the header, cards and spacing are smaller. Voice commands and Copy are icons.\n- Collection Builder shares the same slimmer header and cards.\n\n## Keyboard safety\nChecked: this version only changes layout. The key tap, its release guard and the heartbeat watchdog were not touched, and nothing new swallows keys.",
-  "published": "2026-11-19T11:11:20Z",
+  "version": "3.87",
+  "build": 389,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.87-build389/EzMe-3.87-macOS.zip",
+  "sha256": "b2ccdf2ec18581885d478ed03a1adb3da6c687c37b57a1f49051ae3fdf8b757d",
+  "notes": "# KeyDo 3.87\n\n## Prompt Builder: compact and temporary link up front\n- The temporary link box now sits at the top of Prompt Builder with a bold border, instead of at the bottom. Paste a link, Send to link, Clear (or say \"clear link\").\n- Compact layout for a browser panel of about a third of the screen: the page drops to one column when it is narrow, the step bar hides when there is no room, and the header, cards and spacing are smaller. Voice commands and Copy are icons.\n- Collection Builder shares the same slimmer header and cards.\n\n## Keyboard safety\nChecked: this version only changes layout. The key tap, its release guard and the heartbeat watchdog were not touched, and nothing new swallows keys.",
+  "published": "2026-11-19T11:26:22Z",
   "minimumSystemVersion": "14.0"
 }
