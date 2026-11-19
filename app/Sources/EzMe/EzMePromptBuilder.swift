@@ -475,25 +475,16 @@ struct PromptBuilderView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 10) {
                 header
-                PromptStepper(steps: [
-                    (1, "Write prompt", "Type or speak what you want", !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
-                    (2, "Add context", "Collections, media, files", fileCount > 0),
-                    (3, "Check", "Spelling and names fixed", !finalPrompt.isEmpty),
-                    (4, "Send", "Opens in the side panel", flashTarget != nil)
-                ])
-                HStack(alignment: .top, spacing: 16) {
-                    VStack(spacing: 16) {
-                        typingBox
-                        contextBox
+                tempLinkRow
+                ViewThatFits(in: .horizontal) { stepper; EmptyView() }
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 10) {
+                        VStack(spacing: 10) { typingBox; contextBox }.frame(minWidth: 360)
+                        VStack(spacing: 10) { liveBox; sendBox }.frame(minWidth: 300, idealWidth: 360, maxWidth: 420)
                     }
-                    .frame(minWidth: 420)
-                    VStack(spacing: 16) {
-                        liveBox
-                        sendBox
-                    }
-                    .frame(minWidth: 340, idealWidth: 400, maxWidth: 460)
+                    VStack(spacing: 10) { typingBox; contextBox; liveBox; sendBox }
                 }
                 if !notice.isEmpty {
                     Label(notice, systemImage: "info.circle.fill").font(.callout).foregroundStyle(Butter.cocoa)
@@ -502,7 +493,7 @@ struct PromptBuilderView: View {
                 }
             }
             .frame(maxWidth: 1240, alignment: .leading)
-            .padding(26)
+            .padding(12)
         }
         .onAppear { recompute(); lastText = text }
         .task(id: clips.count + records.count + builderApps.count) {
@@ -1174,7 +1165,6 @@ struct PromptBuilderView: View {
             } else if editingSites {
                 Text("Star a site to show it. Use the arrows to rank them: the top \(PromptTargets.maxShown) starred sites are shown, the rest still work by voice. You can add as many sites and models as you like.").font(.caption).foregroundStyle(.secondary)
             }
-            tempLinkRow
             Text("Attached media goes into the site's own upload box, so the site's own sign-in is used.")
                 .font(.caption).foregroundStyle(.secondary)
             ForEach(targets.filter { $0.learned != nil }) { target in
@@ -1183,16 +1173,27 @@ struct PromptBuilderView: View {
         }
     }
 
+    private var stepper: some View {
+        PromptStepper(steps: [
+            (1, "Write prompt", "Type or speak what you want", !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
+            (2, "Add context", "Collections, media, files", fileCount > 0),
+            (3, "Check", "Spelling and names fixed", !finalPrompt.isEmpty),
+            (4, "Send", "Opens in the side panel", flashTarget != nil)
+        ])
+    }
+
     private var tempLinkRow: some View {
         HStack(spacing: 8) {
-            Image(systemName: "link").foregroundStyle(Butter.coral)
-            TextField("Temporary link: paste a site address for this send only", text: $tempLink).textFieldStyle(.roundedBorder)
-            Button("Send to link") { sendToTempLink() }.buttonStyle(.borderedProminent).tint(Butter.coral)
+            Image(systemName: "link.badge.plus").font(.system(size: 15, weight: .semibold)).foregroundStyle(Butter.coral)
+            TextField("Temporary link: paste a site address, used for this send only", text: $tempLink).textFieldStyle(.roundedBorder).controlSize(.small)
+            Button("Send to link") { sendToTempLink() }.buttonStyle(.borderedProminent).controlSize(.small).tint(Butter.coral)
                 .disabled(tempLink.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !canSend)
-            Button("Clear") { tempLink = ""; notice = "Temporary link cleared." }.buttonStyle(.bordered).disabled(tempLink.isEmpty)
+            Button("Clear") { tempLink = ""; notice = "Temporary link cleared." }.buttonStyle(.bordered).controlSize(.small).disabled(tempLink.isEmpty)
                 .help("Removes the link. You can also say “clear link”.")
         }
-        .padding(10).background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Butter.honey.opacity(0.25)))
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Butter.honey.opacity(0.35)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Butter.coral.opacity(0.55), lineWidth: 1.5))
     }
 
     private func sendToTempLink() {

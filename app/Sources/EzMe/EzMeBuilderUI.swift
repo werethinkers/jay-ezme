@@ -9,16 +9,16 @@ struct BuilderHeader<Trailing: View>: View {
     @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             Image(systemName: symbol)
-                .font(.system(size: 24, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 56, height: 56)
+                .frame(width: 40, height: 40)
                 .background(LinearGradient(colors: [Butter.coral, Butter.coral.opacity(0.78)], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .shadow(color: Butter.coral.opacity(0.28), radius: 8, y: 4)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.system(size: 27, weight: .heavy, design: .rounded)).foregroundStyle(Butter.cocoa)
-                Text(subtitle).font(.system(size: 13)).foregroundStyle(.secondary).lineLimit(2)
+                Text(title).font(.system(size: 21, weight: .heavy, design: .rounded)).foregroundStyle(Butter.cocoa)
+                Text(subtitle).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 12)
             trailing()
@@ -36,8 +36,8 @@ struct BuilderCard<Content: View, Accessory: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
                 if let step {
                     Text("\(step)").font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(.white)
                         .frame(width: 26, height: 26).background(Butter.coral, in: Circle())
@@ -53,7 +53,7 @@ struct BuilderCard<Content: View, Accessory: View>: View {
             }
             content()
         }
-        .padding(16)
+        .padding(11)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(Butter.cream.opacity(0.62), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Butter.coral.opacity(0.16), lineWidth: 1))
