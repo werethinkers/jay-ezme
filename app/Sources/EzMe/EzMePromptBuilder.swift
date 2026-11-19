@@ -370,6 +370,7 @@ struct PromptBuilderView: View {
     @State private var markIndex = PromptMarkIndex()
     @State private var apps = [PromptAppEntry]()
     @State private var autoMarks = [PromptAutoMark]()
+    @AppStorage("keydoPromptLastSite") private var lastSite = ""
     @State private var manualFiles = [PromptAttachment]()
     @State private var mediaList = [Clip]()
     @State private var plainList = [Clip]()
@@ -410,6 +411,7 @@ struct PromptBuilderView: View {
                     Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
                     BuilderStepPill(number: 3, title: "Send", done: flashTarget != nil)
                 }
+                readyBar
                 HStack(alignment: .top, spacing: 16) {
                     typingBox.frame(minWidth: 360)
                     liveBox.frame(minWidth: 300)
@@ -452,6 +454,34 @@ struct PromptBuilderView: View {
             }
             tokenGuide
         }
+    }
+
+    private var quickTarget: PromptTarget? { targets.first(where: { $0.name == lastSite }) ?? targets.first }
+
+    private var fileCount: Int { composition.attachments.count + manualFiles.count }
+
+    /// One line that says what is ready, and one button that sends it to the site used last.
+    private var readyBar: some View {
+        let hasPrompt = !finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return HStack(spacing: 12) {
+            Image(systemName: canSend ? "checkmark.circle.fill" : "circle.dashed").font(.title2).foregroundStyle(canSend ? Butter.coral : .secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(canSend ? "Ready to send" : "Start by writing your prompt").font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa)
+                Text((hasPrompt ? "Prompt written" : "No prompt yet") + " · " + (fileCount == 0 ? "no media or files" : "\(fileCount) media or file\(fileCount == 1 ? "" : "s")") + " · say “send to \(quickTarget?.name.lowercased() ?? "chatgpt")” to send by voice")
+                    .font(.system(size: 11.5)).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Button { copyPrompt() } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(.bordered).disabled(!hasPrompt)
+            if let target = quickTarget {
+                Button { send(to: target) } label: { Label("Send to \(target.name)", systemImage: "paperplane.fill") }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(!canSend)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .help("Opens \(target.name) in the side panel, pastes your prompt and files, and sends. Shortcut: Command Return.")
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 12)
+        .background(Butter.coral.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Butter.coral.opacity(0.2)))
     }
 
     private var tokenGuide: some View {
@@ -1023,6 +1053,7 @@ struct PromptBuilderView: View {
         notice = prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && files.isEmpty
             ? "Opening \(target.name). The prompt is empty, so there is nothing to send yet."
             : "Opening \(target.name) in the side panel and sending your prompt" + (attached > 0 ? " with \(attached) attached media…" : "…")
+        lastSite = target.name
         flashTarget = target.name
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { if flashTarget == target.name { flashTarget = nil } }
     }
@@ -1067,16 +1098,23 @@ struct PromptBuilderView: View {
     }
 
     private var addSiteSheet: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Add an AI site").font(.title3.weight(.bold))
-            TextField("Name, for example Mistral", text: $newSiteName)
-            TextField("Address, for example chat.mistral.ai", text: $newSiteURL)
-            Text("KeyDo opens the page in the side panel and reads it once: the prompt box, the places to add pictures or video, and the Generate or Send button. Sign in there if it asks. Then your prompt and media are put in the right places and it starts running. Image and video sites may use up credits when it presses Generate.")
-                .font(.caption).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Add an AI site").font(.title3.weight(.bold)).foregroundStyle(Butter.cocoa)
+            Text("Fill in step 1 and press Add. KeyDo then guides you through the rest, in this order.").font(.callout).foregroundStyle(.secondary)
+            setupStep(1, "Name and address", "Type the site's name (this is also what you say: “send to \(newSiteName.isEmpty ? "mistral" : newSiteName.lowercased())”) and its web address.") {
+                VStack(spacing: 8) {
+                    TextField("Name, for example Mistral", text: $newSiteName).textFieldStyle(.roundedBorder)
+                    TextField("Address, for example chat.mistral.ai", text: $newSiteURL).textFieldStyle(.roundedBorder)
+                }
+            }
+            setupStep(2, "Sign in once", "After you press Add, the page opens in the side panel. Sign in there if it asks. KeyDo uses that sign-in, never your password.")
+            setupStep(3, "KeyDo reads the page", "It finds the prompt box, the places to add pictures or video, and the Send or Generate button. If something looks wrong later, right-click the site and choose Read the page again.")
+            setupStep(4, "Try it", "Write a short prompt, add a file if you like, and press the site's tile. Then you can say “send to \(newSiteName.isEmpty ? "name" : newSiteName.lowercased())” any time.")
+            Text("Image and video sites may use up credits when KeyDo presses Generate.").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()
                 Button("Cancel") { showAddSite = false }
-                Button("Add") {
+                Button("Add and open") {
                     let addedName = newSiteName.trimmingCharacters(in: .whitespacesAndNewlines)
                     PromptTargets.addCustom(name: newSiteName, url: newSiteURL)
                     targets = PromptTargets.load()
@@ -1085,12 +1123,28 @@ struct PromptBuilderView: View {
                     newSiteURL = ""
                     showAddSite = false
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.borderedProminent).tint(Butter.coral)
                 .disabled(newSiteName.trimmingCharacters(in: .whitespaces).isEmpty || newSiteURL.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
-        .padding(20)
-        .frame(width: 400)
+        .padding(22)
+        .frame(width: 470)
+    }
+
+    private func setupStep<Extra: View>(_ number: Int, _ title: String, _ detail: String, @ViewBuilder extra: () -> Extra) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text("\(number)").font(.system(size: 13, weight: .heavy, design: .rounded)).foregroundStyle(.white)
+                .frame(width: 26, height: 26).background(Butter.coral, in: Circle())
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa)
+                Text(detail).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                extra()
+            }
+        }
+    }
+
+    private func setupStep(_ number: Int, _ title: String, _ detail: String) -> some View {
+        setupStep(number, title, detail) { EmptyView() }
     }
 }
 

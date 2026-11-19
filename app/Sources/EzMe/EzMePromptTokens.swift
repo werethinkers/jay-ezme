@@ -430,7 +430,8 @@ enum PromptVoice {
         ("edit word", "deletes the last word, then say the new one"),
         ("edit prompt rohit", "finds that word, removes it, and your next words go in its place"),
         ("end edit", "go back to the end of the prompt"),
-        ("enter chatgpt · grok · claude · gemini", "opens that site in the side panel and sends the prompt"),
+        ("send to chatgpt · share with grok · paste in claude", "opens that site, pastes your prompt and any media or files, and sends"),
+        ("enter gemini", "same thing, shorter (works for every site you add)"),
     ]
 
     /// Words the speech engine should expect, so it hears the command words and your own names properly.
@@ -438,7 +439,7 @@ enum PromptVoice {
         var hints = ["hashtag", "hash", "at sign", "mention", "equals", "equal sign", "comma", "full stop", "question mark", "new line",
                      "undo one word", "undo one sentence", "edit word", "edit prompt", "end edit",
                      "accept suggestion", "accept all", "dismiss suggestions", "dot media"]
-        for target in targets { hints.append("enter " + target.name) }
+        for target in targets { hints.append("enter " + target.name); hints.append("send to " + target.name); hints.append("share with " + target.name); hints.append("paste in " + target.name) }
         for item in PromptFunctions.names { hints.append("equals " + item.name) }
         for clip in clips.prefix(40) {
             let key = PromptSuggestions.trimmedKey(clip.key)
@@ -474,6 +475,10 @@ enum PromptVoice {
         (["at", "the", "rate"], .mention), (["at", "sign"], .mention), (["at", "symbol"], .mention), (["mention"], .mention),
         (["equals", "sign"], .equals), (["equal", "sign"], .equals), (["equal", "to"], .equals), (["equals"], .equals), (["equal"], .equals),
         (["comma"], .comma),
+        (["send", "this", "to"], .enter), (["send", "it", "to"], .enter), (["send", "prompt", "to"], .enter), (["send", "to"], .enter),
+        (["share", "this", "with"], .enter), (["share", "it", "with"], .enter), (["share", "with"], .enter), (["share", "to"], .enter),
+        (["paste", "this", "in"], .enter), (["paste", "it", "in"], .enter), (["paste", "into"], .enter), (["paste", "in"], .enter),
+        (["post", "to"], .enter), (["submit", "to"], .enter),
         (["enter"], .enter), (["inter"], .enter), (["entre"], .enter),
     ]
 
@@ -822,7 +827,7 @@ enum PromptVoice {
                     sends.append(target.0)
                     i = next + target.1
                 } else {
-                    append(words[i], to: &head)
+                    for k in i..<next { append(words[k], to: &head) }
                     i = next
                 }
             case .accept, .acceptAll, .dismiss:

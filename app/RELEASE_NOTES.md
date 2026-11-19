@@ -1,5 +1,5 @@
-# KeyDo 3.74
+# KeyDo 3.75
 
-- **Home page:** new "Builders" row with Collection Builder, Prompt Builder and MyDatabase, one click each.
-- **Voice:** say "open collection builder", "open prompt builder" or "open my database" (also "build a collection", "write a prompt") to open them.
-- **Prompt Builder:** new "Attach files" button, and you can drop files onto the page. Pictures, videos, PDFs and any other file go to the AI site with your prompt, next to media added with # and @. Remove a file with its x.
+- **Prompt Builder, one-click send:** a "Ready to send" bar shows what is ready (prompt, media, files) and has one button that sends to the site you used last (Command Return also works), plus Copy.
+- **Voice:** say "send to chatgpt", "share with grok", "paste in claude" or "enter gemini" (any site you added too). KeyDo opens the site, pastes your prompt and any media or files, and sends. Ordinary dictation containing these words is left alone unless a site name follows.
+- **Add an AI site:** now a short guide in order: 1 name and address, 2 sign in once, 3 KeyDo reads the page, 4 try it and say "send to <name>". After adding, the page opens so you can sign in.
