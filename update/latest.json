@@ -1,9 +1,9 @@
 {
-  "version": "3.79",
-  "build": 380,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.79-build380/EzMe-3.79-macOS.zip",
-  "sha256": "417046d0f7f4e281cfcc8ef15a330cc196df3199d61d4b44b49d5881c8666d21",
-  "notes": "# KeyDo 3.79\n\n- **Settings \u2192 Words shortcuts cannot be:** the full list of words that would clash with voice and commands, now over 200: action words (send, play, call, show, make, design, create, generate, open, write, search, \u2026), pronouns and small words. Add your own, remove any (click the x), search the list, reset to the standard list, or switch the check off. New shortcuts, edited shortcuts and bulk pastes all follow this list, and KeyDo suggests a suffix such as .pic, .phone or .mobile.\n- **Settings \u2192 Siri & voice commands:** switch on \"Use Siri as a voice command across all apps\". KeyDo then accepts keydo:// links from Siri and the Shortcuts app, so from any app you can say \"Hey Siri, KeyDo\" and a command such as \"open prompt builder\" or \"send to chatgpt\". The settings page has the one-time Shortcuts setup and copyable links.\n- Keyboard safety: no change to the key watcher.",
-  "published": "2026-11-19T06:34:58Z",
+  "version": "3.80",
+  "build": 381,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.80-build381/EzMe-3.80-macOS.zip",
+  "sha256": "5bd16c7feab7ae8c48a009c39e404256c4ba60af0889ffc526f36c8ad2e0f176",
+  "notes": "# KeyDo 3.80\n\n- **Smoother voice commands, one brain for voice, Siri and Shortcuts.** KeyDo now understands the whole sentence the same way wherever it comes from: \"Hey Siri, KeyDo, please open the prompt builder\", \"go to my collection builder\", \"show me settings\", \"open youtube dot com\".\n- **Open anything by name:** the main screens, every AppBuilder app (Collection Builder, MyDatabase, Prompt Builder, Template Designer and the apps you made), AppDesigner and WishStudio, your collections (\"collection rohit\"), your saved browser sites, web addresses, and Mac apps (\"open Notes\"). Greetings, \"open\", \"the\", \"my\", \"app\" and punctuation are ignored, and close mishearings still match.\n- **Siri:** \"send to chatgpt\" now also works with a Siri lead-in (\"Hey Siri, KeyDo, send it to ChatGPT\"), and the keydo:// links accept both keydo://voice?text=\u2026 and keydo://voice/open prompt builder.\n- Keyboard safety: no change to the key watcher.",
+  "published": "2026-11-19T07:08:20Z",
   "minimumSystemVersion": "14.0"
 }
