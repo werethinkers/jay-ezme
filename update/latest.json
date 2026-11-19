@@ -1,9 +1,9 @@
 {
-  "version": "3.74",
-  "build": 375,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.74-build375/EzMe-3.74-macOS.zip",
-  "sha256": "14fa7cfe2d7030de2ab453adc28ffcff2ce91ce0411d6aed677ac8190793b190",
-  "notes": "# KeyDo 3.74\n\n- **Home page:** new \"Builders\" row with Collection Builder, Prompt Builder and MyDatabase, one click each.\n- **Voice:** say \"open collection builder\", \"open prompt builder\" or \"open my database\" (also \"build a collection\", \"write a prompt\") to open them.\n- **Prompt Builder:** new \"Attach files\" button, and you can drop files onto the page. Pictures, videos, PDFs and any other file go to the AI site with your prompt, next to media added with # and @. Remove a file with its x.",
-  "published": "2026-11-19T04:17:16Z",
+  "version": "3.75",
+  "build": 376,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.75-build376/EzMe-3.75-macOS.zip",
+  "sha256": "8ac4eda384a98aacba048422e8733d39f2a02f477f7aea92e94dbd2a88d6dc5c",
+  "notes": "# KeyDo 3.75\n\n- **Prompt Builder, one-click send:** a \"Ready to send\" bar shows what is ready (prompt, media, files) and has one button that sends to the site you used last (Command Return also works), plus Copy.\n- **Voice:** say \"send to chatgpt\", \"share with grok\", \"paste in claude\" or \"enter gemini\" (any site you added too). KeyDo opens the site, pastes your prompt and any media or files, and sends. Ordinary dictation containing these words is left alone unless a site name follows.\n- **Add an AI site:** now a short guide in order: 1 name and address, 2 sign in once, 3 KeyDo reads the page, 4 try it and say \"send to <name>\". After adding, the page opens so you can sign in.",
+  "published": "2026-11-19T05:05:19Z",
   "minimumSystemVersion": "14.0"
 }
