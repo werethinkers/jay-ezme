@@ -1,9 +1,9 @@
 {
-  "version": "3.73",
-  "build": 374,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.73-build374/EzMe-3.73-macOS.zip",
-  "sha256": "481af064d42b9bae64b04cac21627711627cd9d7916e7c3e7da1f617ca29ba9c",
-  "notes": "# KeyDo 3.73\n\n- **Collections:** deleting selected shortcuts (or all of them with Select all) now removes them in one go and the list updates straight away. Before, the shortcuts were removed in the background but the collection list kept showing them until you switched collections.",
-  "published": "2026-11-18T21:28:40Z",
+  "version": "3.74",
+  "build": 375,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.74-build375/EzMe-3.74-macOS.zip",
+  "sha256": "14fa7cfe2d7030de2ab453adc28ffcff2ce91ce0411d6aed677ac8190793b190",
+  "notes": "# KeyDo 3.74\n\n- **Home page:** new \"Builders\" row with Collection Builder, Prompt Builder and MyDatabase, one click each.\n- **Voice:** say \"open collection builder\", \"open prompt builder\" or \"open my database\" (also \"build a collection\", \"write a prompt\") to open them.\n- **Prompt Builder:** new \"Attach files\" button, and you can drop files onto the page. Pictures, videos, PDFs and any other file go to the AI site with your prompt, next to media added with # and @. Remove a file with its x.",
+  "published": "2026-11-19T04:17:16Z",
   "minimumSystemVersion": "14.0"
 }
