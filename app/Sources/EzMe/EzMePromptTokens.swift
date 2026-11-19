@@ -535,14 +535,21 @@ enum PromptVoice {
         return previous[y.count]
     }
 
+    /// A site answers to its name, its common mishearings and the voice command the person gave it.
+    static func allAliases(_ target: PromptTarget) -> Set<String> {
+        var set = aliases(for: target.name)
+        if let voice = target.voice, !norm(voice).isEmpty { set.insert(norm(voice)) }
+        return set
+    }
+
     /// The site a spoken name means: exactly, by a known mishearing, or by being one or two letters off.
     static func bestTarget(_ spoken: String, _ targets: [PromptTarget]) -> PromptTarget? {
         guard spoken.count >= 3 else { return nil }
-        if let exact = targets.first(where: { aliases(for: $0.name).contains(spoken) }) { return exact }
+        if let exact = targets.first(where: { allAliases($0).contains(spoken) }) { return exact }
         var best: (PromptTarget, Int)?
         var tie = false
         for target in targets {
-            let distance = aliases(for: target.name).map { editDistance(spoken, $0) }.min() ?? 99
+            let distance = allAliases(target).map { editDistance(spoken, $0) }.min() ?? 99
             let limit = norm(target.name).count <= 4 ? 1 : 2
             guard distance <= limit else { continue }
             if let current = best {

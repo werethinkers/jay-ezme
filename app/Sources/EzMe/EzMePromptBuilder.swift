@@ -36,6 +36,8 @@ struct PromptTarget: Codable, Identifiable, Equatable {
     var send: [String]
     var builtIn: Bool = false
     var learned: LearnedPage? = nil
+    /// What the person says to send to this site, such as "story bot". Up to three words.
+    var voice: String? = nil
     var id: String { name }
 }
 
@@ -83,6 +85,34 @@ enum PromptTargets {
         return shown + custom()
     }
 
+    // MARK: Favourites and unique names
+
+    private static let unfavKey = "keydoPromptTargetsNotFavorite"
+    static func notFavorites() -> Set<String> { Set(UserDefaults.standard.stringArray(forKey: unfavKey) ?? []) }
+    static func isFavorite(_ name: String) -> Bool { !notFavorites().contains(name) }
+    static func setFavorite(_ name: String, _ on: Bool) {
+        var set = notFavorites()
+        if on { set.remove(name) } else { set.insert(name) }
+        UserDefaults.standard.set(Array(set), forKey: unfavKey)
+    }
+
+    private static func squash(_ value: String) -> String { String(value.lowercased().filter { $0.isLetter || $0.isNumber }) }
+
+    /// Every site name is unique across built-in and added sites, ignoring capitals, spaces and punctuation.
+    static func nameTaken(_ name: String, except: String? = nil) -> Bool {
+        let wanted = squash(name)
+        let all = defaults.map { $0.name } + custom().map { $0.name }
+        return all.contains { squash($0) == wanted && $0 != except }
+    }
+
+    /// A spoken command may not match another site's name or command.
+    static func voiceTaken(_ voice: String, except: String? = nil) -> Bool {
+        let wanted = squash(voice)
+        guard !wanted.isEmpty else { return false }
+        let all = defaults + custom()
+        return all.contains { $0.name != except && (squash($0.name) == wanted || squash($0.voice ?? "") == wanted) }
+    }
+
     /// Takes a link away. The built-in sites are hidden (they can be brought back); added sites are deleted.
     static func delete(_ target: PromptTarget) {
         if target.builtIn {
@@ -98,37 +128,49 @@ enum PromptTargets {
     }
 
     /// Changes the address (and for an added site, the name). An added site keeps what was learned only if its address is the same.
-    static func edit(_ target: PromptTarget, name: String, url: String) {
+    @discardableResult
+    static func edit(_ target: PromptTarget, name: String, url: String, voice: String? = nil) -> String? {
         var cleanURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanURL.isEmpty else { return }
+        guard !cleanURL.isEmpty else { return nil }
         if !cleanURL.lowercased().hasPrefix("http") { cleanURL = "https://" + cleanURL }
         if target.builtIn {
             var changed = overrides()
             changed[target.name] = cleanURL
             UserDefaults.standard.set(changed, forKey: overrideKey)
-            return
+            return nil
         }
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanName.isEmpty else { return }
+        guard !cleanName.isEmpty else { return nil }
+        if nameTaken(cleanName, except: target.name) { return "There is already a site called “\(cleanName)”. Site names must be different." }
+        let cleanVoice = (voice ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanVoice.isEmpty, voiceTaken(cleanVoice, except: target.name) || nameTaken(cleanVoice, except: target.name) { return "“\(cleanVoice)” is already the name or voice command of another site." }
         var items = custom()
-        guard let index = items.firstIndex(where: { $0.name == target.name }) else { return }
+        guard let index = items.firstIndex(where: { $0.name == target.name }) else { return nil }
+        if cleanName != target.name, !isFavorite(target.name) { setFavorite(target.name, true); setFavorite(cleanName, false) }
+        items[index].voice = cleanVoice.isEmpty ? nil : cleanVoice
         if cleanURL != items[index].url { items[index].learned = nil }
         items[index].name = cleanName
         items[index].url = cleanURL
         if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: customKey) }
+        return nil
     }
 
     /// Adds a site of the person's choice. It uses general-purpose selectors for the prompt box and send button.
-    static func addCustom(name: String, url: String) {
+    @discardableResult
+    static func addCustom(name: String, url: String, voice: String = "") -> String? {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         var cleanURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanName.isEmpty, !cleanURL.isEmpty else { return }
+        guard !cleanName.isEmpty, !cleanURL.isEmpty else { return nil }
+        if nameTaken(cleanName) { return "There is already a site called “\(cleanName)”. Site names must be different." }
+        let cleanVoice = voice.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanVoice.isEmpty, voiceTaken(cleanVoice) || nameTaken(cleanVoice) { return "“\(cleanVoice)” is already the name or voice command of another site." }
         if !cleanURL.lowercased().hasPrefix("http") { cleanURL = "https://" + cleanURL }
-        var items = custom().filter { $0.name.caseInsensitiveCompare(cleanName) != .orderedSame }
+        var items = custom()
         items.append(PromptTarget(name: cleanName, url: cleanURL,
                                   editor: ["textarea", "div.rich-editor[contenteditable]", "div.ProseMirror[contenteditable='true']", "[contenteditable='true']", "div[role='textbox']"],
-                                  send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[aria-label*='Submit' i]"]))
+                                  send: ["button[type='submit']", "button[aria-label*='Send' i]", "button[aria-label*='Submit' i]"], voice: cleanVoice.isEmpty ? nil : cleanVoice))
         if let data = try? JSONEncoder().encode(items) { UserDefaults.standard.set(data, forKey: customKey) }
+        return nil
     }
 
     static func setLearned(_ learned: LearnedPage, for name: String) {
@@ -389,6 +431,11 @@ struct PromptBuilderView: View {
     @State private var siteBeingEdited: PromptTarget?
     @State private var editSiteName = ""
     @State private var editSiteURL = ""
+    @State private var editSiteVoice = ""
+    @State private var editSiteError = ""
+    @State private var newSiteVoice = ""
+    @State private var newSiteError = ""
+    @State private var showAllSites = false
     @State private var newSiteName = ""
     @State private var newSiteURL = ""
 
@@ -1009,9 +1056,11 @@ struct PromptBuilderView: View {
     private var sendContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 190), spacing: 10)], alignment: .leading, spacing: 10) {
-                ForEach(targets) { target in
+                ForEach(editingSites ? targets : targets.filter { PromptTargets.isFavorite($0.name) }) { target in
                     if editingSites {
                         HStack(spacing: 4) {
+                            Button { PromptTargets.setFavorite(target.name, !PromptTargets.isFavorite(target.name)); targets = PromptTargets.load() } label: { Image(systemName: PromptTargets.isFavorite(target.name) ? "star.fill" : "star").foregroundStyle(Butter.coral) }
+                                .buttonStyle(.borderless).help(PromptTargets.isFavorite(target.name) ? "Favourite: shown on this page. Click to hide it (voice still works)." : "Click to show this site on this page.")
                             Text(target.name).font(.callout.weight(.semibold)).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
                             Button { beginEdit(target) } label: { Image(systemName: "pencil") }.buttonStyle(.borderless).help("Edit \(target.name)")
                             Button { PromptTargets.delete(target); targets = PromptTargets.load() } label: { Image(systemName: "trash") }.buttonStyle(.borderless).foregroundStyle(.red).help("Delete \(target.name)")
@@ -1033,6 +1082,12 @@ struct PromptBuilderView: View {
                     Button { PromptTargets.restoreBuiltIns(); targets = PromptTargets.load() } label: { Label("Bring back removed sites", systemImage: "arrow.uturn.backward").frame(maxWidth: .infinity) }
                         .buttonStyle(.bordered)
                 }
+            }
+            if !editingSites, targets.contains(where: { !PromptTargets.isFavorite($0.name) }) {
+                let hiddenSites = targets.filter { !PromptTargets.isFavorite($0.name) }
+                Text("\(hiddenSites.count) more site\(hiddenSites.count == 1 ? "" : "s") not shown. Say “send to \(hiddenSites[0].voice?.lowercased() ?? hiddenSites[0].name.lowercased())” or star them in Edit links.").font(.caption).foregroundStyle(.secondary)
+            } else if editingSites {
+                Text("Tap the star to show a site on this page. Sites without a star are not shown, but you can still send to them by voice.").font(.caption).foregroundStyle(.secondary)
             }
             Text("Attached media goes into the site's own upload box, so the site's own sign-in is used.")
                 .font(.caption).foregroundStyle(.secondary)
@@ -1061,6 +1116,8 @@ struct PromptBuilderView: View {
     private func beginEdit(_ target: PromptTarget) {
         editSiteName = target.name
         editSiteURL = target.url
+        editSiteVoice = target.voice ?? ""
+        editSiteError = ""
         siteBeingEdited = target
     }
 
@@ -1069,6 +1126,11 @@ struct PromptBuilderView: View {
             Text("Edit AI link").font(.title3.weight(.bold))
             TextField("Name", text: $editSiteName).disabled(siteBeingEdited?.builtIn == true)
             TextField("Address", text: $editSiteURL)
+            if siteBeingEdited?.builtIn != true {
+                TextField("Voice command, for example story bot", text: $editSiteVoice)
+                Text("Say “send to \(editSiteVoice.isEmpty ? editSiteName.lowercased() : editSiteVoice.lowercased())” to send to this site. Up to three words.").font(.caption).foregroundStyle(.secondary)
+            }
+            if !editSiteError.isEmpty { Label(editSiteError, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange) }
             Text(siteBeingEdited?.builtIn == true
                  ? "The name of a built-in site stays the same. You can point it at another address."
                  : "If you change the address, KeyDo reads the new page again.")
@@ -1079,7 +1141,7 @@ struct PromptBuilderView: View {
                 Button("Save") {
                     guard let target = siteBeingEdited else { return }
                     let oldURL = target.url
-                    PromptTargets.edit(target, name: editSiteName, url: editSiteURL)
+                    if let problem = PromptTargets.edit(target, name: editSiteName, url: editSiteURL, voice: editSiteVoice) { editSiteError = problem; return }
                     targets = PromptTargets.load()
                     siteBeingEdited = nil
                     if !target.builtIn, let updated = targets.first(where: { $0.name == editSiteName.trimmingCharacters(in: .whitespacesAndNewlines) }), updated.url != oldURL, updated.learned == nil { learn(updated) }
@@ -1101,10 +1163,13 @@ struct PromptBuilderView: View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Add an AI site").font(.title3.weight(.bold)).foregroundStyle(Butter.cocoa)
             Text("Fill in step 1 and press Add. KeyDo then guides you through the rest, in this order.").font(.callout).foregroundStyle(.secondary)
-            setupStep(1, "Name and address", "Type the site's name (this is also what you say: “send to \(newSiteName.isEmpty ? "mistral" : newSiteName.lowercased())”) and its web address.") {
+            setupStep(1, "Name, address and voice command", "Give the site a name that no other site uses, its web address, and the words you will say to send to it.") {
                 VStack(spacing: 8) {
                     TextField("Name, for example Mistral", text: $newSiteName).textFieldStyle(.roundedBorder)
                     TextField("Address, for example chat.mistral.ai", text: $newSiteURL).textFieldStyle(.roundedBorder)
+                    TextField("Voice command (optional), for example story bot", text: $newSiteVoice).textFieldStyle(.roundedBorder)
+                    Text("The voice command is what you say: “send to \(newSiteVoice.isEmpty ? (newSiteName.isEmpty ? "mistral" : newSiteName.lowercased()) : newSiteVoice.lowercased())”. Use one to three words. Leave it empty to use the name.").font(.caption2).foregroundStyle(.secondary)
+                    if !newSiteError.isEmpty { Label(newSiteError, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange) }
                 }
             }
             setupStep(2, "Sign in once", "After you press Add, the page opens in the side panel. Sign in there if it asks. KeyDo uses that sign-in, never your password.")
@@ -1116,11 +1181,13 @@ struct PromptBuilderView: View {
                 Button("Cancel") { showAddSite = false }
                 Button("Add and open") {
                     let addedName = newSiteName.trimmingCharacters(in: .whitespacesAndNewlines)
-                    PromptTargets.addCustom(name: newSiteName, url: newSiteURL)
+                    if let problem = PromptTargets.addCustom(name: newSiteName, url: newSiteURL, voice: newSiteVoice) { newSiteError = problem; return }
                     targets = PromptTargets.load()
                     if let added = targets.first(where: { $0.name == addedName }) { learn(added) }
                     newSiteName = ""
                     newSiteURL = ""
+                    newSiteVoice = ""
+                    newSiteError = ""
                     showAddSite = false
                 }
                 .buttonStyle(.borderedProminent).tint(Butter.coral)
@@ -1129,6 +1196,7 @@ struct PromptBuilderView: View {
         }
         .padding(22)
         .frame(width: 470)
+        .onAppear { newSiteError = "" }
     }
 
     private func setupStep<Extra: View>(_ number: Int, _ title: String, _ detail: String, @ViewBuilder extra: () -> Extra) -> some View {

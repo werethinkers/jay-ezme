@@ -1,6 +1,7 @@
-# KeyDo 3.76
+# KeyDo 3.77
 
-- **Keyboard safety fix:** KeyDo can no longer leave your keyboard stuck in other apps.
-  - KeyDo only holds on to keys while its popup is really open. If a popup mode is left on by mistake (popup gone, nothing typed for a minute, or Escape pressed), it lets go at once.
-  - If KeyDo itself ever freezes or is slow, its key watcher switches off by itself within a second and comes back when KeyDo responds again, so typing in other apps is never blocked.
-  - A half-typed slash trigger expires after 30 seconds instead of staying on.
+- **Add an AI site:** a "Voice command" box (one to three words, for example "story bot"). Saying "send to story bot" sends your prompt, media and files to that site. You can change it later in Edit links.
+- **Favourite sites:** in Edit links, tap the star to choose which sites are shown. Sites without a star are hidden from the page but still work by voice, so you can add many models without crowding.
+- **Unique site names:** no two sites can share a name (capitals, spaces and punctuation are ignored), and a voice command cannot match another site's name or command.
+- **Collections, safer shortcut words:** a new or changed shortcut cannot be only a command word (send, create, generate, design, make, open, write, …), a pronoun (I, me, she, he, they, …), or contain punctuation. KeyDo explains why and suggests a suffix such as .pic, .phone or .mobile. Bulk paste skips such rows and lists them.
+- Keyboard safety (3.76 protections) untouched by this release: the key tap code was not changed.
