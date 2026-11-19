@@ -320,6 +320,7 @@ struct WishApplicationStep: View {
                 labelled("Name in Hindi") { TextField("\u{091C}\u{0928}\u{094D}\u{092E}\u{0926}\u{093F}\u{0928}", text: $app.nameHi).textFieldStyle(.roundedBorder) }
             }
             labelled("Tagline") { TextField("Make a wish", text: $app.tagline).textFieldStyle(.roundedBorder) }
+            AppVoiceCommandBox(kind: .wish, name: app.name).id("voice." + app.name)
             HStack(spacing: 12) {
                 labelled("Kind of app") {
                     Picker("", selection: $app.kind) {

@@ -33,7 +33,7 @@ enum VoiceKeys {
 }
 
 enum VoiceCommand: Equatable {
-    case start, pause, stop, enter, scrollDown, scrollUp, clear, closePopup, openPopup, fillForm
+    case start, pause, stop, enter, scrollDown, scrollUp, nextItem, previousItem, clear, closePopup, openPopup, fillForm
 }
 
 /// The words KeyDo listens for. Plain data and functions, so it is not tied to the main actor.
@@ -49,6 +49,8 @@ enum VoiceGrammar {
         (["stop", "listening"], .stop), (["stop", "keydo"], .stop), (["stop", "key", "do"], .stop), (["stop", "voice"], .stop),
         (["scroll", "down"], .scrollDown), (["page", "down"], .scrollDown),
         (["scroll", "up"], .scrollUp), (["page", "up"], .scrollUp),
+        (["next", "one"], .nextItem), (["next", "result"], .nextItem), (["go", "down"], .nextItem), (["move", "down"], .nextItem),
+        (["previous", "one"], .previousItem), (["previous", "result"], .previousItem), (["go", "up"], .previousItem), (["move", "up"], .previousItem),
         (["enter"], .enter), (["select", "it"], .enter), (["paste", "it"], .enter), (["insert", "it"], .enter),
         (["clear", "search"], .clear), (["clear", "all"], .clear), (["start", "over"], .clear),
         (["close", "popup"], .closePopup), (["close", "panel"], .closePopup),
@@ -60,11 +62,15 @@ enum VoiceGrammar {
     /// Words that begin a longer command. They are held back until the next word arrives.
     static let starters: Set<String> = ["start", "resume", "pause", "stop", "scroll", "page", "select", "paste", "insert", "clear", "close", "open", "show", "fill"]
 
+    /// One spoken word that moves the highlight. Only counts when it is the whole phrase, so "sign up" in a search is left alone.
+    static let singleWords: [String: VoiceCommand] = ["next": .nextItem, "down": .nextItem, "up": .previousItem, "previous": .previousItem]
+
     static func match(_ words: [String], at index: Int) -> (VoiceCommand, Int)? {
         for entry in phrases.sorted(by: { $0.words.count > $1.words.count }) {
             let end = index + entry.words.count
             if end <= words.count, Array(words[index..<end]) == entry.words { return (entry.command, entry.words.count) }
         }
+        if words.count == 1, index == 0, let single = singleWords[words[0]] { return (single, 1) }
         return nil
     }
 }
@@ -477,7 +483,7 @@ final class KeyDoVoice: ObservableObject {
     }
 
     private func contextualWords() -> [String] {
-        var words = ["enter", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup", "fill by voice", "pause keydo", "stop keydo", "hey keydo", "keydo"]
+        var words = ["enter", "next", "down", "up", "scroll down", "scroll up", "start listening", "pause listening", "stop listening", "clear search", "close popup", "open popup", "fill by voice", "pause keydo", "stop keydo", "hey keydo", "keydo"]
         words += (handlers?.vocabulary() ?? []).prefix(120)
         return words
     }
@@ -559,11 +565,23 @@ final class KeyDoVoice: ObservableObject {
                 handler?.enter()
                 if !continuous && context == .app { stop(announce: false) }
             case .scrollDown:
-                say("Scroll down", sound: nil)
-                handlers?.move(3)
+                say("Next screen", sound: nil)
+                handlers?.move(6)
             case .scrollUp:
-                say("Scroll up", sound: nil)
-                handlers?.move(-3)
+                say("Previous screen", sound: nil)
+                handlers?.move(-6)
+            case .nextItem:
+                guard context == .popup else { return }
+                say("Next", sound: nil)
+                phraseWords = []
+                phrase = ""
+                handlers?.move(1)
+            case .previousItem:
+                guard context == .popup else { return }
+                say("Up", sound: nil)
+                phraseWords = []
+                phrase = ""
+                handlers?.move(-1)
             case .clear:
                 phraseWords = []
                 phrase = ""

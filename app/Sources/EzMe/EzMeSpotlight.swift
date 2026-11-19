@@ -50,6 +50,9 @@ struct SpotlightResults: View {
     private var visibleGroups: [(title: String, icon: String)] {
         Self.groups.filter { g in entries.contains(where: { $0.group == g.title }) || (g.title == "Shortcuts" && (search.isLoading || !search.isExhausted)) }
     }
+    /// Apps run something when chosen, so they are shown in blue instead of the usual brown, with an APP tag.
+    static let appColor = Color(red: 0.20, green: 0.36, blue: 0.86)
+    static func isApp(_ entry: SpotlightEntry) -> Bool { ["AppBuilder cards", "Ezyourlife apps", "Mac apps"].contains(entry.group) }
     private func items(_ group: String) -> [SpotlightEntry] { entries.filter { $0.group == group } }
     private var navigable: [SpotlightEntry] { Self.groups.flatMap { g in closed.contains(g.title) ? [] : items(g.title) } }
     private var current: SpotlightEntry? { navigable.first(where: { $0.id == selected }) ?? navigable.first }
@@ -92,7 +95,10 @@ struct SpotlightResults: View {
                 let list = navigable
                 guard !list.isEmpty else { return }
                 let index = list.firstIndex(where: { $0.id == current?.id }) ?? 0
-                let next = list[min(list.count - 1, max(0, index + delta))]
+                let target = index + delta
+                // One step rolls over from the last result to the first and back; a page stops at the end.
+                let landed = abs(delta) == 1 ? (target + list.count) % list.count : min(list.count - 1, max(0, target))
+                let next = list[landed]
                 lastKeyMove = Date()
                 selected = next.id
                 withAnimation(.easeOut(duration: 0.12)) { proxy.scrollTo(next.id, anchor: .center) }
@@ -157,7 +163,10 @@ struct SpotlightResults: View {
                 HStack(spacing: 10) {
                     tile(entry, size: 30)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(entry.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Butter.cocoa).lineLimit(1)
+                        HStack(spacing: 5) {
+                            Text(entry.title).font(.system(size: 13, weight: .semibold)).foregroundStyle(Self.isApp(entry) ? Self.appColor : Butter.cocoa).lineLimit(1)
+                            if Self.isApp(entry) { Text("APP").font(.system(size: 8.5, weight: .heavy)).foregroundStyle(.white).padding(.horizontal, 5).padding(.vertical, 1).background(Self.appColor, in: Capsule()) }
+                        }
                         if !entry.hint.isEmpty {
                             Text(entry.hint).font(.system(size: 11.5)).foregroundStyle(Butter.cocoa.opacity(0.6)).lineLimit(1)
                         }

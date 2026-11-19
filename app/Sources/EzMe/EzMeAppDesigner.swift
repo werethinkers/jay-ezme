@@ -752,6 +752,8 @@ struct AppDesignerView: View {
     @State private var renamingID: String?
     @State private var renameText = ""
     @State private var runningID: String?
+    @State private var moreLooksID: String?
+    @State private var voiceID: String?
     @State private var message = ""
 
     var body: some View {
@@ -850,6 +852,9 @@ struct AppDesignerView: View {
         .sheet(item: Binding(get: { usingID.map { DesignSheetID(id: $0) } }, set: { usingID = $0?.id })) { item in
             TemplateUseSheet(templateID: item.id, wishDirectory: wishDirectory)
         }
+        .sheet(item: Binding(get: { moreLooksID.map { DesignSheetID(id: $0) } }, set: { moreLooksID = $0?.id })) { item in
+            DesignMoreLooksSheet(designID: item.id)
+        }
         .sheet(item: Binding(get: { runningID.map { DesignSheetID(id: $0) } }, set: { runningID = $0?.id })) { item in
             AppDesignRunView(designID: item.id, onClose: { runningID = nil }).frame(minWidth: 940, minHeight: 640)
         }
@@ -892,6 +897,9 @@ struct AppDesignerView: View {
                 Button("Design") { open(design) }.buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
                 if design.version > 0 { Button("Run") { runningID = design.id }.buttonStyle(.bordered).controlSize(.small) }
                 Button("Use in apps") { usingID = "design:" + design.id }.buttonStyle(.bordered).controlSize(.small)
+                Button { voiceID = design.id } label: { Image(systemName: "waveform.badge.mic") }.buttonStyle(.bordered).controlSize(.small).help("Voice command for this app")
+                    .popover(isPresented: Binding(get: { voiceID == design.id }, set: { if !$0 { voiceID = nil } })) { AppVoiceCommandBox(kind: .designer, name: design.appTitle ?? design.name).frame(width: 360).padding(8) }
+                Button { moreLooksID = design.id } label: { Label("More looks", systemImage: "sparkles") }.buttonStyle(.bordered).controlSize(.small).help("One button: a ready prompt with your template pictures, sent to ChatGPT or Gemini for 2 to 5 more options")
                 Spacer()
                 Button {
                     if let made = designs.duplicate(design.id) { message = "Made \u{201C}\(made.appTitle ?? made.name)\u{201D}, a copy of \(design.appTitle ?? design.name). Release it to give it its own run word." }

@@ -1925,6 +1925,7 @@ struct AppIconGallerySheet:View{
     }
     TextField("Action code (e.g. invoice)",text:$shortcutPrefix).textFieldStyle(.roundedBorder)
     BuilderPhrasesEditor(app:name).id(name)
+    AppVoiceCommandBox(kind:.builder,name:name).id("voice."+name)
     Text("The Action says what to do. Add missing Information, pick saved shortcut content in Collection, then define calculations in Function and the final Selection.").font(.caption).foregroundStyle(.secondary)
    }
   } label:{Text("Step 1 · Action").font(.system(size:19,weight:.bold,design:.rounded)).help("Action (Prompt): choose an AI task or one-tap command that does the work. This is the purpose of your app.")}
@@ -3267,6 +3268,7 @@ private let keydoCompactPopupSize=CGSize(width:460,height:62)
                     popupBarButton("gearshape","Voice settings"){voice.popupSettingsOpen.toggle()}
                     popupBarButton("slider.horizontal.3","Options: transparency, category and collection"){showPopupOptions.toggle()}
                     Menu{ForEach([0.10,0.15,0.20,0.25],id:\.self){size in Button("\(Int(size*100))% of screen") {popupAreaPercent=size}}}label:{popupBarGlyph("arrow.up.left.and.arrow.down.right")}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Resize popup")
+                    popupBarButton("crop.rotate","Select area to capture",action:requestCapture)
                     popupBarButton("scope","Move popup to its default position. Drag this header to place it",action:resetPosition)
                     Menu{Button("From clipboard",systemImage:"doc.on.clipboard"){requestQuickAdd("clipboard")};Button("New shortcut",systemImage:"plus.circle"){requestQuickAdd("new")};Button("Paste many",systemImage:"text.insert"){requestQuickAdd("many")};Button("Bulk media",systemImage:"photo.stack"){requestQuickAdd("media")}}label:{Image(systemName:"plus").font(.system(size:14,weight:.bold)).foregroundStyle(Butter.cocoa).frame(width:30,height:30).background(Color(red:0.988,green:0.467,blue:0.302),in:RoundedRectangle(cornerRadius:9))}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Create a shortcut or import many")
                     Rectangle().fill(Color.white.opacity(0.22)).frame(width:1,height:20).padding(.horizontal,2)

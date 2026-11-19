@@ -132,6 +132,15 @@ enum VoiceRouter {
 
         for (name, aliases) in sections { consider(.section(name), (aliases.map { score(core, $0) }.max() ?? 0)) }
         for name in builderNames() { consider(.builder(name), (builderAliases(name).map { score(core, $0) }.max() ?? 0) + 2) }
+        // Commands the person set for their own apps in AppBuilder, AppDesigner and WishStudio.
+        for entry in AppVoiceStore.all() {
+            let points = score(core, entry.phrase) + 4
+            switch entry.kind {
+            case .builder: consider(.builder(entry.name), points)
+            case .designer: consider(.section("AppDesigner"), points)
+            case .wish: consider(.section("WishStudio"), points)
+            }
+        }
         for collection in collections { consider(.collection(collection), score(core, collection)) }
         for site in sites where !site.title.isEmpty { consider(.site(site.title, site.url), score(core, site.title)) }
 

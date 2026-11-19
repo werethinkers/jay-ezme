@@ -87,7 +87,7 @@ struct PopupAppList: View {
                     HStack(spacing: 10) {
                         Image(systemName: "square.grid.2x2.fill").foregroundStyle(Butter.coral).frame(width: 26)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(item.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Butter.cocoa)
+                            Text(item.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(SpotlightResults.appColor)
                             Text(item.isQuick ? "\\\(item.prefix)-value  ·  \(item.variableCount) value\(item.variableCount == 1 ? "" : "s"), type them after the command"
                                               : "\(item.variableCount) values: opens the form, fill it by voice, then copy and paste")
                                 .font(.caption).foregroundStyle(.secondary)
