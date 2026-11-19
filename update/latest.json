@@ -1,9 +1,9 @@
 {
-  "version": "3.80",
-  "build": 381,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.80-build381/EzMe-3.80-macOS.zip",
-  "sha256": "5bd16c7feab7ae8c48a009c39e404256c4ba60af0889ffc526f36c8ad2e0f176",
-  "notes": "# KeyDo 3.80\n\n- **Smoother voice commands, one brain for voice, Siri and Shortcuts.** KeyDo now understands the whole sentence the same way wherever it comes from: \"Hey Siri, KeyDo, please open the prompt builder\", \"go to my collection builder\", \"show me settings\", \"open youtube dot com\".\n- **Open anything by name:** the main screens, every AppBuilder app (Collection Builder, MyDatabase, Prompt Builder, Template Designer and the apps you made), AppDesigner and WishStudio, your collections (\"collection rohit\"), your saved browser sites, web addresses, and Mac apps (\"open Notes\"). Greetings, \"open\", \"the\", \"my\", \"app\" and punctuation are ignored, and close mishearings still match.\n- **Siri:** \"send to chatgpt\" now also works with a Siri lead-in (\"Hey Siri, KeyDo, send it to ChatGPT\"), and the keydo:// links accept both keydo://voice?text=\u2026 and keydo://voice/open prompt builder.\n- Keyboard safety: no change to the key watcher.",
-  "published": "2026-11-19T07:08:20Z",
+  "version": "3.81",
+  "build": 382,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.81-build382/EzMe-3.81-macOS.zip",
+  "sha256": "236ca2405bce8a9459e61981f48558dd8700484e9067d00221bcd5053ccf66ec",
+  "notes": "# KeyDo 3.81\n\n- **Prompt Builder, a more professional layout** in KeyDo's own colours:\n  - A header with Voice commands, Copy and one Send button, and a four-step bar: Write prompt, Add context, Check, Send, each ticking off as you go.\n  - Left: your prompt and an \"Add context\" card (collections, media, attach files, apps, functions, and the referenced items found in your prompt). Right: the live, corrected preview and the sites to send to. Sending opens the site in the browser side panel as before.\n- **No more blinking while you speak:** the \"Heard\u2026\" line now has a fixed place and never moves the page, the Speak button keeps one width, and spoken words are written into the prompt a few times a second instead of on every tiny change.\n- Keyboard safety: no change to the key watcher.",
+  "published": "2026-11-19T07:25:02Z",
   "minimumSystemVersion": "14.0"
 }
