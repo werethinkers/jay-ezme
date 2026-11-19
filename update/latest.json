@@ -1,9 +1,9 @@
 {
-  "version": "3.95",
-  "build": 399,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.95-build399/EzMe-3.95-macOS.zip",
-  "sha256": "1bee9e2b5e11c5bccf87c689819e5f976154f90ce721048a5c07020144d7b532",
-  "notes": "# KeyDo 3.95\n\n## Prompt Builder: Send here\n- A new **Send here** button (next to Send in the header and in the Ready bar) sends your prompt and any attached media to the page that is already open in the browser panel. It does not open a new tab.\n- The field where your cursor is in that page comes first. Click into any message box, form or chat box in the browser panel, then press Send here: the prompt is typed into that field and the send button nearest to it is pressed. If no field has the cursor, the page's usual prompt box is used.\n- With a split browser, the page that has your cursor wins; if neither does, the main page is used.\n- Voice: say \"send here\" (also \"send to this page\", \"send to the browser\", \"send to my cursor\"). Keyboard: Option Command Return.\n- If the browser panel is showing Home, KeyDo asks you to open a page first.\n- Send to a named site (ChatGPT and the others) works as before.\n\n## Keyboard safety\nChecked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed. Send here only runs page scripts in the browser panel after a button press, never inside the key tap callback. The release guard and the heartbeat watchdog were not touched.",
-  "published": "2026-11-19T16:29:24Z",
+  "version": "3.96",
+  "build": 400,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v3.96-build400/EzMe-3.96-macOS.zip",
+  "sha256": "1f2c0090891bea6cf0389ba1638985acde57a0a66e2b6ac99267a3903d7207d0",
+  "notes": "# KeyDo 3.96\n\n## Prompt Builder: Send here, quieter\n- Send here no longer puts the `[image: name]` markers in the message. The media is attached for real, so the words are just what you wrote.\n- Send here works in the background of the browser: it does not open a tab or a link, and it does not pop the side panel open or move you away from where you are. The message and attachments go into the field where your cursor is on the open page, and send is pressed there.\n- Sending to a named site (ChatGPT and the others) still opens that site and still shows the side panel, as before.\n\n## Keyboard safety\nChecked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed. The change is in the Prompt Builder text and the send request only. The release guard and the heartbeat watchdog were not touched.",
+  "published": "2026-11-19T17:37:01Z",
   "minimumSystemVersion": "14.0"
 }
