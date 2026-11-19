@@ -4,29 +4,27 @@ import SwiftUI
 import AppKit
 
 enum DesignMorePrompt {
-    /// What the AI is told about the design. The printed text, logo, icons and pictures stay; the named boxes are the variables.
+    /// What the AI is told about the design. The printed text, logo, icons and pictures stay; the boxes apps fill stay blank and unnamed.
     @MainActor static func text(for design: AppDesign, pages: [ImageTemplate], count: Int) -> String {
         let title = design.appTitle ?? design.name
         var lines = [String]()
         lines.append("I am designing a template called \"\(title)\". The attached picture\(pages.count == 1 ? " is" : "s are") its current page\(pages.count == 1 ? "" : "s").")
-        lines.append("Create \(count) more template options for it. Each option must look clearly different (layout, colours, type style) while keeping the same size and the same content.")
+        lines.append("Create \(count) more template options for it. Each option must look clearly different (layout, colours, type style) while keeping the same size and the same fixed content.")
         lines.append("")
-        lines.append("KEEP exactly as in the pictures: every fixed text, image, logo and icon. The variable boxes are empty in the pictures on purpose; there is no sample text to copy.")
-        lines.append("LEAVE as named placeholders, in the same place, written like {{name}}: the boxes below. These are variables, formulas and collection values that my app fills in later, so do not replace them with sample text.")
+        lines.append("KEEP exactly as in the pictures: every fixed text, image, logo and icon.")
+        lines.append("The blank areas in the pictures are left empty on purpose. Keep them blank, in the same places and about the same size, with no words, labels, names or sample text in them, so I can fill them later myself.")
         for (index, page) in pages.enumerated() {
             lines.append("")
-            lines.append("Page \(index + 1): \(page.pixelWidth) x \(page.pixelHeight) px")
-            for slot in page.slots {
+            lines.append("Page \(index + 1): \(page.pixelWidth) x \(page.pixelHeight) px, \(page.slots.filter { $0.kind != .logo }.count) blank area\(page.slots.filter { $0.kind != .logo }.count == 1 ? "" : "s") to keep empty.")
+            var number = 0
+            for slot in page.slots where slot.kind != .logo {
+                number += 1
                 let place = "centre \(Int(slot.cx * 100))% across and \(Int(slot.cy * 100))% down, \(Int(slot.w * 100))% wide, \(Int(slot.h * 100))% tall"
-                lines.append("- {{\(slot.key)}}: \(slot.kind == .text ? "text" : (slot.kind == .image ? "picture" : "logo")) box, \(place)")
+                lines.append("- Blank \(slot.kind == .image ? "picture" : "text") area \(number): \(place)")
             }
         }
-        if !design.variables.isEmpty {
-            lines.append("")
-            lines.append("Variables that start with a value (keep the names): " + design.variables.keys.sorted().joined(separator: ", "))
-        }
         lines.append("")
-        lines.append("Give each option a short name, then the finished picture at the same pixel size. If you cannot draw pictures, give clean HTML and CSS for each option with the {{placeholders}} untouched.")
+        lines.append("Give each option a short name, then the finished picture at the same pixel size. If you cannot draw pictures, give clean HTML and CSS for each option with the blank areas left empty.")
         return lines.joined(separator: "\n")
     }
 
@@ -64,7 +62,7 @@ struct DesignMoreLooksSheet: View {
                 Image(systemName: "sparkles.rectangle.stack.fill").foregroundStyle(Butter.coral).font(.title3)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("More looks for \(design?.appTitle ?? design?.name ?? "this design")").font(.system(size: 16, weight: .bold)).foregroundStyle(Butter.cocoa)
-                    Text("Your fixed text, logos and icons stay. Variables, functions and collections stay as placeholders.").font(.caption).foregroundStyle(.secondary)
+                    Text("Your fixed text, logos and icons stay. Blank areas are sent empty, with no names.").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Button("Close") { dismiss() }
