@@ -12,6 +12,7 @@
 - A gift always stays between Rs 3,000 and Rs 10,000: an item that would break the range is refused with a message.
 - "Save picture to Desktop" makes one image of the closed box, the inside and the card.
 - The Mac smoke test now checks that VybesLogo.png is in the app.
+- Build 397 replaces build 396, whose update-feed entry was lost in a release race.
 
 ## Keyboard safety
 Checked: nothing in the key tap `miniJSlashTap`, the popup, voice or any key-swallowing mode was changed. Gifting is a normal WishStudio page and its commands come from the existing WishStudio command bar. The release guard and the heartbeat watchdog were not touched.
