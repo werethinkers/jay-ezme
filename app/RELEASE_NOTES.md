@@ -1,7 +1,5 @@
-# KeyDo 3.81
+# KeyDo 3.82
 
-- **Prompt Builder, a more professional layout** in KeyDo's own colours:
-  - A header with Voice commands, Copy and one Send button, and a four-step bar: Write prompt, Add context, Check, Send, each ticking off as you go.
-  - Left: your prompt and an "Add context" card (collections, media, attach files, apps, functions, and the referenced items found in your prompt). Right: the live, corrected preview and the sites to send to. Sending opens the site in the browser side panel as before.
-- **No more blinking while you speak:** the "Heard…" line now has a fixed place and never moves the page, the Speak button keeps one width, and spoken words are written into the prompt a few times a second instead of on every tiny change.
+- **Prompt Builder:** the prompt box now shows about five lines (it scrolls for more), so Add context, the Speak button and the voice line are always on screen.
+- **MyDatabase, From Mac Contacts now brings the picture too.** Each contact's profile picture is saved with the contact (shown as a round photo in the list) and as a shortcut named after the first name: `yogesh.pic`. If that name is taken it becomes `yogeshs.pic`, then `yogeshsh.pic` and so on with more letters of the surname, and finally `yogeshshah1.pic`, `yogeshshah2.pic`. The shortcuts go into the Contacts collection and paste the picture.
 - Keyboard safety: no change to the key watcher.

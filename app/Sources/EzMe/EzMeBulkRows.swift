@@ -115,6 +115,7 @@ enum MacContacts {
                 CNContactGivenNameKey as CNKeyDescriptor, CNContactFamilyNameKey as CNKeyDescriptor, CNContactOrganizationNameKey as CNKeyDescriptor,
                 CNContactJobTitleKey as CNKeyDescriptor, CNContactPhoneNumbersKey as CNKeyDescriptor, CNContactEmailAddressesKey as CNKeyDescriptor,
                 CNContactPostalAddressesKey as CNKeyDescriptor, CNContactUrlAddressesKey as CNKeyDescriptor,
+                CNContactImageDataKey as CNKeyDescriptor, CNContactImageDataAvailableKey as CNKeyDescriptor,
                 CNContactFormatter.descriptorForRequiredKeys(for: .fullName)
             ]
             var found: [EzContact] = []
@@ -132,10 +133,39 @@ enum MacContacts {
                 item.email = contact.emailAddresses.first.map { String($0.value) } ?? ""
                 if let postal = contact.postalAddresses.first { item.address = CNPostalAddressFormatter.string(from: postal.value, style: .mailingAddress).replacingOccurrences(of: "\n", with: ", ") }
                 item.url = contact.urlAddresses.first.map { String($0.value) } ?? ""
+                item.photo = contact.imageDataAvailable ? contact.imageData : nil
                 item.source = "Mac Contacts"
                 if !item.displayName.isEmpty { found.append(item) }
             }
             return found
         }.value
+    }
+}
+
+
+/// Shortcut words for contact pictures: first name, then first name plus more of the surname, then a number.
+enum ContactPicKeys {
+    private static func clean(_ text: String) -> String { String(text.lowercased().filter { $0.isLetter || $0.isNumber }) }
+
+    /// "/yogesh.pic", or "/yogeshs.pic", "/yogeshsh.pic" … when the first name is already taken, then "/yogeshshah1.pic" and so on.
+    static func key(first: String, last: String, full: String, taken: inout Set<String>) -> String {
+        var firstName = clean(first)
+        var surname = clean(last)
+        if firstName.isEmpty {
+            let parts = full.split(separator: " ").map { clean(String($0)) }.filter { !$0.isEmpty }
+            firstName = parts.first ?? "contact"
+            if surname.isEmpty, parts.count > 1 { surname = parts.last ?? "" }
+        }
+        var candidates = ["/" + firstName + ".pic"]
+        if !surname.isEmpty {
+            for count in 1...surname.count { candidates.append("/" + firstName + String(surname.prefix(count)) + ".pic") }
+        }
+        if let free = candidates.first(where: { !taken.contains($0) }) { taken.insert(free); return free }
+        var number = 1
+        let base = firstName + surname
+        while taken.contains("/" + base + String(number) + ".pic") { number += 1 }
+        let result = "/" + base + String(number) + ".pic"
+        taken.insert(result)
+        return result
     }
 }

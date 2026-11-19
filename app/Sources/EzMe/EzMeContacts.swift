@@ -43,6 +43,8 @@ func resolveShortSuffixShortcut(_ wanted: String, in clips: [Clip]) -> Clip? {
 
 struct EzContact: Identifiable {
     var id = UUID()
+    /// The contact's picture, when the source has one (Mac Contacts).
+    var photo: Data? = nil
     var first = ""
     var last = ""
     var full = ""

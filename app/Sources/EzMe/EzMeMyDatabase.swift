@@ -22,6 +22,8 @@ struct DBRecord: Identifiable, Codable, Hashable {
     var collection = "General"
     var notes = ""
     var created = Date()
+    /// Path of the contact's picture on this Mac, when there is one.
+    var photo: String? = nil
     /// Files and media are both direct links to something on this Mac.
     var isFileLike: Bool { kind == "file" || kind == "media" }
 }
@@ -102,7 +104,12 @@ struct DBTable: Identifiable, Codable, Hashable {
 
     /// Adds contacts, skipping ones already saved (same mobile or email).
     @discardableResult func addContacts(_ contacts: [EzContact], collection: String) -> Int {
-        var added = 0
+        addContactsDetailed(contacts, collection: collection, photoDirectory: nil).count
+    }
+
+    /// Adds the contacts that are new and returns them with their saved records. Pictures are written into `photoDirectory`.
+    func addContactsDetailed(_ contacts: [EzContact], collection: String, photoDirectory: URL?) -> [(contact: EzContact, record: DBRecord)] {
+        var result: [(contact: EzContact, record: DBRecord)] = []
         for raw in contacts {
             let contact = EzContactImport.cleaned(raw)
             let name = contact.displayName
@@ -113,11 +120,19 @@ struct DBTable: Identifiable, Codable, Hashable {
             var record = DBRecord(kind: "contact", title: name, value: mobile, email: contact.email, company: contact.company, address: contact.address, collection: collection)
             record.notes = [contact.title, contact.url].filter { !$0.isEmpty }.joined(separator: " · ")
             record.tags = contact.source.lowercased()
+            if let data = raw.photo, let directory = photoDirectory {
+                try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                let isPNG = data.prefix(4) == Data([0x89, 0x50, 0x4E, 0x47])
+                let file = directory.appendingPathComponent("contact-" + record.id + (isPNG ? ".png" : ".jpg"))
+                if (try? data.write(to: file, options: .atomic)) != nil { record.photo = file.path }
+            }
             records.insert(record, at: 0)
-            added += 1
+            var kept = contact
+            kept.photo = raw.photo
+            result.append((kept, record))
         }
         save()
-        return added
+        return result
     }
 
     @discardableResult func addLinks(_ items: [(title: String, url: String)], collection: String) -> Int {
@@ -213,6 +228,7 @@ struct MyDatabaseView: View {
     var clips: [Clip]
     var onOpenShortcuts: (String) -> Void = { _ in }
     var onMakeShortcuts: ([Clip], String) -> Void = { _, _ in }
+    var attachmentDirectory: URL? = nil
     @ObservedObject private var store = MyDatabaseStore.shared
     @State private var tab = "Contacts"
     @State private var search = ""
@@ -467,8 +483,13 @@ struct MyDatabaseView: View {
             if record.kind == "media", !missing {
                 DBMediaThumb(path: record.value).padding(.top, 1)
             } else {
-                Image(systemName: record.kind == "contact" ? "person.crop.circle" : record.kind == "link" ? "link" : (missing ? "exclamationmark.triangle.fill" : "doc"))
-                    .foregroundStyle(missing ? Color.orange : Butter.coral).frame(width: 22).padding(.top, 2)
+                if record.kind == "contact", let photo = record.photo, let image = NSImage(contentsOfFile: photo) {
+                    Image(nsImage: image).resizable().scaledToFill().frame(width: 34, height: 34).clipShape(Circle())
+                        .overlay(Circle().stroke(Butter.coral.opacity(0.35), lineWidth: 1))
+                } else {
+                    Image(systemName: record.kind == "contact" ? "person.crop.circle" : record.kind == "link" ? "link" : (missing ? "exclamationmark.triangle.fill" : "doc"))
+                        .foregroundStyle(missing ? Color.orange : Butter.coral).frame(width: 22).padding(.top, 2)
+                }
             }
             VStack(alignment: .leading, spacing: 3) {
                 Text(record.title.isEmpty ? "Untitled" : record.title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
@@ -524,8 +545,19 @@ struct MyDatabaseView: View {
         Task { @MainActor in
             do {
                 let contacts = try await MacContacts.fetch()
-                let added = store.addContacts(contacts, collection: currentCollection)
-                store.message = "Read \(contacts.count) contact(s) from Mac Contacts and added \(added). \(contacts.count - added) already saved."
+                let folder = attachmentDirectory ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("EzMe/Attachments", isDirectory: true)
+                let added = store.addContactsDetailed(contacts, collection: currentCollection, photoDirectory: folder)
+                // A shortcut for each picture: yogesh.pic, then yogeshs.pic if that is taken, then a number.
+                var taken = Set(clips.map { $0.key.lowercased() })
+                var picClips: [Clip] = []
+                for item in added {
+                    guard let path = item.record.photo else { continue }
+                    let key = ContactPicKeys.key(first: item.contact.first, last: item.contact.last, full: item.contact.displayName, taken: &taken)
+                    picClips.append(Clip(key: key, name: item.contact.displayName + " · Picture", text: "", group: "Contacts", files: [path], directMediaPaste: true,
+                                         keywords: [item.contact.displayName, item.contact.company, item.contact.email].filter { !$0.isEmpty }.joined(separator: " ")))
+                }
+                if !picClips.isEmpty { onMakeShortcuts(picClips, "Contacts") }
+                store.message = "Read \(contacts.count) contact(s) from Mac Contacts and added \(added.count) (\(picClips.count) with a picture, saved as shortcuts like \(picClips.first?.key ?? "/name.pic")). \(contacts.count - added.count) already saved."
             } catch { store.message = error.localizedDescription }
         }
     }

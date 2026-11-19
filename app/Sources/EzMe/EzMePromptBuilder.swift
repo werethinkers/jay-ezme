@@ -608,7 +608,7 @@ struct PromptBuilderView: View {
         VStack(alignment: .leading, spacing: 10) {
             TextEditor(text: $text)
                 .font(.system(size: 15))
-                .frame(minHeight: 200)
+                .frame(height: 112)
                 .padding(6)
                 .scrollContentBackground(.hidden)
                 .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
