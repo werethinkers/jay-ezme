@@ -1,9 +1,9 @@
 {
-  "version": "4.13",
-  "build": 420,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.13-build420/EzMe-4.13-macOS.zip",
-  "sha256": "01f1fb581887469fb8f64fe0ff02ec7a5ec021df10b3ab2475ce91ac8d6d6069",
-  "notes": "# KeyDo 4.13\n\n## Wish Studio: design the app right inside it\n- New **Design** button above the card opens the whole App Designer editor inside Wish Studio, on the app's own background. A strip at the top shows the four steps: **Choose background, Add variables, collections and functions, Name the app, Launch**.\n- **Choose a background:** pick a picture, a blank card (wide or tall) or one of your template backgrounds. You can **replace the entire background any time** with Replace picture.\n- **Add variables, collections, functions, text and picture boxes**, then **drag them and resize them on the background**, exactly as in App Designer.\n- **Name the app and choose the word after the backslash** (they can differ), then press **Launch in Wish Studio**. The card, shortcuts and credits then use the launched app. App Designer remains the place to test; Wish Studio is where the final app runs with small changes.\n- Everything App Designer has is there: more looks from the browser, pages, output format, try it.\n\n## Colours and looks by voice, always\n- In Wish Studio, the microphone bar now understands look commands for the app's template card: \"make the name blue\", \"all text gold\", \"bigger\", \"bold\", \"capitals\", \"align left\", \"font Georgia\". Say a box name to change just that box. Inside Design, the designer's own microphone handles the same and more.\n- Changes to the shape or whole-page colour can be made in Design.\n\n## Credits\n- Each card made from a Wish app still uses 10 credits (download, copy, share, web page).\n\n## Keyboard safety\nChecked. The key tap, popup key handling and key-swallowing modes were not touched. Entering Design stops the Wish microphone first so two microphones never run at once.",
-  "published": "2026-11-20T08:01:42Z",
+  "version": "4.14",
+  "build": 421,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.14-build421/EzMe-4.14-macOS.zip",
+  "sha256": "6486f4eb4f24db9437cf6bfd6f5e84b15fc046b838bf223df35bc4cb915f3201",
+  "notes": "# KeyDo 4.14\n\n## Collection preview: rename changes the shortcut too\n- As soon as you save a new file name (typing or by voice), the display name **and the shortcut** change together. The shortcut becomes the full file name in the collection's own prefix or suffix pattern, for example \\sunset-beach.media.\n- The suggestions under the name refresh to match the new name. If you prefer the short one, or your own, tap it or say \"short shortcut\". Everything is applied when you close the preview.\n\n## Keyboard safety\nChecked. The key tap, popup key handling, voice and key-swallowing modes were not touched.",
+  "published": "2026-11-20T08:20:25Z",
   "minimumSystemVersion": "14.0"
 }
