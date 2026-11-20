@@ -129,6 +129,8 @@ struct LibraryGridView: View {
     var onEdit: (Clip) -> Void
     /// Every shortcut in the current filter, so the large viewer can step through all the media, not just this page.
     var galleryClips: [Clip]? = nil
+    /// Called after a file was renamed on disk, so the shortcut points at the new path.
+    var onRenameFile: ((UUID, String, String) -> Void)? = nil
     @State private var viewer: LibraryGalleryStart?
     /// About four or five rows first. More tiles are added only when the person scrolls near the end.
     @State private var shown = LibraryGridView.firstBatch
@@ -170,7 +172,7 @@ struct LibraryGridView: View {
         .onChange(of: clips.first?.id) { _ in shown = LibraryGridView.firstBatch; LibraryThumbs.removeAll() }
         .onChange(of: clips.count) { count in if count < shown { shown = max(LibraryGridView.firstBatch, count) } }
         .onDisappear { LibraryThumbs.removeAll() }
-        .sheet(item: $viewer) { start in LibraryMediaViewer(items: start.items, startIndex: start.index) }
+        .sheet(item: $viewer) { start in LibraryMediaViewer(items: start.items, startIndex: start.index, onRenamed: { id, old, new in onRenameFile?(id, old, new); LibraryThumbs.removeAll() }) }
     }
 }
 
@@ -637,13 +639,56 @@ struct LibraryGalleryStart: Identifiable {
 /// A big view of pictures, GIFs, videos and audio with Previous and Next, like a browser's image viewer.
 /// Left and right arrow keys move too. A video plays with its own controls.
 struct LibraryMediaViewer: View {
-    let items: [LibraryGalleryItem]
+    @State private var items: [LibraryGalleryItem]
+    var onRenamed: ((UUID, String, String) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var index: Int
+    @State private var renaming = false
+    @State private var newName = ""
+    @State private var renameError = ""
+    @State private var showInfo = false
 
-    init(items: [LibraryGalleryItem], startIndex: Int) {
-        self.items = items
+    init(items: [LibraryGalleryItem], startIndex: Int, onRenamed: ((UUID, String, String) -> Void)? = nil) {
+        _items = State(initialValue: items)
+        self.onRenamed = onRenamed
         _index = State(initialValue: min(max(0, startIndex), max(0, items.count - 1)))
+    }
+
+    private var infoView: some View {
+        let path = items.isEmpty ? "" : items[index].path
+        let size = (try? FileManager.default.attributesOfItem(atPath: path))?[.size] as? Int64
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Saved at").font(.headline)
+            Text(path).font(.system(size: 12, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+            if let size { Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file)).font(.caption).foregroundStyle(.secondary) }
+            HStack {
+                Button("Copy path") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(path, forType: .string) }
+                Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+            }.controlSize(.small)
+        }.padding(14).frame(width: 380)
+    }
+
+    private func startRename() {
+        guard !items.isEmpty else { return }
+        newName = URL(fileURLWithPath: items[index].path).deletingPathExtension().lastPathComponent
+        renameError = ""; renaming = true
+    }
+
+    /// Renames the real file next to where it is saved, then points the shortcut at the new name.
+    private func commitRename() {
+        guard !items.isEmpty else { return }
+        let item = items[index]
+        let old = URL(fileURLWithPath: item.path)
+        let base = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !base.isEmpty, !base.contains("/"), !base.contains(":") else { renameError = "Use a name without / or :"; return }
+        let ext = old.pathExtension
+        let target = old.deletingLastPathComponent().appendingPathComponent(ext.isEmpty ? base : base + "." + ext)
+        if target.path == old.path { renaming = false; return }
+        if FileManager.default.fileExists(atPath: target.path) { renameError = "A file with that name already exists."; return }
+        do { try FileManager.default.moveItem(at: old, to: target) } catch { renameError = "Could not rename: \(error.localizedDescription)"; return }
+        onRenamed?(item.clipID, old.path, target.path)
+        items = items.map { $0.path == old.path ? LibraryGalleryItem(id: $0.clipID.uuidString + target.path, clipID: $0.clipID, title: $0.title, path: target.path) : $0 }
+        renaming = false; renameError = ""
     }
 
     private var hasPrevious: Bool { index > 0 }
@@ -653,7 +698,18 @@ struct LibraryMediaViewer: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Text(items.isEmpty ? "" : items[index].title).font(.headline).lineLimit(1)
+                if renaming, !items.isEmpty {
+                    TextField("File name", text: $newName).textFieldStyle(.roundedBorder).frame(maxWidth: 320).onSubmit { commitRename() }
+                    Text("." + URL(fileURLWithPath: items[index].path).pathExtension).font(.caption).foregroundStyle(.secondary)
+                    Button("Save") { commitRename() }.buttonStyle(.borderedProminent)
+                    Button("Cancel") { renaming = false; renameError = "" }
+                } else {
+                    Text(items.isEmpty ? "" : URL(fileURLWithPath: items[index].path).lastPathComponent).font(.headline).lineLimit(1).truncationMode(.middle)
+                    Button { startRename() } label: { Image(systemName: "pencil") }.buttonStyle(.borderless).help("Rename this file. The saved file is renamed too.").disabled(items.isEmpty)
+                    Button { showInfo.toggle() } label: { Image(systemName: "info.circle") }.buttonStyle(.borderless).help("Where this file is saved")
+                        .popover(isPresented: $showInfo) { infoView }
+                }
+                if !renameError.isEmpty { Text(renameError).font(.caption).foregroundStyle(.orange).lineLimit(2) }
                 Text("\(items.isEmpty ? 0 : index + 1) of \(items.count)").font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)

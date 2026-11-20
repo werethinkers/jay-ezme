@@ -1,10 +1,11 @@
-# KeyDo 4.02
+# KeyDo 4.03
 
-## Collections: grid view keeps loading
-The grid in a collection no longer stops at 50 videos. It now loads the whole collection as you scroll down, a few rows at a time, so there is no Next button to look for. The Previous/Next pager remains for the list view.
+## Collections, grid view
+Previous / Next now sit above the grid as well as below it (50 items a page, with the page number and total).
 
-## Database Organizer
-The file list loads the next 150 files automatically as you reach the bottom. The "Show more" button is still there.
+## Viewer: rename and file location
+- A pencil button renames the file you are watching. The real saved file is renamed in its folder (the extension stays), and the shortcut points at the new name. A name that already exists is refused.
+- An info button shows the full path where the media is saved, with Copy path and Show in Finder.
 
 ## Keyboard safety
 Checked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.
