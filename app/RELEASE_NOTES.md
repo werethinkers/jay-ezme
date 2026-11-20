@@ -1,18 +1,18 @@
-# KeyDo 4.12
+# KeyDo 4.13
 
-## Rename keeps the name, shortcut and file together
-- Renaming a file in the collection preview now also changes its **display name**, and the preview shows the name and the shortcut right there, updating as you work.
-- Right under the file name you get the shortcut suggestions (full file name and a short one) in the collection's own prefix or suffix pattern. One tap applies one, or type your own, or say "use full name as shortcut".
+## Wish Studio: design the app right inside it
+- New **Design** button above the card opens the whole App Designer editor inside Wish Studio, on the app's own background. A strip at the top shows the four steps: **Choose background, Add variables, collections and functions, Name the app, Launch**.
+- **Choose a background:** pick a picture, a blank card (wide or tall) or one of your template backgrounds. You can **replace the entire background any time** with Replace picture.
+- **Add variables, collections, functions, text and picture boxes**, then **drag them and resize them on the background**, exactly as in App Designer.
+- **Name the app and choose the word after the backslash** (they can differ), then press **Launch in Wish Studio**. The card, shortcuts and credits then use the launched app. App Designer remains the place to test; Wish Studio is where the final app runs with small changes.
+- Everything App Designer has is there: more looks from the browser, pages, output format, try it.
 
-## Documents are grouped
-- Collections now have separate filters for **PDF**, **Excel & sheets** (xlsx, csv, Numbers and Google Sheets links), **Word & docs** (including Google Docs links), **Slides** and **Other files**, each with its own colour and count.
-- The Database Organizer has a **kind** filter with the same groups.
+## Colours and looks by voice, always
+- In Wish Studio, the microphone bar now understands look commands for the app's template card: "make the name blue", "all text gold", "bigger", "bold", "capitals", "align left", "font Georgia". Say a box name to change just that box. Inside Design, the designer's own microphone handles the same and more.
+- Changes to the shape or whole-page colour can be made in Design.
 
-## Tags with colours
-- Five ready tags, each with its own colour: **Personal, Safe, Work, Client, Stealth**. Add your own tags too; every tag gets its own colour.
-- Add, remove or change tags in the collection preview (or say "tag work and client", "remove tag work"), in the shortcut editor, on selected shortcuts in bulk (Tag menu), in the Database Organizer (tag button on each file) and in the Document Viewer.
-- Tags show as coloured chips on cards and files.
-- Searching finds tags in Collections, Shortcuts (including the backslash popup search) and the Database Organizer. You can also filter by a tag with the tag row above the cards.
+## Credits
+- Each card made from a Wish app still uses 10 credits (download, copy, share, web page).
 
 ## Keyboard safety
-Checked. The key tap, popup key handling, voice and key-swallowing modes were not changed. Only the popup search text now also reads tags.
+Checked. The key tap, popup key handling and key-swallowing modes were not touched. Entering Design stops the Wish microphone first so two microphones never run at once.

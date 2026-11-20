@@ -86,6 +86,8 @@ final class WishStudioModel: ObservableObject {
         didSet { persistCard() }
     }
     @Published var selected: String? = nil
+    /// The App Designer editor is open inside Wish Studio.
+    @Published var designMode = false
     @Published var status: String = ""
     @Published var commandText: String = ""
     @Published private(set) var undoStack: [WishCard] = []
@@ -589,6 +591,7 @@ final class WishStudioModel: ObservableObject {
     }
 
     private func handleStudio(_ text: String) {
+        if linkedTemplate != nil, WishTemplateVoice.handle(text, model: self) { return }
         let env = environment
         let commands = WishCommandParser.parse(text, env: env)
         if commands.isEmpty {
@@ -992,8 +995,10 @@ struct WishStudioWorkspace: View {
             WishHeader(model: model, store: model.store)
             Divider().overlay(WishTheme.line)
             content
-            Divider().overlay(WishTheme.line)
-            WishCommandBar(model: model, voice: model.voice)
+            if !model.designMode {
+                Divider().overlay(WishTheme.line)
+                WishCommandBar(model: model, voice: model.voice)
+            }
         }
         .background(WishTheme.page)
         .environment(\.colorScheme, .light)
@@ -1570,13 +1575,19 @@ struct WishStudioView: View {
     @State private var redesignID: String?
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            preview
-            WishInspector(model: model, store: store)
-                .frame(width: 350)
+        Group {
+            if model.designMode {
+                WishDesignMode(model: model)
+            } else {
+                HStack(alignment: .top, spacing: 16) {
+                    preview
+                    WishInspector(model: model, store: store)
+                        .frame(width: 350)
+                }
+                .padding(.horizontal, 22)
+                .padding(.vertical, 14)
+            }
         }
-        .padding(.horizontal, 22)
-        .padding(.vertical, 14)
         .sheet(isPresented: $showNewTemplate) {
             NewAppWizardView(onDone: { made in
                 showNewTemplate = false
@@ -1603,12 +1614,11 @@ struct WishStudioView: View {
                 Text("Tap any text on the card to select it.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
                 Spacer()
                 Button { showNewTemplate = true } label: { Label("New template", systemImage: "plus.rectangle.on.rectangle") }
-                if !TemplateStore.wishTemplateID(appID: model.appID).isEmpty {
-                    Button {
-                        let linked = TemplateStore.wishTemplateID(appID: model.appID)
-                        redesignID = linked.hasPrefix("design:") ? String(linked.dropFirst("design:".count)) : ""
-                    } label: { Label("Redesign", systemImage: "paintbrush") }
-                }
+                Button {
+                    model.designMode = true
+                } label: { Label("Design", systemImage: "paintbrush.pointed") }
+                    .buttonStyle(.borderedProminent).tint(WishTheme.accent)
+                    .help("Choose or replace the background, add variables, collections and functions, drag them into place, name the app and launch it.")
                 Button {
                     model.web.replay()
                 } label: {
