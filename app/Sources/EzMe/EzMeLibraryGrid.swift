@@ -194,8 +194,8 @@ struct LibraryGridView: View {
                             if selectedIDs.contains(clip.id) { selectedIDs.remove(clip.id) } else { selectedIDs.insert(clip.id) }
                         },
                         onEdit: { onEdit(clip) },
-                        onFavorite: { on in setFavorite(clip, on) },
-                        onEnlarge: { openViewer(clip, path: clip.files.first { FileManager.default.fileExists(atPath: $0) }) }
+                        onEnlarge: { openViewer(clip, path: clip.files.first { FileManager.default.fileExists(atPath: $0) }) },
+                        onFavorite: { on in setFavorite(clip, on) }
                     )
                 }
             }
