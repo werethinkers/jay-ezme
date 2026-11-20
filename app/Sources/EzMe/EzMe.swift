@@ -1055,6 +1055,45 @@ struct BrowserWorkspace:View {
  }
  @AppStorage("ezmeBrowserSplitFraction") private var splitFraction=0.5
  @AppStorage("ezmeBrowserSplitStacked") private var splitStacked=false
+ @AppStorage("ezmeSplitCropWidthL") private var cropWidthL=0.0
+ @AppStorage("ezmeSplitCropWidthR") private var cropWidthR=0.0
+ @AppStorage("ezmeSplitCropAnchorL") private var cropAnchorL=0.0
+ @AppStorage("ezmeSplitCropAnchorR") private var cropAnchorR=0.0
+ /// Lays the page out wider than the pane and shows only the chosen part of it (left, centre or right).
+ @ViewBuilder private func croppedPage(_ tab:EzMeBrowserTab?,right:Bool)->some View{
+  let pageWidth=right ? cropWidthR:cropWidthL;let anchor=right ? cropAnchorR:cropAnchorL
+  if pageWidth<=0{webPage(tab).frame(maxWidth:.infinity,maxHeight:.infinity)}
+  else{GeometryReader{geo in let w=max(geo.size.width,pageWidth);webPage(tab).frame(width:w,height:geo.size.height).offset(x:-(w-geo.size.width)*anchor)}.clipped()}
+ }
+ private func setCrop(_ right:Bool,width:Double?=nil,anchor:Double?=nil){if right{if let width{cropWidthR=width};if let anchor{cropAnchorR=anchor}}else{if let width{cropWidthL=width};if let anchor{cropAnchorL=anchor}}}
+ private func cropMenu(right:Bool)->some View{
+  Menu{
+   Section("Page width"){
+    Button("Fit this pane"){setCrop(right,width:0)}
+    ForEach([900.0,1100.0,1280.0,1440.0,1680.0],id:\.self){width in Button("\(Int(width)) px wide"){setCrop(right,width:width)}}
+   }
+   Section("Show which part"){
+    Button("Left part"){setCrop(right,anchor:0)}
+    Button("Centre"){setCrop(right,anchor:0.5)}
+    Button("Right part"){setCrop(right,anchor:1)}
+   }
+  }label:{Image(systemName:"rectangle.center.inset.filled").font(.system(size:12))}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Choose which part of the website is visible in this pane")
+ }
+ private func runMedia(_ mode:String,_ tab:EzMeBrowserTab?){guard let tab,let web=state.webViews[tab.id] else{return};PageMedia.run(mode,in:web)}
+ private func mediaMenu(_ tab:EzMeBrowserTab?)->some View{
+  Menu{
+   Button("Media wall (grid over the page)",systemImage:"square.grid.3x3"){runMedia("wall",tab)}
+   Button("One by one (big, with arrows)",systemImage:"rectangle.on.rectangle"){runMedia("theater",tab)}
+   Button("Filmstrip (slide sideways)",systemImage:"film"){runMedia("strip",tab)}
+   Button("Scroll list (media only)",systemImage:"list.bullet.rectangle"){runMedia("list",tab)}
+   Divider()
+   Button("Blur the text, keep the media",systemImage:"drop.halffull"){runMedia("blur",tab)}
+   Button("Hide the text, keep the media",systemImage:"eye.slash"){runMedia("hide",tab)}
+   Button("Pop the main video out (Picture in Picture)",systemImage:"pip"){runMedia("pip",tab)}
+   Divider()
+   Button("Back to the normal page",systemImage:"arrow.uturn.backward"){runMedia("off",tab)}
+  }label:{Image(systemName:"photo.on.rectangle.angled").font(.system(size:12))}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Watch only the media on this page")
+ }
  @State private var splitDragStart:Double?
  private func splitHandle(total:CGFloat)->some View{
   Rectangle().fill(Color.clear).frame(width:12)
@@ -1124,12 +1163,14 @@ struct BrowserWorkspace:View {
     if let tab,tab.id != EzMeBrowserTabs.homeTabID{SiteIconView(icon:state.icon(for:tab),title:tab.title,size:12)}
     Text(tab?.title ?? "").font(.caption.weight(.semibold)).lineLimit(1)
     Spacer(minLength:0)
+    cropMenu(right:right)
+    if tab?.url != EzMeBrowserTabs.homeURL{mediaMenu(tab)}
     if right{
      if !state.splitLinked{TextField("Address",text:$splitAddress).textFieldStyle(.roundedBorder).font(.caption).frame(minWidth:110,maxWidth:240).onSubmit{state.navigateSecondary(splitAddress)}}
      Menu{ForEach(state.tabs.filter{$0.id != state.selectedID}){t in Button(t.title){state.secondaryID=t.id}}}label:{Image(systemName:"rectangle.stack").font(.system(size:12))}.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().help("Choose which tab shows in this pane")
     }
    }.padding(.horizontal,8).frame(height:26).background(Color.gray.opacity(0.08))
-   webPage(tab).frame(maxWidth:.infinity,maxHeight:.infinity)
+   croppedPage(tab,right:right)
   }.frame(width:width,height:height).clipShape(RoundedRectangle(cornerRadius:8))
  }
  @ViewBuilder private func tabGroup(_ group:String)->some View{let members=state.tabs.filter{(state.tabGroups[$0.id] ?? "")==group};HStack(spacing:5){if !group.isEmpty{Button{state.toggleGroup(group)}label:{HStack(spacing:4){Circle().fill(groupColor(group)).frame(width:7,height:7);Text(group).lineLimit(1).fixedSize();Image(systemName:state.collapsedTabGroups.contains(group) ? "chevron.right":"chevron.down").font(.system(size:8,weight:.bold))}.font(.system(size:10,weight:.semibold)).padding(.horizontal,8).padding(.vertical,6).background(groupColor(group).opacity(0.13),in:Capsule())}.buttonStyle(.plain).contextMenu{Button("Rename group"){newTabGroupName=group;groupBeingRenamed=group;createTabGroup=true;groupTargetTab=members.first?.id ?? ""};Button("Ungroup tabs",systemImage:"rectangle.3.group"){for tab in members{state.assignGroup(tab.id,nil)}}}};if group.isEmpty || !state.collapsedTabGroups.contains(group){ForEach(members){tab in tabCell(tab,group:group).id(tab.id)}}}.padding(.trailing,group.isEmpty ? 0:3)}
@@ -1147,6 +1188,7 @@ struct BrowserWorkspace:View {
    if !compact{
     barButton("arrow.right","Go to this address"){state.navigate()}
     barButton("bookmark","Save this link with a name, tags, and collection"){showBookmarkEditor=true}
+    if !state.splitEnabled,state.current?.url != EzMeBrowserTabs.homeURL{mediaMenu(state.current)}
     barButton(magnifierEnabled ? "plus.magnifyingglass":"magnifyingglass","Page zoom \(Int((state.currentZoom*100).rounded()))% and magnifier lens"){showZoomPopover.toggle()}
      .popover(isPresented:Binding(get:{showZoomPopover && !compact},set:{showZoomPopover=$0}),arrowEdge:.bottom){zoomPopover}
     bookmarksMenu(icon:true)
@@ -1251,6 +1293,8 @@ private struct BrowserFavoritesHome:View{
       ForEach(saved){site in favoriteCard(site)}
      }
     }
+    Divider()
+    BrowserHomeFolders(state:state)
    }.padding(16).frame(maxWidth:1050,alignment:.leading)
   }.frame(maxWidth:.infinity,maxHeight:.infinity).background(Butter.coral.opacity(0.035))
  }
