@@ -29,6 +29,51 @@ import UniformTypeIdentifiers
         return url
     }
 
+    /// The older designs: the Birthday and Anniversary cards and the 12 greeting colour designs, drawn as PNGs. Only missing ones are added.
+    @discardableResult static func addBuiltIns() -> Int {
+        var added = 0
+        func put(_ name: String, _ data: Data?) {
+            let url = folder.appendingPathComponent(name + ".png")
+            guard !FileManager.default.fileExists(atPath: url.path), let data else { return }
+            if (try? data.write(to: url, options: .atomic)) != nil { added += 1 }
+        }
+        put("Birthday card", CelebrationCard.pngData(kind: .birthday, name: "", sender: "", photo: nil))
+        put("Anniversary card", CelebrationCard.pngData(kind: .anniversary, name: "", sender: "", photo: nil))
+        for design in WishDesigns.greeting { put(design.name, drawDesign(design)) }
+        return added
+    }
+
+    private static func drawDesign(_ design: WishDesign) -> Data? {
+        let side = 1600
+        guard let rep = TemplateImages.bitmap(width: side, height: side), let context = NSGraphicsContext(bitmapImageRep: rep) else { return nil }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = context
+        let s = CGFloat(side)
+        NSColor(templateHex: design.background).setFill()
+        NSRect(x: 0, y: 0, width: s, height: s).fill()
+        let accent = NSColor(templateHex: design.accent)
+        switch design.layout {
+        case "arch":
+            accent.withAlphaComponent(0.18).setFill()
+            let arch = NSBezierPath(roundedRect: NSRect(x: s * 0.1, y: s * 0.1, width: s * 0.8, height: s * 0.8), xRadius: s * 0.4, yRadius: s * 0.4)
+            arch.fill()
+            accent.setStroke(); arch.lineWidth = 8; arch.stroke()
+        case "band":
+            accent.withAlphaComponent(0.2).setFill()
+            NSRect(x: 0, y: s * 0.38, width: s, height: s * 0.24).fill()
+            accent.setFill()
+            NSRect(x: 0, y: s * 0.38, width: s, height: 8).fill()
+            NSRect(x: 0, y: s * 0.62 - 8, width: s, height: 8).fill()
+        default:
+            let frame = NSBezierPath(roundedRect: NSRect(x: s * 0.06, y: s * 0.06, width: s * 0.88, height: s * 0.88), xRadius: 40, yRadius: 40)
+            accent.setStroke(); frame.lineWidth = 12; frame.stroke()
+            let inner = NSBezierPath(roundedRect: NSRect(x: s * 0.09, y: s * 0.09, width: s * 0.82, height: s * 0.82), xRadius: 28, yRadius: 28)
+            accent.withAlphaComponent(0.5).setStroke(); inner.lineWidth = 4; inner.stroke()
+        }
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.representation(using: .png, properties: [:])
+    }
+
     /// PNG files, folders of PNGs and library zips. Returns how many backgrounds were added.
     static func importItems(_ urls: [URL]) -> Int {
         var added = 0
@@ -82,6 +127,7 @@ struct WishLibrarySheet: View {
             HStack(spacing: 8) {
                 Button { importFromDisk() } label: { Label("Import PNGs, folder or zip", systemImage: "square.and.arrow.down") }
                 Button { addFromApp() } label: { Label("Add this app's backgrounds", systemImage: "plus.square.on.square") }
+                Button { let added = WishBackgroundLibrary.addBuiltIns(); message = added == 0 ? "The older designs are already in the library." : "Added \(added) older designs (Birthday, Anniversary and colour designs)."; reload() } label: { Label("Add older designs", systemImage: "clock.arrow.circlepath") }
                 Button { download() } label: { Label("Download library (zip)", systemImage: "arrow.down.to.line") }.disabled(files.isEmpty)
             }
             if files.isEmpty {
@@ -119,6 +165,13 @@ struct WishLibrarySheet: View {
             }
         }
         .padding(22).frame(width: 680)
+        .onAppear {
+            if !UserDefaults.standard.bool(forKey: "wishLibraryBuiltInsAdded") {
+                UserDefaults.standard.set(true, forKey: "wishLibraryBuiltInsAdded")
+                let added = WishBackgroundLibrary.addBuiltIns()
+                if added > 0 { message = "Your older designs (Birthday, Anniversary and colour designs) are now in the library."; reload() }
+            }
+        }
     }
 
     private func reload() { files = WishBackgroundLibrary.files(); chosen = chosen.filter { files.contains($0) } }
