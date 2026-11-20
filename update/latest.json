@@ -1,9 +1,9 @@
 {
-  "version": "4.32",
-  "build": 440,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.32-build440/EzMe-4.32-macOS.zip",
-  "sha256": "c3b096fcc874491d7685d941198e327598acec69637fc4345ca6f75868081617",
-  "notes": "# KeyDo 4.32\n\n## What's new\n- **Wish Studio occasion apps (Happy Anniversary, Thank You, Diwali and the others)**: choosing a design in the Use step now also saves it as the default for the app, so the typed shortcut (for example \\wed-Rohit in WhatsApp) makes the card in the design you picked. Before, only the screen changed and the shortcut still used the old design.\n- To use another design for one card only, add its name after the name, for example \\wed-Rohit-night.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
-  "published": "2026-11-20T20:58:43Z",
+  "version": "4.33",
+  "build": 441,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.33-build441/EzMe-4.33-macOS.zip",
+  "sha256": "1e2ad51f77488197805b999b31d081949880ba8a5fb471846674809037179b63",
+  "notes": "# KeyDo 4.33\n\n## What's new\n- **Wish Studio, Design step, Function**: the Function button is now a menu with every function: date and time (today's date, time, date and time, month, year, weekday, date + 7 or 30 days, day of the year), where you are (city, place, area, state or region, country, coordinates), weather and sky, money and more. Before it only added the date.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
+  "published": "2026-11-20T21:14:41Z",
   "minimumSystemVersion": "14.0"
 }
