@@ -252,7 +252,7 @@ struct MyDatabaseView: View {
 
     private let tabs: [(String, String)] = [
         ("Organizer", "externaldrive.badge.checkmark"), ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
-        ("Tables", "tablecells"), ("Shortcuts", "bolt.fill"), ("File Renamer", "doc.badge.gearshape")
+        ("Recent Files", "clock.arrow.circlepath"), ("Tables", "tablecells"), ("Shortcuts", "bolt.fill"), ("File Renamer", "doc.badge.gearshape")
     ]
 
     private var kind: String { tab == "Contacts" ? "contact" : tab == "Links" ? "link" : tab == "Media" ? "media" : "file" }
@@ -280,6 +280,7 @@ struct MyDatabaseView: View {
                     tabBar
                     if tab == "Organizer" { DatabaseOrganizerView(records: store.records, onOpenViewer: { viewerURL = $0 }, onEdit: { editing = $0 }) }
                     else if isRecordTab { toolbar; recordList }
+                    else if tab == "Recent Files" { RecentFilesView() }
                     else if tab == "Tables" { tablesView }
                     else if tab == "Shortcuts" { shortcutsView }
                     else { fileRenamerView }
