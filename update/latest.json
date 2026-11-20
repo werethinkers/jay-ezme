@@ -1,9 +1,9 @@
 {
-  "version": "4.16",
-  "build": 423,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.16-build423/EzMe-4.16-macOS.zip",
-  "sha256": "2b2c63139ac60d2e672b3121b4965dc993c72d439692fad94dea7de1157a58e1",
-  "notes": "# KeyDo 4.16\n\n## Hover to see it bigger\n- Rest the pointer on a picture, GIF, video or document card for a moment and a larger view appears (GIFs and videos play). It is sized to the picture's own shape, placed over the card, and always kept fully on the screen, never cut off by the window edge or the scroll area.\n- Works in **Collections** (grid cards), **AppBuilder** and **Wish Studio** app covers, **AppDesigner** design cards and the **template library**.\n- Move the pointer away and it closes.\n\n## Keyboard safety\nChecked. The key tap, popup key handling, voice and key-swallowing modes were not touched. The hover view ignores the mouse and keyboard.",
-  "published": "2026-11-20T09:13:20Z",
+  "version": "4.17",
+  "build": 424,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.17-build424/EzMe-4.17-macOS.zip",
+  "sha256": "746950c60e55057bd6c284581344b5c00287b5450cbb55b359a655c05ff4712b",
+  "notes": "# KeyDo 4.17: Background first, simple steps\n\n**Designer and Wish Studio design mode now start with the background.**\n- Step 1 \u00b7 Background (first thing you see): **Replace background**, **Get background pictures with ChatGPT** (or Gemini), and background colour swatches.\n- Step 2 \u00b7 Add variables, collections, functions, text and pictures.\n- Step 3 \u00b7 Place them where you want: drag to move, drag the dots to resize.\n- Step 4 \u00b7 Name the app, with suggested command words that run it after the backslash.\n- Tip shown when you upload a background: use a **PNG with a transparent background** so the colour can be changed.\n\n**Background colour now works properly.** A transparent PNG, or a flat colour page, changes colour without losing the picture. A flat photo keeps its colours and the app says why. Text turns light or dark automatically so it stays readable. Saying \"background pink\" in Wish Studio uses the same logic; font size, colours, bold and the other voice changes are unchanged.\n\n**Keyboard safety checked:** nothing in the key tap, popup, voice or key-swallowing modes was touched.",
+  "published": "2026-11-20T09:33:38Z",
   "minimumSystemVersion": "14.0"
 }
