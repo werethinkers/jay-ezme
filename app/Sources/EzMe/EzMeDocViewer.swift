@@ -375,8 +375,8 @@ enum DocText {
         let parts = text.replacingOccurrences(of: " and ", with: ",").split(whereSeparator: { ",;\n".contains($0) })
         var added: [String] = []
         for part in parts {
-            let tag = part.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            if !tag.isEmpty, !side.tags.contains(tag) { side.tags.append(tag); added.append(tag) }
+            let tag = KeyDoTags.canonical(String(part))
+            if !tag.isEmpty, !side.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) { side.tags.append(tag); added.append(tag) }
         }
         if !added.isEmpty { persist(); status = "Tagged: " + added.joined(separator: ", ") + "." }
         tagDraft = ""
@@ -384,7 +384,7 @@ enum DocText {
 
     func removeTag(_ tag: String) {
         let clean = tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        side.tags.removeAll { $0 == clean }
+        side.tags.removeAll { $0.caseInsensitiveCompare(clean) == .orderedSame }
         persist()
         status = "Removed the tag “\(clean)”."
     }
@@ -675,12 +675,21 @@ struct DocumentViewerView: View {
                     .onSubmit { model.addTags(model.tagDraft) }
                 Button("Add") { model.addTags(model.tagDraft) }.buttonStyle(.borderedProminent).tint(Butter.coral).disabled(model.tagDraft.isEmpty)
             }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 5) {
+                    ForEach(KeyDoTags.known, id: \.self) { tag in
+                        let on = model.side.tags.contains { $0.caseInsensitiveCompare(tag) == .orderedSame }
+                        Button { if on { model.removeTag(model.side.tags.first { $0.caseInsensitiveCompare(tag) == .orderedSame } ?? tag) } else { model.addTags(tag) } } label: { TagChip(tag: tag, filled: on) }
+                            .buttonStyle(.plain).help(on ? "Remove \(tag)" : "Add \(tag)")
+                    }
+                }
+            }
             if model.side.tags.isEmpty {
-                Text("No tags yet. Say “tag invoice” to add one by voice.").font(.caption).foregroundStyle(.secondary)
+                Text("No tags yet. Tap one above, or say “tag work” to add one by voice.").font(.caption).foregroundStyle(.secondary)
             }
             ForEach(model.side.tags, id: \.self) { tag in
                 HStack {
-                    Label(tag, systemImage: "tag.fill").font(.callout)
+                    TagChip(tag: tag)
                     Spacer()
                     Button { model.removeTag(tag) } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).foregroundStyle(.secondary)
                 }

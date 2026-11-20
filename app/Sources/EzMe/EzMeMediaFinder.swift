@@ -58,7 +58,7 @@ import AppKit
         var scored: [(clip: Clip, score: Int)] = []
         for clip in pool {
             let key = WishPick.plain(clip.key)
-            let haystack = [clip.key, clip.name, clip.keywords ?? "", String(clip.text.prefix(400))].joined(separator: " ").lowercased()
+            let haystack = [clip.key, clip.name, clip.searchWords, String(clip.text.prefix(400))].joined(separator: " ").lowercased()
             var score = 0
             if !compact.isEmpty, key == compact { score += 100 } else if !compact.isEmpty, key.contains(compact) { score += 60 }
             if clip.name.lowercased() == lowered { score += 90 }

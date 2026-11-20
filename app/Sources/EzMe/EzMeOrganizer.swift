@@ -87,6 +87,8 @@ struct DatabaseOrganizerView: View {
     @State private var searchInside = true
     @State private var scope = "All files"
     @State private var typeFilter = "All types"
+    @State private var kindFilter = "All kinds"
+    @State private var tagFilter = ""
     @State private var sort = "Name"
     @State private var insideHits: [String: String] = [:]
     @State private var searchingInside = false
@@ -94,6 +96,36 @@ struct DatabaseOrganizerView: View {
 
     private let scopes = ["All files", "Missing", "Duplicates", "Large (over 50 MB)", "Not changed in a year", "No tags", "Has notes or highlights"]
     private let sorts = ["Name", "Newest", "Largest", "Type"]
+
+    private let kinds: [LibraryContentType] = [.pdf, .sheet, .word, .slides, .image, .gif, .video, .music, .document]
+
+    private func kind(_ file: OrganizerFile) -> LibraryContentType { LibraryContentType.fileType(file.record.value) }
+
+    /// Tags of a file: the ones on its record and the ones saved beside the document, with no repeats.
+    private func tagList(_ file: OrganizerFile) -> [String] {
+        var list = KeyDoTags.parse(file.record.tags)
+        for tag in sidecars[file.record.value]?.tags ?? [] {
+            let canonical = KeyDoTags.canonical(tag)
+            if !canonical.isEmpty, !list.contains(where: { $0.caseInsensitiveCompare(canonical) == .orderedSame }) { list.append(canonical) }
+        }
+        return list
+    }
+
+    private var tagCounts: [(tag: String, count: Int)] {
+        var map: [String: Int] = [:]
+        for file in files { for tag in tagList(file) { map[tag, default: 0] += 1 } }
+        return map.map { (tag: $0.key, count: $0.value) }.sorted { $0.count == $1.count ? $0.tag < $1.tag : $0.count > $1.count }
+    }
+
+    private func changeTag(_ file: OrganizerFile, _ tag: String, add: Bool) {
+        guard let index = store.records.firstIndex(where: { $0.id == file.id }) else { return }
+        var list = KeyDoTags.parse(store.records[index].tags)
+        list.removeAll { $0.caseInsensitiveCompare(tag) == .orderedSame }
+        if add { list.append(tag) }
+        store.records[index].tags = KeyDoTags.join(list)
+        store.save()
+        if let position = files.firstIndex(where: { $0.id == file.id }) { files[position].record.tags = store.records[index].tags }
+    }
 
     private var fileRecords: [DBRecord] { records.filter { $0.isFileLike } }
 
@@ -131,7 +163,9 @@ struct DatabaseOrganizerView: View {
         default: break
         }
         if typeFilter != "All types" { list = list.filter { ($0.ext.isEmpty ? "no extension" : $0.ext) == typeFilter } }
-        let words = query.lowercased().split(separator: " ").map(String.init)
+        if kindFilter != "All kinds" { list = list.filter { kind($0).title == kindFilter } }
+        if !tagFilter.isEmpty { list = list.filter { file in tagList(file).contains { $0.caseInsensitiveCompare(tagFilter) == .orderedSame } } }
+        let words = query.lowercased().split(separator: " ").map { $0.hasPrefix("#") ? String($0.dropFirst()) : String($0) }.filter { !$0.isEmpty }
         if !words.isEmpty {
             list = list.filter { file in matches(file, words) }
         }
@@ -282,6 +316,11 @@ struct DatabaseOrganizerView: View {
                 if searchingInside { ProgressView().controlSize(.small); Text("Reading documents…").font(.caption).foregroundStyle(.secondary) }
                 Spacer()
                 Picker("", selection: $scope) { ForEach(scopes, id: \.self) { Text($0).tag($0) } }.labelsHidden().frame(width: 190)
+                Picker("", selection: $kindFilter) {
+                    Text("All kinds").tag("All kinds")
+                    ForEach(kinds) { kind in Text(kind.title).tag(kind.title) }
+                }
+                .labelsHidden().frame(width: 140)
                 Picker("", selection: $typeFilter) {
                     Text("All types").tag("All types")
                     ForEach(types.map { $0.ext }, id: \.self) { Text($0.uppercased()).tag($0) }
@@ -289,6 +328,7 @@ struct DatabaseOrganizerView: View {
                 .labelsHidden().frame(width: 130)
                 Picker("", selection: $sort) { ForEach(sorts, id: \.self) { Text($0).tag($0) } }.labelsHidden().frame(width: 110)
             }
+            TagFilterBar(selection: $tagFilter, counts: tagCounts)
         }
     }
 
@@ -326,9 +366,7 @@ struct DatabaseOrganizerView: View {
                         Text("Not found").font(.system(size: 10.5, weight: .semibold)).foregroundStyle(.orange)
                     }
                     if duplicateIDs.contains(file.id) { Text("Duplicate").font(.system(size: 10, weight: .bold)).foregroundStyle(.purple) }
-                    let tags = [file.record.tags] + (side?.tags ?? [])
-                    let tagText = tags.filter { !$0.isEmpty }.joined(separator: ", ")
-                    if !tagText.isEmpty { Label(tagText, systemImage: "tag.fill").font(.system(size: 10.5)).foregroundStyle(.secondary).lineLimit(1) }
+                    ForEach(tagList(file).prefix(5), id: \.self) { TagChip(tag: $0, small: true) }
                     if let side, !side.marks.isEmpty { Label("\(side.marks.count)", systemImage: "highlighter").font(.system(size: 10.5)).foregroundStyle(.secondary) }
                 }
                 if let snippet = insideHits[file.id] {
@@ -343,6 +381,17 @@ struct DatabaseOrganizerView: View {
                 }
                 iconButton("arrow.up.forward.app", "Open with its app") { NSWorkspace.shared.open(URL(fileURLWithPath: file.record.value)) }.disabled(!file.exists)
                 iconButton("folder", "Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: file.record.value)]) }.disabled(!file.exists)
+                Menu {
+                    let current = KeyDoTags.parse(file.record.tags)
+                    ForEach(KeyDoTags.known, id: \.self) { tag in
+                        if current.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
+                            Button("Remove \(tag)") { changeTag(file, tag, add: false) }
+                        } else {
+                            Button("Add \(tag)") { changeTag(file, tag, add: true) }
+                        }
+                    }
+                } label: { Image(systemName: "tag").frame(width: 26, height: 24) }
+                    .menuStyle(.borderedButton).controlSize(.small).fixedSize().help("Add or remove tags")
                 iconButton("pencil", "Edit name, tags, notes, collection") { onEdit(file.record) }
             }
         }
@@ -359,7 +408,7 @@ struct DatabaseOrganizerView: View {
         switch ext {
         case "pdf": return "doc.richtext.fill"
         case "doc", "docx", "rtf", "txt", "md", "pages": return "doc.text.fill"
-        case "xls", "xlsx", "csv", "numbers": return "tablecells.fill"
+        case "xls", "xlsx", "xlsm", "csv", "tsv", "numbers", "ods", "gsheet": return "tablecells.fill"
         case "ppt", "pptx", "key": return "rectangle.on.rectangle.angled.fill"
         case "png", "jpg", "jpeg", "heic", "gif", "webp", "tiff": return "photo.fill"
         case "mp4", "mov", "m4v", "avi", "mkv": return "film.fill"

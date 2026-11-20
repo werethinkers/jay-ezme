@@ -14,7 +14,7 @@ import SwiftUI
 // MARK: - Content types
 
 enum LibraryContentType: String, CaseIterable, Identifiable {
-    case all, text, image, gif, video, music, document, link, app
+    case all, text, image, gif, video, music, pdf, sheet, word, slides, document, link, app
 
     var id: String { rawValue }
 
@@ -26,7 +26,11 @@ enum LibraryContentType: String, CaseIterable, Identifiable {
         case .gif: return "GIFs"
         case .video: return "Videos"
         case .music: return "Music"
-        case .document: return "Docs & sheets"
+        case .pdf: return "PDF"
+        case .sheet: return "Excel & sheets"
+        case .word: return "Word & docs"
+        case .slides: return "Slides"
+        case .document: return "Other files"
         case .link: return "Links"
         case .app: return "Apps"
         }
@@ -40,7 +44,11 @@ enum LibraryContentType: String, CaseIterable, Identifiable {
         case .gif: return "photo.on.rectangle.angled"
         case .video: return "film"
         case .music: return "waveform"
-        case .document: return "doc.text"
+        case .pdf: return "doc.richtext"
+        case .sheet: return "tablecells"
+        case .word: return "doc.text"
+        case .slides: return "rectangle.on.rectangle.angled"
+        case .document: return "doc"
         case .link: return "link"
         case .app: return "app.dashed"
         }
@@ -54,7 +62,11 @@ enum LibraryContentType: String, CaseIterable, Identifiable {
         case .gif: return .pink
         case .video: return .blue
         case .music: return .purple
-        case .document: return .orange
+        case .pdf: return .red
+        case .sheet: return Color(red: 0.13, green: 0.6, blue: 0.35)
+        case .word: return Color(red: 0.2, green: 0.4, blue: 0.85)
+        case .slides: return .orange
+        case .document: return .gray
         case .link: return .indigo
         case .app: return .brown
         }
@@ -70,12 +82,31 @@ enum LibraryContentType: String, CaseIterable, Identifiable {
         if imageTypes.contains(ext) { return .image }
         if videoTypes.contains(ext) { return .video }
         if musicTypes.contains(ext) { return .music }
-        return .document
+        return documentKind(ext: ext)
+    }
+
+    /// PDF, Excel and Google Sheets, Word and Google Docs, slides, or any other file.
+    static func documentKind(ext: String) -> LibraryContentType {
+        switch ext.lowercased() {
+        case "pdf": return .pdf
+        case "xls", "xlsx", "xlsm", "xlsb", "csv", "tsv", "numbers", "ods", "gsheet": return .sheet
+        case "doc", "docx", "dot", "dotx", "pages", "rtf", "odt", "txt", "md", "gdoc": return .word
+        case "ppt", "pptx", "pps", "ppsx", "key", "odp", "gslides": return .slides
+        default: return .document
+        }
+    }
+
+    static func linkKind(_ url: String) -> LibraryContentType {
+        let lower = url.lowercased()
+        if lower.contains("docs.google.com/spreadsheets") { return .sheet }
+        if lower.contains("docs.google.com/document") { return .word }
+        if lower.contains("docs.google.com/presentation") { return .slides }
+        return .link
     }
 
     static func of(_ clip: Clip) -> LibraryContentType {
         if let path = clip.files.first { return fileType(path) }
-        if let link = clip.webURL, !link.isEmpty { return .link }
+        if let link = clip.webURL, !link.isEmpty { return linkKind(link) }
         if clip.appBundleIdentifier != nil || clip.appPath != nil { return .app }
         return .text
     }
@@ -206,6 +237,7 @@ struct LibraryGridCard: View {
                     .foregroundStyle(Butter.coral).lineLimit(1)
                 Text(clip.name.isEmpty ? "Untitled" : clip.name)
                     .font(.system(size: 14, weight: .bold, design: .rounded)).lineLimit(1)
+                TagStrip(tags: clip.tags ?? [])
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -305,8 +337,10 @@ struct LibraryPreview: View {
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1).padding(.horizontal, 12)
                 }
             }
-        case .document:
-            if let path = path { QuickLookThumbnailView(path: path) } else { missing("doc.text") }
+        case .document, .pdf, .sheet, .word, .slides:
+            if let path = path { QuickLookThumbnailView(path: path) }
+            else if let link = clip.webURL, !link.isEmpty { LinkPreviewTile(urlString: link) }
+            else { missing("doc.text") }
         case .link:
             LinkPreviewTile(urlString: clip.webURL ?? "")
         case .app:
@@ -622,13 +656,14 @@ struct LibraryGalleryItem: Identifiable {
     var favorite: Bool = false
     var key: String = ""
     var group: String = ""
+    var tags: [String] = []
 
     /// Every picture, GIF, video and audio file of these shortcuts, in order.
     static func items(from clips: [Clip]) -> [LibraryGalleryItem] {
         var result: [LibraryGalleryItem] = []
         for clip in clips {
             for path in clip.files where [.image, .gif, .video, .music].contains(LibraryContentType.fileType(path)) {
-                result.append(LibraryGalleryItem(id: clip.id.uuidString + path, clipID: clip.id, title: clip.name.isEmpty ? displayTrigger(clip.key) : clip.name, path: path, favorite: clip.favorite == true, key: clip.key, group: clip.group))
+                result.append(LibraryGalleryItem(id: clip.id.uuidString + path, clipID: clip.id, title: clip.name.isEmpty ? displayTrigger(clip.key) : clip.name, path: path, favorite: clip.favorite == true, key: clip.key, group: clip.group, tags: clip.tags ?? []))
             }
         }
         return result
@@ -640,6 +675,7 @@ enum ViewerEdit {
     case favourite(UUID, Bool)
     case move(UUID, String)
     case shortcut(UUID, String)
+    case tags(UUID, [String])
 }
 
 struct LibraryGalleryStart: Identifiable {
@@ -708,7 +744,7 @@ struct LibraryMediaViewer: View {
         if FileManager.default.fileExists(atPath: target.path) { renameError = "A file with that name already exists."; return }
         do { try FileManager.default.moveItem(at: old, to: target) } catch { renameError = "Could not rename: \(error.localizedDescription)"; return }
         edits.append(.rename(item.clipID, old.path, target.path))
-        items = items.map { guard $0.path == old.path else { return $0 }; var moved = $0; moved.path = target.path; return moved }
+        items = items.map { guard $0.path == old.path else { return $0 }; var moved = $0; moved.path = target.path; moved.title = base; return moved }
         showShortcutRow = true
         renaming = false; renameError = ""
     }
@@ -812,7 +848,7 @@ struct LibraryMediaViewer: View {
             if !voice.errorMessage.isEmpty {
                 Text(voice.errorMessage).foregroundStyle(.orange)
             } else if voiceOn {
-                Text(hearing ? "Hearing: \u{201C}\(voice.heard)\u{201D}" : "Listening. Say “rename to …”, then “save”. Or “use full name as shortcut”, “favourite”, “next”, “close”.")
+                Text(hearing ? "Hearing: \u{201C}\(voice.heard)\u{201D}" : "Listening. Say “rename to …”, then “save”. Or “use full name as shortcut”, “tag work”, “favourite”, “next”, “close”.")
             }
             if !heard.isEmpty { Text(heard).fontWeight(.semibold) }
         }
@@ -891,6 +927,24 @@ struct LibraryMediaViewer: View {
                 if !base.isEmpty { applyShortcut(ShortcutNaming.build(base, pattern: shortcutPattern(), taken: shortcutTaken())); return true }
             }
         }
+        if !items.isEmpty, let word = firstMatch("^(?:add\\s+)?(?:tag|tags)\\s+(?:this\\s+|it\\s+)?(?:as\\s+|with\\s+)?(.+)$", in: text) ?? firstMatch("^tag\\s+(.+)$", in: text) {
+            let clipID = items[index].clipID
+            var list = items[index].tags
+            for tag in KeyDoTags.parse(word.replacingOccurrences(of: " and ", with: ",")) {
+                KeyDoTags.remember(tag)
+                if !list.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) { list.append(tag) }
+            }
+            items = items.map { var item = $0; if item.clipID == clipID { item.tags = list }; return item }
+            edits.append(.tags(clipID, list)); heard = "Tags: " + KeyDoTags.join(list)
+            return true
+        }
+        if !items.isEmpty, let word = firstMatch("^(?:remove|delete|clear)\\s+(?:the\\s+)?tag\\s+(.+)$", in: text) {
+            let clipID = items[index].clipID
+            let list = items[index].tags.filter { $0.caseInsensitiveCompare(KeyDoTags.canonical(word)) != .orderedSame }
+            items = items.map { var item = $0; if item.clipID == clipID { item.tags = list }; return item }
+            edits.append(.tags(clipID, list)); heard = "Removed the tag \(word)."
+            return true
+        }
         if ["next", "next one", "next file", "forward"].contains(lower) { go(1); heard = ""; return true }
         if ["previous", "previous one", "back", "go back", "previous file"].contains(lower) { go(-1); heard = ""; return true }
         if ["favourite", "favorite", "make favourite", "make favorite", "add to favourites", "add to favorites", "love it", "unfavourite", "unfavorite", "remove favourite", "remove favorite"].contains(lower) { toggleFavourite(); return true }
@@ -938,7 +992,18 @@ struct LibraryMediaViewer: View {
         let current = items[index].key
         let options = shortcutOptions()
         let pattern = shortcutPattern()
+        let clipID = items[index].clipID
+        let tagBinding = Binding<[String]>(
+            get: { items.first(where: { $0.clipID == clipID })?.tags ?? [] },
+            set: { list in items = items.map { var item = $0; if item.clipID == clipID { item.tags = list }; return item } }
+        )
         return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text("Name").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Text(items[index].title).font(.system(size: 12, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+                Text("(the display name follows the file name)").font(.caption2).foregroundStyle(.secondary)
+                Spacer()
+            }
             HStack(spacing: 8) {
                 Text("Shortcut").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 Text(displayTrigger(current)).font(.system(size: 12, weight: .semibold, design: .monospaced)).lineLimit(1)
@@ -953,6 +1018,7 @@ struct LibraryMediaViewer: View {
                 Spacer()
             }
             if !pattern.isEmpty { Text(pattern.note).font(.caption2).foregroundStyle(.secondary) }
+            TagEditor(tags: tagBinding, onChange: { list in edits.append(.tags(clipID, list)); heard = list.isEmpty ? "Tags removed." : "Tags: " + KeyDoTags.join(list) })
         }
         .padding(.horizontal, 12).padding(.bottom, 6)
     }

@@ -216,7 +216,7 @@ enum EzMeWords {
     /// Best matches first.
     static func rank(_ clips: [Clip], query: String, limit: Int = 60) -> [Clip] {
         let scored = clips.compactMap { clip -> (Int, Clip)? in
-            let s = score(query: query, key: clip.key, name: clip.name, text: clip.text, groups: clip.allGroups, keywords: clip.keywords ?? "")
+            let s = score(query: query, key: clip.key, name: clip.name, text: clip.text, groups: clip.allGroups, keywords: clip.searchWords)
             return s > 0 ? (s, clip) : nil
         }
         return scored.sorted { $0.0 != $1.0 ? $0.0 > $1.0 : $0.1.key.count < $1.1.key.count }.prefix(limit).map(\.1)

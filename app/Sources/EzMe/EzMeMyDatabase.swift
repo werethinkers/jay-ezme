@@ -823,7 +823,7 @@ struct MyDatabaseView: View {
     private var shortcutsView: some View {
         let matches = clips.filter { clip in
             shortcutSearch.trimmingCharacters(in: .whitespaces).isEmpty
-                || [clip.key, clip.name, clip.group, clip.text, clip.keywords ?? ""].contains { $0.localizedCaseInsensitiveContains(shortcutSearch) }
+                || [clip.key, clip.name, clip.group, clip.text, clip.searchWords].contains { $0.localizedCaseInsensitiveContains(shortcutSearch) }
         }
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {

@@ -1,18 +1,18 @@
-# KeyDo 4.11
+# KeyDo 4.12
 
-## Credits are easy to find
-- New **Credits** item in the left menu (bolt icon): your balance (10,000 free credits to start), what you used this month, where credits went, the price of every service (5 to 30, changeable), the approval limit and the full history. Say "open credits" to go there.
-- The old Ezyourlife credits screen is now called **Ezyourlife coins**.
+## Rename keeps the name, shortcut and file together
+- Renaming a file in the collection preview now also changes its **display name**, and the preview shows the name and the shortcut right there, updating as you work.
+- Right under the file name you get the shortcut suggestions (full file name and a short one) in the collection's own prefix or suffix pattern. One tap applies one, or type your own, or say "use full name as shortcut".
 
-## Preview: rename and voice work smoothly
-- The preview now has its own voice button that uses the Mac's built-in speech recognition and takes a whole sentence at a time, so "rename to Sunset beach and save" is understood as one command. It also understands "re name", "rename too" and "name it".
-- The button always shows its state: **Voice off** (grey), **Listening… speak** (red, with a level ring that moves with your voice) and **Hearing you…**, with the words shown live above the picture.
-- A clear message says what happened after each command, or that a phrase is not a command here.
-- Fixed: renaming a file no longer clears its favourite mark in the preview.
+## Documents are grouped
+- Collections now have separate filters for **PDF**, **Excel & sheets** (xlsx, csv, Numbers and Google Sheets links), **Word & docs** (including Google Docs links), **Slides** and **Other files**, each with its own colour and count.
+- The Database Organizer has a **kind** filter with the same groups.
 
-## Shortcut names after a rename
-- Under the file name the preview shows the shortcut and two suggestions built from the new file name: **Full name** (for example \sunset-beach-2024.media) and **Short** (\sunbea.media). They follow the pattern the collection already uses, such as a common ending like .media or a common start, and never repeat a shortcut already in use.
-- Tap a suggestion, type your own, or say "use full name as shortcut", "short shortcut" or "set shortcut to …". The change is applied when you close the preview.
+## Tags with colours
+- Five ready tags, each with its own colour: **Personal, Safe, Work, Client, Stealth**. Add your own tags too; every tag gets its own colour.
+- Add, remove or change tags in the collection preview (or say "tag work and client", "remove tag work"), in the shortcut editor, on selected shortcuts in bulk (Tag menu), in the Database Organizer (tag button on each file) and in the Document Viewer.
+- Tags show as coloured chips on cards and files.
+- Searching finds tags in Collections, Shortcuts (including the backslash popup search) and the Database Organizer. You can also filter by a tag with the tag row above the cards.
 
 ## Keyboard safety
-Checked. The key tap, popup key handling and key-swallowing modes were not touched. The preview voice only borrows the microphone from the "Hey KeyDo" listener while it is on and gives it back when it is turned off or the preview closes.
+Checked. The key tap, popup key handling, voice and key-swallowing modes were not changed. Only the popup search text now also reads tags.
