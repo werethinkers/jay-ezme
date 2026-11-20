@@ -247,6 +247,8 @@ struct MyDatabaseView: View {
     @State private var makeSource: DBMakeSource?
     @State private var renameItems: [DBRecord] = []
     @State private var showBulkRename = false
+    /// The record tabs show a list or a grid of tiles like Collections.
+    @AppStorage("ezmeDatabaseGrid") private var gridView = false
 
     private let tabs: [(String, String)] = [
         ("Organizer", "externaldrive.badge.checkmark"), ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
@@ -403,6 +405,11 @@ struct MyDatabaseView: View {
                     ForEach(store.collections, id: \.self) { Text($0).tag($0) }
                 }
                 .labelsHidden().frame(width: 190)
+                Picker("", selection: $gridView) {
+                    Image(systemName: "list.bullet").tag(false)
+                    Image(systemName: "square.grid.2x2").tag(true)
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 84).help("List or grid")
             }
             HStack(spacing: 8) {
                 Button { editing = DBRecord(kind: kind, title: "", value: "", collection: currentCollection) } label: { Label("Add", systemImage: "plus") }
@@ -451,6 +458,25 @@ struct MyDatabaseView: View {
             if visible.isEmpty {
                 ContentUnavailableView(emptyTitle, systemImage: tabs.first { $0.0 == tab }?.1 ?? "tray", description: Text(emptyHint))
                     .frame(maxWidth: .infinity, minHeight: 160)
+            } else if gridView {
+                HStack {
+                    Toggle("", isOn: Binding(get: { !visible.isEmpty && visible.allSatisfy { selection.contains($0.id) } },
+                                             set: { on in if on { selection.formUnion(visible.map { $0.id }) } else { selection.subtract(visible.map { $0.id }) } }))
+                        .toggleStyle(.checkbox).labelsHidden()
+                    Text("\(visible.count) \(tab.lowercased())").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                Divider()
+                DBGridView(records: visible, selection: $selection, collections: store.collections,
+                           onEdit: { editing = $0 },
+                           onRename: { record, name in var changed = record; changed.title = name; store.upsert(changed) },
+                           onShortcut: { makeSource = DBMakeSource(kind: $0.kind, records: [$0]) },
+                           onMove: { record, name in store.move(ids: [record.id], to: name) },
+                           onDelete: { store.remove(ids: [$0.id]); selection.remove($0.id) },
+                           onOpenDocument: { viewerURL = $0 },
+                           onCopy: { copy($0) })
+                    .padding(10)
             } else {
                 HStack {
                     Toggle("", isOn: Binding(get: { !visible.isEmpty && visible.allSatisfy { selection.contains($0.id) } },
