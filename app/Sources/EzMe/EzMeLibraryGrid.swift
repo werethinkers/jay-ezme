@@ -651,7 +651,7 @@ struct AppIconTile: View {
 struct LibraryGalleryItem: Identifiable {
     let id: String
     let clipID: UUID
-    let title: String
+    var title: String
     var path: String
     var favorite: Bool = false
     var key: String = ""
