@@ -1,9 +1,9 @@
 {
-  "version": "4.30",
-  "build": 438,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.30-build438/EzMe-4.30-macOS.zip",
-  "sha256": "e53bfac88a6f828f9a02b7456363d5ed8e7f4f68ae811d5a476919dfeb106632",
-  "notes": "# KeyDo 4.30\n\n## What's new\n- **Older Wish Studio designs are in the background library.** The Birthday and Anniversary cards and the 12 greeting colour designs (Lavender wishes, Blush & balloons, Mint garden, Soft sky, Golden hour, Peach glow, Rose petal, Sage calm, Midnight, Coral sunrise, Ink & ivory, Saffron festival) are added the first time you open the library. Pick any and press \"Use in this app\" to make them templates 1, 2, 3 of that app.\n- **Add older designs** button in the library restores any you have removed.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
-  "published": "2026-11-20T20:15:12Z",
+  "version": "4.31",
+  "build": 439,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.31-build439/EzMe-4.31-macOS.zip",
+  "sha256": "90792f5d1e2da915d28e820e780ae45f62b64b029d8ceba1f09addaf7ef228ef",
+  "notes": "# KeyDo 4.31\n\n## What's new\n- **Wish Studio, built-in apps (Happy Anniversary, Happy Birthday and the other occasion apps)**: the Use step now shows the live card and a row of the 12 designs under it. Tap a design to change the card in the same app, then fill in the blanks and download, copy or share. Before, these apps kept their old design with no way to change it.\n- Going straight to Use on a built-in app keeps its own card instead of drawing new backgrounds.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
+  "published": "2026-11-20T20:41:37Z",
   "minimumSystemVersion": "14.0"
 }
