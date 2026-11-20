@@ -1,11 +1,17 @@
-# KeyDo 4.03
+# KeyDo 4.04
 
-## Collections, grid view
-Previous / Next now sit above the grid as well as below it (50 items a page, with the page number and total).
+## The preview stays open
+Renaming, favouriting or moving a file no longer closes the preview. The shortcuts update when you close the preview, and the file on disk is renamed straight away.
 
-## Viewer: rename and file location
-- A pencil button renames the file you are watching. The real saved file is renamed in its folder (the extension stays), and the shortcut points at the new name. A name that already exists is refused.
-- An info button shows the full path where the media is saved, with Copy path and Show in Finder.
+## Favourites
+A heart in the preview (and a "Favourites only" button above the collection) marks and shows favourites. Favourites carry a small heart in the grid.
+
+## Voice in the preview
+Press Voice in the preview, then say:
+- "rename to sunset beach", then "save" (or "rename to sunset beach and save"). The saved file is renamed in its folder.
+- "next", "previous", "favourite", "info", "cancel", "close".
+- "move to <collection name>" to organise the shortcut into another collection.
+Double backslash and "Hey KeyDo" still take priority and stop this microphone.
 
 ## Keyboard safety
-Checked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.
+Checked. Nothing in the key tap, popup, voice-popup or key-swallowing modes was touched.

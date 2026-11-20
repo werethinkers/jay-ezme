@@ -130,7 +130,8 @@ struct LibraryGridView: View {
     /// Every shortcut in the current filter, so the large viewer can step through all the media, not just this page.
     var galleryClips: [Clip]? = nil
     /// Called after a file was renamed on disk, so the shortcut points at the new path.
-    var onRenameFile: ((UUID, String, String) -> Void)? = nil
+    var collectionNames: [String] = []
+    var onViewerEdits: (([ViewerEdit]) -> Void)? = nil
     @State private var viewer: LibraryGalleryStart?
     /// About four or five rows first. More tiles are added only when the person scrolls near the end.
     @State private var shown = LibraryGridView.firstBatch
@@ -172,7 +173,7 @@ struct LibraryGridView: View {
         .onChange(of: clips.first?.id) { _ in shown = LibraryGridView.firstBatch; LibraryThumbs.removeAll() }
         .onChange(of: clips.count) { count in if count < shown { shown = max(LibraryGridView.firstBatch, count) } }
         .onDisappear { LibraryThumbs.removeAll() }
-        .sheet(item: $viewer) { start in LibraryMediaViewer(items: start.items, startIndex: start.index, onRenamed: { id, old, new in onRenameFile?(id, old, new); LibraryThumbs.removeAll() }) }
+        .sheet(item: $viewer) { start in LibraryMediaViewer(items: start.items, startIndex: start.index, collectionNames: collectionNames, onFinished: { edits in onViewerEdits?(edits); LibraryThumbs.removeAll() }) }
     }
 }
 
@@ -198,6 +199,7 @@ struct LibraryGridCard: View {
                 .overlay(alignment: .topLeading) { badge.padding(8) }
                 .overlay(alignment: .topTrailing) { corner.padding(8) }
                 .overlay(alignment: .bottomTrailing) { if canEnlarge && !selecting { enlargeButton.padding(8) } }
+                .overlay(alignment: .bottomLeading) { if clip.favorite == true { Image(systemName: "heart.fill").foregroundStyle(.red).padding(6).background(.ultraThinMaterial, in: Circle()).padding(8) } }
             VStack(alignment: .leading, spacing: 3) {
                 Text(displayTrigger(clip.key))
                     .font(.system(.caption, design: .monospaced).weight(.semibold))
@@ -617,17 +619,24 @@ struct LibraryGalleryItem: Identifiable {
     let clipID: UUID
     let title: String
     let path: String
+    var favorite: Bool = false
 
     /// Every picture, GIF, video and audio file of these shortcuts, in order.
     static func items(from clips: [Clip]) -> [LibraryGalleryItem] {
         var result: [LibraryGalleryItem] = []
         for clip in clips {
             for path in clip.files where [.image, .gif, .video, .music].contains(LibraryContentType.fileType(path)) {
-                result.append(LibraryGalleryItem(id: clip.id.uuidString + path, clipID: clip.id, title: clip.name.isEmpty ? displayTrigger(clip.key) : clip.name, path: path))
+                result.append(LibraryGalleryItem(id: clip.id.uuidString + path, clipID: clip.id, title: clip.name.isEmpty ? displayTrigger(clip.key) : clip.name, path: path, favorite: clip.favorite == true))
             }
         }
         return result
     }
+}
+
+enum ViewerEdit {
+    case rename(UUID, String, String)
+    case favourite(UUID, Bool)
+    case move(UUID, String)
 }
 
 struct LibraryGalleryStart: Identifiable {
@@ -640,7 +649,13 @@ struct LibraryGalleryStart: Identifiable {
 /// Left and right arrow keys move too. A video plays with its own controls.
 struct LibraryMediaViewer: View {
     @State private var items: [LibraryGalleryItem]
-    var onRenamed: ((UUID, String, String) -> Void)? = nil
+    var collectionNames: [String] = []
+    /// Everything done here is applied once the viewer closes, so the grid behind it is not rebuilt while you work.
+    var onFinished: (([ViewerEdit]) -> Void)? = nil
+    @State private var edits: [ViewerEdit] = []
+    @StateObject private var speech = EzMeSpeechDictation()
+    @State private var heard = ""
+    @State private var voiceOn = false
     @Environment(\.dismiss) private var dismiss
     @State private var index: Int
     @State private var renaming = false
@@ -648,9 +663,10 @@ struct LibraryMediaViewer: View {
     @State private var renameError = ""
     @State private var showInfo = false
 
-    init(items: [LibraryGalleryItem], startIndex: Int, onRenamed: ((UUID, String, String) -> Void)? = nil) {
+    init(items: [LibraryGalleryItem], startIndex: Int, collectionNames: [String] = [], onFinished: (([ViewerEdit]) -> Void)? = nil) {
         _items = State(initialValue: items)
-        self.onRenamed = onRenamed
+        self.collectionNames = collectionNames
+        self.onFinished = onFinished
         _index = State(initialValue: min(max(0, startIndex), max(0, items.count - 1)))
     }
 
@@ -686,7 +702,7 @@ struct LibraryMediaViewer: View {
         if target.path == old.path { renaming = false; return }
         if FileManager.default.fileExists(atPath: target.path) { renameError = "A file with that name already exists."; return }
         do { try FileManager.default.moveItem(at: old, to: target) } catch { renameError = "Could not rename: \(error.localizedDescription)"; return }
-        onRenamed?(item.clipID, old.path, target.path)
+        edits.append(.rename(item.clipID, old.path, target.path))
         items = items.map { $0.path == old.path ? LibraryGalleryItem(id: $0.clipID.uuidString + target.path, clipID: $0.clipID, title: $0.title, path: target.path) : $0 }
         renaming = false; renameError = ""
     }
@@ -706,15 +722,21 @@ struct LibraryMediaViewer: View {
                 } else {
                     Text(items.isEmpty ? "" : URL(fileURLWithPath: items[index].path).lastPathComponent).font(.headline).lineLimit(1).truncationMode(.middle)
                     Button { startRename() } label: { Image(systemName: "pencil") }.buttonStyle(.borderless).help("Rename this file. The saved file is renamed too.").disabled(items.isEmpty)
+                    Button { toggleFavourite() } label: { Image(systemName: !items.isEmpty && items[index].favorite ? "heart.fill" : "heart").foregroundStyle(!items.isEmpty && items[index].favorite ? Color.red : Color.secondary) }.buttonStyle(.borderless).help("Favourite").disabled(items.isEmpty)
                     Button { showInfo.toggle() } label: { Image(systemName: "info.circle") }.buttonStyle(.borderless).help("Where this file is saved")
                         .popover(isPresented: $showInfo) { infoView }
                 }
                 if !renameError.isEmpty { Text(renameError).font(.caption).foregroundStyle(.orange).lineLimit(2) }
                 Text("\(items.isEmpty ? 0 : index + 1) of \(items.count)").font(.caption).foregroundStyle(.secondary)
                 Spacer()
+                Button { toggleVoice() } label: { Label(voiceOn ? "Listening" : "Voice", systemImage: voiceOn ? "mic.fill" : "mic") }.buttonStyle(.bordered).tint(voiceOn ? Butter.coral : .secondary).help("Say: next, previous, rename to …, save, favourite, move to …, close")
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             .padding(12)
+            if voiceOn || !heard.isEmpty {
+                Text(voiceOn ? "Listening… say “rename to …” then “save”, “favourite”, “move to …”, “next”, “previous”, “close”.  \(heard)" : heard)
+                    .font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 12).padding(.bottom, 6)
+            }
             Divider()
             ZStack {
                 if items.isEmpty {
@@ -736,6 +758,55 @@ struct LibraryMediaViewer: View {
             .background(Color.black.opacity(0.05))
         }
         .frame(minWidth: 820, idealWidth: 1040, minHeight: 600, idealHeight: 760)
+        .onDisappear { speech.stop(); onFinished?(edits); edits = [] }
+    }
+
+    private func toggleFavourite() {
+        guard !items.isEmpty else { return }
+        let clipID = items[index].clipID
+        let on = !items[index].favorite
+        items = items.map { var item = $0; if item.clipID == clipID { item.favorite = on }; return item }
+        edits.append(.favourite(clipID, on))
+        heard = on ? "Added to favourites." : "Removed from favourites."
+    }
+
+    private func toggleVoice() {
+        if voiceOn { speech.stop(); voiceOn = false; return }
+        voiceOn = true
+        speech.startContinuous(onTranscript: { text in handleVoice(text) })
+    }
+
+    /// Spoken commands: next, previous, rename to …, save, favourite, move to …, info, close.
+    private func handleVoice(_ raw: String) {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".,!?")))
+        let lower = text.lowercased()
+        guard !lower.isEmpty else { return }
+        func after(_ prefixes: [String]) -> String? {
+            for prefix in prefixes where lower.hasPrefix(prefix) { return String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces) }
+            return nil
+        }
+        // "rename to sunset beach and save" renames in one go.
+        if var name = after(["rename this to ", "rename it to ", "rename to ", "rename as ", "name it ", "rename "]), !name.isEmpty, !items.isEmpty {
+            var saveNow = false
+            for tail in [" and save", " then save", " and done"] where name.lowercased().hasSuffix(tail) { name = String(name.dropLast(tail.count)); saveNow = true }
+            newName = name; renameError = ""; renaming = true; heard = "New name: \(name)"
+            if saveNow { commitRename() } else { heard += "  Say “save” to rename the file." }
+            return
+        }
+        if ["save", "save it", "save name", "confirm", "done", "ok save"].contains(lower) { if renaming { commitRename(); if renameError.isEmpty { heard = "Saved." } } else { heard = "Nothing to save. Say “rename to …” first." }; return }
+        if ["cancel", "cancel rename"].contains(lower) { renaming = false; renameError = ""; heard = "Rename cancelled."; return }
+        if ["next", "next one", "next file", "forward"].contains(lower) { go(1); return }
+        if ["previous", "previous one", "back", "go back", "previous file"].contains(lower) { go(-1); return }
+        if ["favourite", "favorite", "make favourite", "make favorite", "add to favourites", "add to favorites", "love it", "unfavourite", "unfavorite", "remove favourite", "remove favorite"].contains(lower) { toggleFavourite(); return }
+        if ["info", "show path", "where is it saved", "show info"].contains(lower) { showInfo = true; return }
+        if ["close", "close preview", "exit", "stop"].contains(lower) { dismiss(); return }
+        if let target = after(["move to ", "move it to ", "move this to ", "organise into ", "organize into ", "put it in "]), !target.isEmpty, !items.isEmpty {
+            if let match = collectionNames.first(where: { $0.caseInsensitiveCompare(target) == .orderedSame }) ?? collectionNames.first(where: { $0.lowercased().contains(target.lowercased()) }) {
+                edits.append(.move(items[index].clipID, match)); heard = "Moved to \(match). It leaves this collection when you close the preview."
+            } else { heard = "No collection called “\(target)”." }
+            return
+        }
+        heard = "Heard: \(text)"
     }
 
     private func navButton(_ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {
