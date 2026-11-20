@@ -1,17 +1,10 @@
-# KeyDo 4.01
+# KeyDo 4.02
 
-## Voice priority
-Double backslash and "Hey KeyDo" now come first. When either opens the popup, every other microphone in KeyDo (WishStudio voice, dictation buttons, form voice) stops so only the popup listens.
+## Collections: grid view keeps loading
+The grid in a collection no longer stops at 50 videos. It now loads the whole collection as you scroll down, a few rows at a time, so there is no Next button to look for. The Previous/Next pager remains for the list view.
 
-## Across and down in Sheets
-- `Tirth!` + Space still pastes the next 10 shortcuts down a column.
-- `Tirth>` + Space now pastes them across one row (tab separated and as a one-row table), for Google Sheets and other documents.
-
-## Rewrite studio: `\@r`
-`\@r`, `\@reply`, `\@rephrase` and `\@rewrite` + Space open the studio popup: edit your copied text, pick a tone (Rephrase, Professional, Friendly, Respectful, Polite, Concise, Warm), rewrite, then paste it back. `\r` and `\reply` still rewrite directly with no popup.
-
-## Small bar
-The small bar after a backslash now has a capture button beside the 3-second timer.
+## Database Organizer
+The file list loads the next 150 files automatically as you reach the bottom. The "Show more" button is still there.
 
 ## Keyboard safety
-Checked. The key tap gained no new swallow paths: the only change lets `>` continue a typed shortcut (it is a symbol, so it was never swallowed). The popup guard, 60-second release, Escape and heartbeat watchdog are untouched, and nothing slow runs in the callback.
+Checked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.

@@ -304,6 +304,8 @@ struct DatabaseOrganizerView: View {
             }
             if list.count > shown {
                 Button("Show more (\(list.count - shown) left)") { shown += 150 }.buttonStyle(.bordered)
+                    .onAppear { shown += 150 }
+                    .id(shown)
             }
         }
     }

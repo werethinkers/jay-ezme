@@ -269,7 +269,7 @@ private func keyDoImage(_ name:String)->NSImage?{guard let url=Bundle.main.url(f
      } else if typedShortcuts.isEmpty {
        ContentUnavailableView("No \(typeFilter.title.lowercased()) here",systemImage:typeFilter.symbol,description:Text("Pick another type above, or choose All."))
       } else if layout=="Grid" {
-       LibraryGridView(clips:pageShortcuts,selecting:selectingShortcuts,selectedIDs:$selectedShortcutIDs,onEdit:onEditShortcut,galleryClips:typedShortcuts)
+       LibraryGridView(clips:typedShortcuts,selecting:selectingShortcuts,selectedIDs:$selectedShortcutIDs,onEdit:onEditShortcut,galleryClips:typedShortcuts)
       } else {
       ScrollView {
        LazyVStack(spacing:8) {
@@ -292,7 +292,7 @@ private func keyDoImage(_ name:String)->NSImage?{guard let url=Bundle.main.url(f
       }
      }
     }
-    if !collectionLoading && (mode == "Shortcuts" ? typedShortcuts.count:collectionRecords.count)>collectionPageSize{let total=mode == "Shortcuts" ? typedShortcuts.count:collectionRecords.count;HStack{Spacer();Button("Previous"){collectionPage=max(0,collectionPage-1)}.disabled(collectionPage==0);Text("Page \(collectionPage+1) of \((total+collectionPageSize-1)/collectionPageSize)").font(.caption).foregroundStyle(.secondary);Button("Next"){collectionPage+=1}.disabled((collectionPage+1)*collectionPageSize>=total);Spacer()}}
+    if !collectionLoading && !(mode == "Shortcuts" && layout=="Grid") && (mode == "Shortcuts" ? typedShortcuts.count:collectionRecords.count)>collectionPageSize{let total=mode == "Shortcuts" ? typedShortcuts.count:collectionRecords.count;HStack{Spacer();Button("Previous"){collectionPage=max(0,collectionPage-1)}.disabled(collectionPage==0);Text("Page \(collectionPage+1) of \((total+collectionPageSize-1)/collectionPageSize)").font(.caption).foregroundStyle(.secondary);Button("Next"){collectionPage+=1}.disabled((collectionPage+1)*collectionPageSize>=total);Spacer()}}
     Spacer(minLength:0)
    }.padding(.horizontal,18).padding(.vertical,12).frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading)
   }.background(.background)
