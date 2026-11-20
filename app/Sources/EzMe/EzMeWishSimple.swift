@@ -136,7 +136,7 @@ struct WishSimpleStudio: View {
             if designID != nil && !lookFiles.isEmpty { step = 1 }
             refreshPreview()
         }
-        .onDisappear { model.simpleVoice = nil }
+        .onDisappear { model.simpleVoice = nil; republishIfActive() }
         .sheet(isPresented: $showPrompt) { WishPromptSheet(prompt: chatGPTPrompt) }
         .sheet(isPresented: $showLibrary) { WishLibrarySheet(appID: appID) { images in useFromLibrary(images) } }
         .onChange(of: model.appID) { _, _ in
@@ -212,7 +212,7 @@ struct WishSimpleStudio: View {
             }
         }
         note = ""
-        if index >= 2 { syncTemplates() }
+        if index >= 2 { syncTemplates(); republishIfActive() }
         if index >= 3, designID != nil, UserDefaults.standard.integer(forKey: "wishDefaultTemplate." + appID) > 0 { selectTemplate(defaultTemplate) }
         step = index
         if index >= 1 { draft = workingTemplate; refreshPreview() }
@@ -262,7 +262,20 @@ struct WishSimpleStudio: View {
     private func afterLooksChanged(select file: String?) {
         if designID == nil { createDesign() } else { syncTemplates() }
         if let file { pickLook(file) }
+        republishIfActive()
         model.objectWillChange.send()
+    }
+
+    /// Once an app is activated the backslash popup uses a published copy of its templates. When templates or layers change
+    /// afterwards, publish again so the popup, the numbers and the cards it makes always match what you see here.
+    private func republishIfActive() {
+        guard let id = designID, active else { return }
+        if let page = draft { TemplateStore.shared.save(page) }
+        syncTemplates()
+        WishDesignSync.sync(model)
+        guard designs.design(id: id) != nil else { return }
+        _ = designs.release(id)
+        if let released = designs.design(id: id) { _ = DesignCommands.register(released) }
     }
 
     private func pickLook(_ file: String) {

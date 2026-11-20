@@ -1,12 +1,7 @@
-# KeyDo 4.35
+# KeyDo 4.36
 
 ## What's new
-- **Recent Files** (new tab in Database Organizer): one list of the files you open, grouped by day.
-  - **On this Mac**: press "Find files from this Mac" (1, 3, 7 or 30 days) to list documents, spreadsheets, presentations, PDFs, images and videos you used, using Spotlight's last-used record.
-  - **In the KeyDo browser**: Google Sheets, Docs, Slides, Forms, Drive files and Word, Excel and PowerPoint online are added by themselves when you open them.
-  - **Tags and purpose**: tag each file (Work, Client, Finance, ...) and say what it is for. "Auto-tag" gives a first guess from the kind of file, words in its name and its folder.
-  - **Search**: one box searches the name, place, tags and purpose; tag chips filter the list; "Untagged" shows what still needs sorting.
-  - **Daily task**: a card at the top shows how many of today's files still need a purpose, with a progress bar and "Mark today done".
+- **Wish Studio templates now reach the backslash popup.** After an app is activated, the popup uses a published copy of its templates. Templates you added or changed later (new backgrounds from the library or by import, layer edits) stayed out of that copy, so they showed in Wish Studio but not in the popup, or the popup made the old card. Now the templates are published again automatically when you add a background, move on to Activate or Use, or leave Wish Studio, so the popup strip, the numbers (`\\app-Name-3`) and the cards match what you see.
 
 ## Keyboard safety
 Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.
