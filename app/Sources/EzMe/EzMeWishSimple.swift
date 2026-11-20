@@ -203,7 +203,7 @@ struct WishSimpleStudio: View {
     }
 
     private func go(_ index: Int) {
-        if index >= 1 && designID == nil {
+        if index >= 1 && designID == nil && !(index == 3 && model.app.builtIn) {
             if lookFiles.isEmpty { generate() } else { createDesign() }
             if designID == nil {
                 note = "Could not start the design. Try step 1 again."
@@ -756,10 +756,26 @@ struct WishSimpleStudio: View {
                             } else if let preview {
                                 Image(nsImage: preview).resizable().interpolation(.high).scaledToFit().padding(18)
                             } else {
-                                Text("Choose a background in step 1.").font(.system(size: 13)).foregroundStyle(WishSimpleTheme.muted)
+                                WishCardCanvas(app: model.app, card: model.card, design: model.design, context: model.context, selected: nil, animated: false)
+                                    .scaleEffect(0.6).frame(width: WishCardCanvas.size.width * 0.6, height: WishCardCanvas.size.height * 0.6)
                             }
                         }
                         .frame(height: 400)
+                        if model.linkedTemplate == nil && preview == nil {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(model.designs) { item in
+                                        Button { model.chooseDesign(item.id); model.objectWillChange.send() } label: {
+                                            VStack(spacing: 3) {
+                                                RoundedRectangle(cornerRadius: 8).fill(Color(wishHex: item.background)).frame(width: 64, height: 46)
+                                                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(item.id == model.card.designID ? WishSimpleTheme.accent : WishSimpleTheme.line, lineWidth: item.id == model.card.designID ? 3 : 1))
+                                                Text(item.name).font(.system(size: 9)).lineLimit(1).frame(width: 70)
+                                            }
+                                        }.buttonStyle(.plain)
+                                    }
+                                }.padding(.horizontal, 14).padding(.vertical, 8)
+                            }
+                        }
                         if lookFiles.count > 1 {
                             LooksStrip(files: lookFiles, selected: lookFiles.indices.contains(currentTemplateNumber - 1) ? lookFiles[currentTemplateNumber - 1] : nil) { file in
                                 if let at = lookFiles.firstIndex(of: file) { selectTemplate(at + 1) }

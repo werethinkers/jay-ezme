@@ -1,8 +1,8 @@
-# KeyDo 4.30
+# KeyDo 4.31
 
 ## What's new
-- **Older Wish Studio designs are in the background library.** The Birthday and Anniversary cards and the 12 greeting colour designs (Lavender wishes, Blush & balloons, Mint garden, Soft sky, Golden hour, Peach glow, Rose petal, Sage calm, Midnight, Coral sunrise, Ink & ivory, Saffron festival) are added the first time you open the library. Pick any and press "Use in this app" to make them templates 1, 2, 3 of that app.
-- **Add older designs** button in the library restores any you have removed.
+- **Wish Studio, built-in apps (Happy Anniversary, Happy Birthday and the other occasion apps)**: the Use step now shows the live card and a row of the 12 designs under it. Tap a design to change the card in the same app, then fill in the blanks and download, copy or share. Before, these apps kept their old design with no way to change it.
+- Going straight to Use on a built-in app keeps its own card instead of drawing new backgrounds.
 
 ## Keyboard safety
 Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.
