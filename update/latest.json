@@ -1,9 +1,9 @@
 {
-  "version": "4.24",
-  "build": 431,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.24-build431/EzMe-4.24-macOS.zip",
-  "sha256": "5714c4c9c062b5978592a6c590a79fc107d0f8dbdd10ddae6363a575397ca444",
-  "notes": "# KeyDo 4.24\n\nOne voice for all of KeyDo.\n\n- **One microphone.** Wish Studio, Fill by voice, the designers, the library and the quick apps no longer run their own speech recogniser. They all use the one behind the KeyDo voice bubble, so two of them can never listen at once or hear each other's commands.\n- **Commands go where you are.** Start the bubble once: your words go to the screen you are on (Wish Studio, a designer, a form being filled), or to the popup when the popup is open. Open another screen's mic and the previous one hands over.\n- **Plain dictation yields too.** Pressing a dictation mic stops the bubble, and pressing the bubble stops dictation, so only one is ever listening.\n- **Stop and pause by voice work everywhere:** \"pause listening\", \"start listening\", \"stop listening\".\n- One voice language setting is shared across all voice features.\n\n## Keyboard safety\nChecked: the key tap (`miniJSlashTap`), popup, and the key-swallowing modes (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not changed. Nothing new swallows keys, the heartbeat watchdog is kept, and no work was added inside the callback.",
-  "published": "2026-11-20T16:47:50Z",
+  "version": "4.25",
+  "build": 432,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.25-build432/EzMe-4.25-macOS.zip",
+  "sha256": "4072e50605d82e5b033d8cc4c26d0275f0e608c69ac1f99e4505ad7c0f70e9ef",
+  "notes": "# KeyDo 4.25\n\nTemplate pictures in the popup.\n\n- **Numbered templates in the popup.** When you type a design app in the popup, such as `\\ha-Rohit`, its card now shows the same template pictures as the full form, numbered 1, 2, 3, 4 and Random, with the default marked. Tap one and Generate uses it. Typing `-temp2`, `-temp3` or `-tempr` still works and highlights the matching picture.\n- The popup grows a little to make room for the pictures, and only for apps that have more than one template.\n\n## Keyboard safety\nChecked: the key tap (`miniJSlashTap`), popup key handling, voice and the key-swallowing modes (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not changed. This change only adds a picture strip to a card; nothing new swallows keys, the heartbeat watchdog is kept, and no work was added inside the callback.",
+  "published": "2026-11-20T17:58:44Z",
   "minimumSystemVersion": "14.0"
 }
