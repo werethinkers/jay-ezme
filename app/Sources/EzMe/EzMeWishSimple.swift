@@ -72,6 +72,8 @@ struct WishSimpleStudio: View {
     @State private var preview: NSImage?
     @State private var shortcut = ""
     @State private var lookFiles: [String] = []
+    @State private var previewLook: String?
+    @State private var phrases = ""
 
     private var appID: String { model.appID }
     private var heading: String { UserDefaults.standard.string(forKey: "wishHeading." + appID) ?? model.app.name }
@@ -80,41 +82,50 @@ struct WishSimpleStudio: View {
     private var workingTemplate: ImageTemplate? { design.flatMap { $0.pages.first }.flatMap { templates.template(id: $0) } }
     private var template: ImageTemplate? { draft ?? workingTemplate }
     private var active: Bool { (design?.version ?? 0) > 0 }
+    private var backgroundHex: String { WishLookStore.backgroundHex(appID) }
 
     private let steps = [("Prompt", "Get your backgrounds"), ("Design", "Place your layers"), ("Activate", "Save your shortcut"), ("Use", "Make a card")]
 
     var body: some View {
-        HStack(spacing: 0) {
-            rail
-            Divider().overlay(WishSimpleTheme.line)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Group {
-                        switch step {
-                        case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note, showPrompt: $showPrompt, onPick: pickLook, onDesign: { generate() }, onNext: { go(1) })
-                        case 1: designStep
-                        case 2: activateStep
-                        default: useStep
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                rail
+                Divider().overlay(WishSimpleTheme.line)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Group {
+                            switch step {
+                            case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note, showPrompt: $showPrompt,
+                                               onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) },
+                                               onImport: { importPNGs() }, onGreeting: { applyGreeting() })
+                            case 1: designStep
+                            case 2: activateStep
+                            default: useStep
+                            }
                         }
+                        if !note.isEmpty { Text(note).font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted).padding(.top, 14) }
                     }
-                    if !note.isEmpty { Text(note).font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted).padding(.top, 14) }
+                    .padding(.horizontal, 40).padding(.vertical, 30)
+                    .frame(maxWidth: 1180, alignment: .leading)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(.horizontal, 40).padding(.vertical, 30)
-                .frame(maxWidth: 1180, alignment: .leading)
-                .frame(maxWidth: .infinity)
             }
         }
         .background(WishSimpleTheme.paper)
         .foregroundStyle(WishSimpleTheme.ink)
         .onAppear {
+            model.simpleVoice = { text in handleVoice(text) }
             guard !started else { return }
             started = true
             lookFiles = WishLookStore.files(appID)
+            previewLook = WishLookStore.selectedFile(appID) ?? lookFiles.first
             draft = workingTemplate
             shortcut = design?.command ?? WishAppLink.currentWord(model.app.name)
+            phrases = UserDefaults.standard.string(forKey: "wishPhrases." + appID) ?? BuilderPhrases.suggested(for: model.app.name).joined(separator: "\n")
             if designID != nil && !lookFiles.isEmpty { step = 1 }
             refreshPreview()
         }
+        .onDisappear { model.simpleVoice = nil }
         .sheet(isPresented: $showPrompt) { WishPromptSheet(prompt: chatGPTPrompt) }
         .onChange(of: model.appID) { _, _ in
             started = false
@@ -124,7 +135,7 @@ struct WishSimpleStudio: View {
     }
 
     private var headingBinding: Binding<String> {
-        Binding(get: { heading }, set: { UserDefaults.standard.set($0, forKey: "wishHeading." + appID); model.objectWillChange.send() })
+        Binding(get: { heading }, set: { UserDefaults.standard.set($0, forKey: "wishHeading." + appID); applyGreeting() })
     }
 
     private var chatGPTPrompt: String {
@@ -161,12 +172,22 @@ struct WishSimpleStudio: View {
                 .foregroundStyle(step == index ? Color(wishHex: "#833625") : WishSimpleTheme.ink)
             }
             Spacer()
+            Text(voiceHint).font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted).padding(.horizontal, 10)
             Button { model.simple = false } label: { Label("Advanced tools", systemImage: "slider.horizontal.3").font(.system(size: 12)) }
                 .buttonStyle(.plain).foregroundStyle(WishSimpleTheme.muted).padding(10)
-                .help("Voice commands, templates, credits and the full designer.")
+                .help("Templates, credits and the full designer.")
         }
         .padding(.top, 28).padding(.horizontal, 14).padding(.bottom, 14)
         .frame(width: 210)
+    }
+
+    private var voiceHint: String {
+        switch step {
+        case 0: return "Say: design with KeyDo, send to ChatGPT, import, next."
+        case 1: return "Say: add variable, make it fixed, required, bigger, background pink, move up, next."
+        case 2: return "Say: shortcut bday, add voice command make a birthday card, activate the app."
+        default: return "Say: name Rohit, template 3, download."
+        }
     }
 
     private func go(_ index: Int) {
@@ -176,6 +197,7 @@ struct WishSimpleStudio: View {
             return
         }
         note = ""
+        if index >= 2 { syncTemplates() }
         step = index
         if index >= 1 { draft = workingTemplate; refreshPreview() }
     }
@@ -189,7 +211,7 @@ struct WishSimpleStudio: View {
         .padding(.bottom, 24)
     }
 
-    // MARK: Looks
+    // MARK: Templates (looks), numbered 1, 2, 3 ...
 
     private func generate() {
         let made = WishLookMaker.make()
@@ -197,34 +219,82 @@ struct WishSimpleStudio: View {
         var first: String?
         for image in made { if let file = WishLookStore.add(image, appID: appID), first == nil { first = file } }
         lookFiles = WishLookStore.files(appID)
-        note = "KeyDo drew 4 transparent backgrounds. Pick one, then continue."
-        if let first { pickLook(first, advance: false) }
+        afterLooksChanged(select: first)
+        note = "KeyDo drew 4 transparent backgrounds. They are templates 1 to \(lookFiles.count). Pick one, then continue."
     }
 
-    private func pickLook(_ file: String, advance: Bool = false) {
-        guard let image = WishLookStore.image(file) else { return }
-        WishLookStore.select(file, appID: appID)
-        var page: ImageTemplate
-        if let existing = workingTemplate {
-            page = existing
-        } else {
-            guard let made = AppDesignStore.shared.newFromPicture(image, name: model.app.name) else { note = "Could not start the design."; return }
-            TemplateStore.setWishTemplate("design:" + made.id, appID: appID)
-            guard let first = TemplateLinks.pages(for: "design:" + made.id).first else { return }
-            page = first
-            seedLayers(into: &page)
-        }
-        let fitted = TemplateImages.limited(image, maxSide: 3200)
-        let size = TemplateImages.pixelSize(fitted)
-        page.pixelWidth = Int(size.width)
-        page.pixelHeight = Int(size.height)
-        TemplateStore.shared.setOriginal(fitted, for: page)
-        TemplateStore.shared.save(page)
-        recolour(&page, hex: WishLookStore.backgroundHex(appID), save: true)
-        draft = page
+    private func importPNGs() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png]
+        panel.allowsMultipleSelection = true
+        panel.message = "Choose PNG backgrounds with a transparent background"
+        guard panel.runModal() == .OK else { return }
+        var last: String?
+        for url in panel.urls { if let image = NSImage(contentsOf: url), let file = WishLookStore.add(image, appID: appID) { last = file } }
+        lookFiles = WishLookStore.files(appID)
+        afterLooksChanged(select: last)
+    }
+
+    private func afterLooksChanged(select file: String?) {
+        if designID == nil { createDesign() } else { syncTemplates() }
+        if let file { pickLook(file) }
         model.objectWillChange.send()
+    }
+
+    private func pickLook(_ file: String) {
+        WishLookStore.select(file, appID: appID)
+        previewLook = file
+        if designID == nil { createDesign() }
         refreshPreview()
-        if advance { go(1) }
+    }
+
+    private func createDesign() {
+        guard let firstFile = lookFiles.first, let image = WishLookStore.image(firstFile) else { return }
+        guard let made = AppDesignStore.shared.newFromPicture(image, name: model.app.name) else { note = "Could not start the design."; return }
+        TemplateStore.setWishTemplate("design:" + made.id, appID: appID)
+        guard var page = TemplateLinks.pages(for: "design:" + made.id).first else { return }
+        seedLayers(into: &page)
+        TemplateStore.shared.save(page)
+        draft = page
+        syncTemplates()
+        model.objectWillChange.send()
+    }
+
+    /// Every look is a template of the app: template 1 is the first look, template 2 the second, and so on. They share the layers.
+    private func syncTemplates() {
+        guard let id = designID, var current = designs.design(id: id), let mainID = current.pages.first, var main = templates.template(id: mainID) else { return }
+        if let page = draft, page.id == mainID { main = page }
+        var variants = current.variants ?? []
+        for (offset, file) in lookFiles.enumerated() {
+            guard let art = WishLookStore.image(file) else { continue }
+            let fitted = TemplateImages.limited(art, maxSide: 3200)
+            let size = TemplateImages.pixelSize(fitted)
+            let base = TemplateBackground.composite(fitted, hex: backgroundHex) ?? fitted
+            let layers = main.slots
+            func fill(_ page: inout ImageTemplate) {
+                page.slots = layers
+                page.pixelWidth = Int(size.width)
+                page.pixelHeight = Int(size.height)
+                TemplateStore.shared.save(page)
+                TemplateStore.shared.setOriginal(fitted, for: page)
+                TemplateStore.shared.setPicture(base, for: page)
+            }
+            if offset == 0 {
+                fill(&main)
+            } else if offset - 1 < variants.count, let variantPage = variants[offset - 1].pages.first, var page = templates.template(id: variantPage) {
+                fill(&page)
+            } else if var copy = TemplateStore.shared.duplicate(mainID) {
+                copy.designID = current.id
+                copy.name = "\(current.name) temp\(offset + 1) page 1"
+                fill(&copy)
+                var variant = DesignVariant(name: "temp\(offset + 1)")
+                variant.pages = [copy.id]
+                variants.append(variant)
+            }
+        }
+        current.variants = variants
+        designs.save(current)
+        draft = main
     }
 
     /// The heading, a name to fill in and the sign-off, like the sample wish.
@@ -253,23 +323,54 @@ struct WishSimpleStudio: View {
         }
     }
 
-    private func recolour(_ page: inout ImageTemplate, hex: String, save: Bool) {
-        TemplateBackground.clearCache()
-        let result = TemplateBackground.recoloured(page, hex: hex)
-        guard let image = result.image else { if !result.message.isEmpty { note = result.message }; return }
-        TemplateStore.shared.setPicture(image, for: page)
+    /// Step 1 words reach the design at once: the heading and sign-off are saved as fixed text, the name only as the example.
+    private func applyGreeting() {
+        model.objectWillChange.send()
+        guard var page = draft ?? workingTemplate else { return }
+        let sender = UserDefaults.standard.string(forKey: "wishSender." + appID) ?? "From Jay Jain & Family"
+        let example = UserDefaults.standard.string(forKey: "wishExample." + appID) ?? "Rohit"
+        var changed = false
+        for index in page.slots.indices {
+            switch page.slots[index].key {
+            case "heading": page.slots[index].content = heading; page.slots[index].sample = heading; changed = true
+            case "sign-off": page.slots[index].content = sender; page.slots[index].sample = sender; changed = true
+            case "name":
+                page.slots[index].sample = example
+                var app = model.app
+                if let at = app.fields.firstIndex(where: { $0.key == "name" }) { app.fields[at].placeholder = example; model.store.updateApp(app) }
+                changed = true
+            default: break
+            }
+        }
+        if changed { draft = page; TemplateStore.shared.save(page); refreshPreview() }
+    }
+
+    private func adjustInk(_ page: inout ImageTemplate, hex: String) {
         let dark = (NSColor(templateHex: hex).usingColorSpace(.deviceRGB)).map { 0.299 * $0.redComponent + 0.587 * $0.greenComponent + 0.114 * $0.blueComponent < 0.45 } ?? false
         for index in page.slots.indices where page.slots[index].kind == .text {
             let level = NSColor(templateHex: page.slots[index].colorHex).usingColorSpace(.deviceRGB).map { 0.299 * $0.redComponent + 0.587 * $0.greenComponent + 0.114 * $0.blueComponent } ?? 0.5
             if dark && level < 0.45 { page.slots[index].colorHex = "#FFFFFF" }
             if !dark && level > 0.75 { page.slots[index].colorHex = "#26221F" }
         }
-        if save { TemplateStore.shared.save(page) }
+    }
+
+    private func setBackground(_ hex: String) {
+        WishLookStore.setBackgroundHex(hex, appID: appID)
+        guard var page = draft ?? workingTemplate else { return }
+        adjustInk(&page, hex: hex)
+        draft = page
+        TemplateStore.shared.save(page)
+        refreshPreview()
     }
 
     func refreshPreview() {
-        guard let page = template, let base = TemplateStore.shared.basePicture(for: page) else { preview = nil; return }
-        preview = TemplateRenderer.render(page, base: base, texts: nil, images: [:], useSamples: true, maxSide: 1000)
+        guard let page = template else { preview = nil; return }
+        var base: NSImage?
+        if let file = previewLook ?? lookFiles.first, let art = WishLookStore.image(file) {
+            base = TemplateBackground.composite(TemplateImages.limited(art, maxSide: 2000), hex: backgroundHex)
+        }
+        guard let image = base ?? TemplateStore.shared.basePicture(for: page) else { preview = nil; return }
+        preview = TemplateRenderer.render(page, base: image, texts: nil, images: [:], useSamples: true, maxSide: 1000)
     }
 
     private func commit(_ page: ImageTemplate) {
@@ -290,12 +391,12 @@ struct WishSimpleStudio: View {
                 Button("Continue \u{2192}") { go(2) }.buttonStyle(SimplePrimaryButton()).padding(.bottom, 24)
             }
             HStack(alignment: .top, spacing: 19) {
-                SimpleCard(title: "Card canvas") {
+                SimpleCard(title: "Card canvas", trailing: "Template \((lookFiles.firstIndex(of: previewLook ?? "") ?? 0) + 1) of \(max(1, lookFiles.count))") {
                     VStack(spacing: 0) {
                         WishCanvas(template: template, preview: preview, selected: $selectedSlot,
                                    onMove: { id, x, y in moveSlot(id, x, y) }, onEnd: { if let page = draft { commit(page) } })
                         backgroundBar
-                        LooksStrip(files: lookFiles, selected: WishLookStore.selectedFile(appID)) { pickLook($0) }
+                        LooksStrip(files: lookFiles, selected: previewLook) { pickLook($0) }
                     }
                 }
                 .frame(minWidth: 460)
@@ -312,40 +413,24 @@ struct WishSimpleStudio: View {
     }
 
     private var backgroundBar: some View {
-        let hex = WishLookStore.backgroundHex(appID)
         let colours = ["#FFFFFF", "#FFF4DC", "#F6D1D5", "#EC6AA8", "#F28A2E", "#F2C230", "#CFEFD9", "#8FC8EE", "#E6DCF7", "#1B2A5C", "#111111"]
         return VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 Text("Background colour").font(.system(size: 12, weight: .semibold))
                 ForEach(colours, id: \.self) { item in
-                    Button {
-                        WishLookStore.setBackgroundHex(item, appID: appID)
-                        if var page = draft ?? workingTemplate { recolour(&page, hex: item, save: true); draft = page; refreshPreview() }
-                    } label: {
+                    Button { setBackground(item) } label: {
                         Circle().fill(Color(wishHex: item)).frame(width: 20, height: 20)
-                            .overlay(Circle().strokeBorder(item == hex ? WishSimpleTheme.accent : Color.black.opacity(0.2), lineWidth: item == hex ? 2 : 1))
+                            .overlay(Circle().strokeBorder(item == backgroundHex ? WishSimpleTheme.accent : Color.black.opacity(0.2), lineWidth: item == backgroundHex ? 2 : 1))
                     }.buttonStyle(.plain)
                 }
                 Spacer()
                 Button { importPNGs() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
             }
-            Text("Tip: use PNGs with a transparent background so the colour can change. A flat photo keeps its own colours.")
+            Text("Tip: use PNGs with a transparent background so the colour can change. A flat photo keeps its own colours. The numbers below are the template numbers.")
                 .font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
         .overlay(alignment: .top) { Divider().overlay(WishSimpleTheme.line) }
-    }
-
-    private func importPNGs() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png]
-        panel.allowsMultipleSelection = true
-        panel.message = "Choose PNG backgrounds with a transparent background"
-        guard panel.runModal() == .OK else { return }
-        var last: String?
-        for url in panel.urls { if let image = NSImage(contentsOf: url), let file = WishLookStore.add(image, appID: appID) { last = file } }
-        lookFiles = WishLookStore.files(appID)
-        if let last { pickLook(last) }
     }
 
     // Layers
@@ -384,15 +469,18 @@ struct WishSimpleStudio: View {
 
     private func layerRow(_ slot: TemplateSlot) -> some View {
         let kind = WishLayerKind.of(slot, app: model.app)
+        let dynamic = kind.isDynamic(slot)
+        let must = dynamic && WishLayerOps.isRequired(key: slot.key, model: model)
         return Button { selectedSlot = slot.id } label: {
             HStack(spacing: 8) {
                 Image(systemName: kind.symbol).font(.system(size: 12)).frame(width: 18)
                 Text(slot.key).font(.system(size: 12)).lineLimit(1)
                 Spacer()
-                Text(kind.isDynamic(slot) ? "Dynamic" : "Fixed").font(.system(size: 10, weight: .semibold))
+                if must { Text("Required").font(.system(size: 10, weight: .semibold)).foregroundStyle(WishSimpleTheme.accent) }
+                Text(dynamic ? "Dynamic" : "Fixed").font(.system(size: 10, weight: .semibold))
                     .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(Capsule().fill(kind.isDynamic(slot) ? Color(wishHex: "#F6E4DC") : Color(wishHex: "#E9EFE6")))
-                    .foregroundStyle(kind.isDynamic(slot) ? Color(wishHex: "#8B3D2F") : Color(wishHex: "#3A6049"))
+                    .background(Capsule().fill(dynamic ? Color(wishHex: "#F6E4DC") : Color(wishHex: "#E9EFE6")))
+                    .foregroundStyle(dynamic ? Color(wishHex: "#8B3D2F") : Color(wishHex: "#3A6049"))
             }
             .padding(8)
             .background(RoundedRectangle(cornerRadius: 8).fill(slot.id == selectedSlot ? Color(wishHex: "#FAF0EB") : WishSimpleTheme.white))
@@ -416,12 +504,12 @@ struct WishSimpleStudio: View {
         case "variable":
             let key = unique("variable")
             slot = TemplateSlot(key: key, kind: .text); slot.content = "{{\(key)}}"; slot.sample = "Type here"
-            var field = WishField(key: key, label: key.prefix(1).uppercased() + key.dropFirst()); field.placeholder = "Type here"
+            var field = WishField(key: key, label: WishLayerOps.label(key)); field.placeholder = "Type here"
             app.fields.append(field)
         case "collection":
             let key = unique("choice")
             slot = TemplateSlot(key: key, kind: .text); slot.content = "{{\(key)}}"; slot.sample = "Option A"
-            var field = WishField(key: key, label: key.prefix(1).uppercased() + key.dropFirst())
+            var field = WishField(key: key, label: WishLayerOps.label(key))
             field.choices = ["Option A", "Option B", "Option C"]
             app.fields.append(field)
         case "function":
@@ -458,51 +546,86 @@ struct WishSimpleStudio: View {
                 Button { activate() } label: { Label(active ? "Update app" : "Activate app", systemImage: "checkmark") }.buttonStyle(SimplePrimaryButton()).padding(.bottom, 24)
             }
             HStack(alignment: .top, spacing: 19) {
-                SimpleCard(title: "Card preview") {
+                SimpleCard(title: "Card preview", trailing: "\(max(1, lookFiles.count)) templates") {
                     VStack(spacing: 0) {
                         ZStack {
                             WishSimpleTheme.stage
                             if let preview { Image(nsImage: preview).resizable().scaledToFit().padding(18) }
                         }
-                        .frame(height: 430)
+                        .frame(height: 360)
+                        LooksStrip(files: lookFiles, selected: previewLook) { pickLook($0) }
                         HStack { Text(active ? "Active \u{00B7} version \(design?.version ?? 0)" : "Not active yet").font(.system(size: 11)).foregroundStyle(active ? WishSimpleTheme.green : WishSimpleTheme.muted); Spacer() }
-                            .padding(.horizontal, 16).padding(.vertical, 10)
+                            .padding(.horizontal, 16).padding(.bottom, 10)
                     }
                 }
-                SimpleCard(title: "App shortcut") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Shortcut word").font(.system(size: 12, weight: .semibold))
-                        HStack(spacing: 4) {
-                            Text("\\").font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundStyle(WishSimpleTheme.accent)
-                            TextField("bday", text: $shortcut).textFieldStyle(.roundedBorder).frame(maxWidth: 180)
-                        }
-                        let ideas = DesignNameIdeas.words(for: model.app.name).filter { !WishAppLink.wordsUsed(byOthersThan: model.app.name).contains($0) }
-                        if !ideas.isEmpty {
-                            HStack(spacing: 6) {
-                                ForEach(ideas.prefix(4), id: \.self) { word in Button("\\" + word) { shortcut = word }.buttonStyle(SimpleQuietButton()).font(.system(.caption, design: .monospaced)) }
-                            }
-                        }
-                        Text(displayShortcut).font(.system(size: 14, design: .monospaced)).padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                            .background(RoundedRectangle(cornerRadius: 9).fill(Color(wishHex: "#F4EFE8")))
-                        Text("Type this in any app to make a card with your words.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
-                        Divider().overlay(WishSimpleTheme.line)
-                        Text("What people fill in").font(.system(size: 13, weight: .semibold))
-                        let asked = askedFields
-                        if asked.isEmpty { Text("Nothing. Every layer is fixed.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted) }
-                        ForEach(asked, id: \.id) { field in
-                            HStack(spacing: 6) {
-                                Image(systemName: (field.choices ?? []).isEmpty ? "curlybraces" : "list.bullet").font(.system(size: 11))
-                                Text(field.label).font(.system(size: 12))
-                                if !(field.choices ?? []).isEmpty { Text("choose one").font(.system(size: 10)).foregroundStyle(WishSimpleTheme.muted) }
-                            }
-                        }
-                    }
-                    .padding(16)
+                VStack(spacing: 19) {
+                    shortcutCard
+                    voiceCard
                 }
                 .frame(width: 340)
             }
         }
     }
+
+    private var shortcutCard: some View {
+        SimpleCard(title: "App shortcut") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Shortcut word").font(.system(size: 12, weight: .semibold))
+                HStack(spacing: 4) {
+                    Text("\\").font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundStyle(WishSimpleTheme.accent)
+                    TextField("bday", text: $shortcut).textFieldStyle(.roundedBorder).frame(maxWidth: 180)
+                }
+                let ideas = DesignNameIdeas.words(for: model.app.name).filter { !WishAppLink.wordsUsed(byOthersThan: model.app.name).contains($0) }
+                if !ideas.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(ideas.prefix(4), id: \.self) { word in Button("\\" + word) { shortcut = word }.buttonStyle(SimpleQuietButton()).font(.system(.caption, design: .monospaced)) }
+                    }
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(displayShortcut).font(.system(size: 14, design: .monospaced))
+                    if lookFiles.count > 1 { Text(displayShortcut + "-3").font(.system(size: 14, design: .monospaced)) }
+                }
+                .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 9).fill(Color(wishHex: "#F4EFE8")))
+                Text(lookFiles.count > 1 ? "Type this in any app. Add -3 at the end for the third template." : "Type this in any app to make a card with your words.")
+                    .font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
+                Divider().overlay(WishSimpleTheme.line)
+                Text("What people fill in").font(.system(size: 13, weight: .semibold))
+                let asked = askedFields
+                if asked.isEmpty { Text("Nothing. Every layer is fixed.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted) }
+                ForEach(asked, id: \.id) { field in
+                    HStack(spacing: 6) {
+                        Image(systemName: (field.choices ?? []).isEmpty ? "curlybraces" : "list.bullet").font(.system(size: 11))
+                        Text(field.label).font(.system(size: 12))
+                        if !(field.choices ?? []).isEmpty { Text("choose one").font(.system(size: 10)).foregroundStyle(WishSimpleTheme.muted) }
+                        Spacer()
+                        Text(isRequired(field.key) ? "Required" : "Optional").font(.system(size: 10, weight: .semibold)).foregroundStyle(isRequired(field.key) ? WishSimpleTheme.accent : WishSimpleTheme.muted)
+                    }
+                }
+            }
+            .padding(16)
+        }
+    }
+
+    private var voiceCard: some View {
+        SimpleCard(title: "Voice commands") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Say one of these, then the details, to run the app by voice. One phrase per line.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
+                TextEditor(text: $phrases).font(.system(size: 12)).frame(height: 78).padding(6)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(WishSimpleTheme.white))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WishSimpleTheme.line, lineWidth: 1))
+                    .onChange(of: phrases) { _, value in
+                        UserDefaults.standard.set(value, forKey: "wishPhrases." + appID)
+                        if let target = WishAppLink.builderApp(model) { BuilderPhrases.save(value.components(separatedBy: "\n"), for: target.name) }
+                    }
+                Button("Use suggestions") { phrases = BuilderPhrases.suggested(for: model.app.name).joined(separator: "\n") }.buttonStyle(SimpleQuietButton())
+                Text(active ? "Saved with the app." : "Saved when you press Activate app.").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
+            }
+            .padding(16)
+        }
+    }
+
+    private func isRequired(_ key: String) -> Bool { WishLayerOps.isRequired(key: key, model: model) }
 
     private var displayShortcut: String {
         let word = DesignCommands.sanitize(shortcut)
@@ -520,19 +643,26 @@ struct WishSimpleStudio: View {
     }
 
     private var askedFields: [WishField] { model.app.fields.filter { askedKeys.contains($0.key.lowercased()) } }
+    private var askedPictures: [TemplateSlot] { (template?.slots ?? []).filter { $0.kind == .image && ($0.content ?? "").isEmpty } }
 
     private func activate() {
-        guard let id = designID, var current = designs.design(id: id) else { note = "Choose a background first."; return }
+        guard let id = designID, designs.design(id: id) != nil else { note = "Choose a background first."; return }
         let clean = DesignCommands.sanitize(shortcut)
         guard !clean.isEmpty else { note = "Use one word with letters or numbers only."; return }
         if WishAppLink.wordsUsed(byOthersThan: model.app.name).contains(clean) { note = "\\\(clean) is already used by another app. Choose a different word."; return }
         if let page = draft { TemplateStore.shared.save(page) }
+        syncTemplates()
         WishDesignSync.sync(model)
+        guard var current = designs.design(id: id) else { return }
         current.command = clean
         designs.save(current)
         let message = designs.release(id)
         if let released = designs.design(id: id) { shortcut = DesignCommands.register(released) }
-        if let target = WishAppLink.builderApp(model) { UserDefaults.standard.set(shortcut, forKey: "ezmeBuilderPrefix." + target.name) }
+        if let target = WishAppLink.builderApp(model) {
+            UserDefaults.standard.set(shortcut, forKey: "ezmeBuilderPrefix." + target.name)
+            let lines = phrases.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            if !lines.isEmpty { BuilderPhrases.save(lines, for: target.name) }
+        }
         model.status = "Activated. Type \\\(shortcut)- and a name in any app."
         note = message.isEmpty ? "Activated. Type \\\(shortcut)- and a name in any app to run it." : message
         model.objectWillChange.send()
@@ -540,32 +670,93 @@ struct WishSimpleStudio: View {
 
     // MARK: Step 4: use
 
+    private var currentTemplateNumber: Int {
+        let token = TemplateLinks.token(WishAppLink.link(model)) ?? ""
+        if token.hasPrefix("temp"), let number = Int(token.dropFirst(4)) { return number }
+        return 1
+    }
+
+    private func selectTemplate(_ number: Int) {
+        guard let id = designID, number >= 1, number <= max(1, lookFiles.count) else { note = "There is no template \(number)."; return }
+        TemplateStore.setWishTemplate(number == 1 ? "design:" + id : "design:" + id + "@temp\(number)", appID: appID)
+        note = "Template \(number) is the card now."
+        model.objectWillChange.send()
+    }
+
+    private var missingRequired: [String] {
+        var missing = askedFields.filter { isRequired($0.key) && model.card.value(for: $0.key).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.map { $0.label }
+        for slot in askedPictures where isRequired(slot.key) && !(model.card.media ?? []).contains(where: { $0.placement == slot.key }) { missing.append(slot.key) }
+        return missing
+    }
+
+    private func chooseMedia(_ key: String) {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.message = "Choose the picture for \(key)"
+        guard panel.runModal() == .OK, let url = panel.url, let imported = model.store.importMedia(from: url) else { return }
+        var list = (model.card.media ?? []).filter { $0.placement != key }
+        list.append(WishMedia(file: imported.file, kind: imported.kind, placement: key))
+        model.card.media = list
+        model.objectWillChange.send()
+    }
+
+    private func make(_ action: () -> Void) {
+        let missing = missingRequired
+        guard missing.isEmpty else { note = "Fill in " + missing.joined(separator: ", ") + " first."; return }
+        action()
+    }
+
     private var useStep: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header("Make a \(heading) card", "Fill in the blanks and the card changes as you type.")
+            header("Make a \(heading) card", "Fill in the blanks and the card changes as you type. Choose the template you want.")
             HStack(alignment: .top, spacing: 19) {
-                SimpleCard(title: "Live card") {
-                    ZStack {
-                        WishSimpleTheme.stage
-                        if let page = model.linkedTemplate, let image = model.templateCardImage(page, maxSide: 1000) {
-                            Image(nsImage: image).resizable().interpolation(.high).scaledToFit().padding(18)
-                        } else {
-                            Text("Choose a background in step 1.").font(.system(size: 13)).foregroundStyle(WishSimpleTheme.muted)
+                SimpleCard(title: "Live card", trailing: "Template \(currentTemplateNumber) of \(max(1, lookFiles.count))") {
+                    VStack(spacing: 0) {
+                        ZStack {
+                            WishSimpleTheme.stage
+                            if let page = model.linkedTemplate, let image = model.templateCardImage(page, maxSide: 1000) {
+                                Image(nsImage: image).resizable().interpolation(.high).scaledToFit().padding(18)
+                            } else if let preview {
+                                Image(nsImage: preview).resizable().interpolation(.high).scaledToFit().padding(18)
+                            } else {
+                                Text("Choose a background in step 1.").font(.system(size: 13)).foregroundStyle(WishSimpleTheme.muted)
+                            }
+                        }
+                        .frame(height: 400)
+                        if lookFiles.count > 1 {
+                            LooksStrip(files: lookFiles, selected: lookFiles.indices.contains(currentTemplateNumber - 1) ? lookFiles[currentTemplateNumber - 1] : nil) { file in
+                                if let at = lookFiles.firstIndex(of: file) { selectTemplate(at + 1) }
+                            }
                         }
                     }
-                    .frame(height: 470)
                 }
                 SimpleCard(title: "Fill in") {
                     VStack(alignment: .leading, spacing: 14) {
                         let asked = askedFields
-                        if asked.isEmpty { Text("This card has nothing to fill in. Add a variable in Design.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted) }
-                        ForEach(asked, id: \.id) { field in WishFieldEditor(model: model, field: field) }
+                        if asked.isEmpty && askedPictures.isEmpty { Text("This card has nothing to fill in. Add a variable in Design.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted) }
+                        ForEach(asked, id: \.id) { field in
+                            VStack(alignment: .leading, spacing: 2) {
+                                if isRequired(field.key) { Text("Required").font(.system(size: 10, weight: .semibold)).foregroundStyle(WishSimpleTheme.accent) }
+                                WishFieldEditor(model: model, field: field)
+                            }
+                        }
+                        ForEach(askedPictures) { slot in
+                            let has = (model.card.media ?? []).contains { $0.placement == slot.key }
+                            HStack {
+                                Text(slot.key).font(.system(size: 12, weight: .semibold))
+                                if isRequired(slot.key) { Text("Required").font(.system(size: 10, weight: .semibold)).foregroundStyle(WishSimpleTheme.accent) }
+                                Spacer()
+                                Button { chooseMedia(slot.key) } label: { Label(has ? "Change picture" : "Choose picture", systemImage: "photo") }.buttonStyle(SimpleQuietButton())
+                            }
+                        }
                         Divider().overlay(WishSimpleTheme.line)
                         HStack(spacing: 8) {
-                            Button { model.exportPNG() } label: { Label("Download PNG", systemImage: "arrow.down.to.line") }.buttonStyle(SimplePrimaryButton())
-                            Button { model.copyImage() } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(SimpleQuietButton())
-                            Button { model.shareImage() } label: { Image(systemName: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
+                            Button { make { model.exportPNG() } } label: { Label("Download PNG", systemImage: "arrow.down.to.line") }.buttonStyle(SimplePrimaryButton())
+                            Button { make { model.copyImage() } } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(SimpleQuietButton())
+                            Button { make { model.shareImage() } } label: { Image(systemName: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
                         }
+                        if !missingRequired.isEmpty { Text("Required: " + missingRequired.joined(separator: ", ")).font(.system(size: 11)).foregroundStyle(WishSimpleTheme.accent) }
                         Text("\(model.useCost) credits for each card you save, copy or share.").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
                         if !model.status.isEmpty { Text(model.status).font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted) }
                     }
@@ -574,6 +765,139 @@ struct WishSimpleStudio: View {
                 .frame(width: 340)
             }
         }
+    }
+
+    // MARK: Voice
+
+    private static let colourWords: [(String, String)] = [
+        ("white", "#FFFFFF"), ("cream", "#FFF4DC"), ("pink", "#EC6AA8"), ("rose", "#C2415D"), ("red", "#D63B3B"), ("orange", "#F28A2E"),
+        ("yellow", "#F2C230"), ("gold", "#E9B949"), ("green", "#3A9A5B"), ("mint", "#CFEFD9"), ("sky", "#8FC8EE"), ("blue", "#2F6FDB"),
+        ("navy", "#1B2A5C"), ("lavender", "#E6DCF7"), ("purple", "#7B52B8"), ("brown", "#8B5A2B"), ("grey", "#8A8A8A"), ("gray", "#8A8A8A"), ("black", "#111111")
+    ]
+    private static let numberWords = ["one": 1, "first": 1, "two": 2, "second": 2, "three": 3, "third": 3, "four": 4, "fourth": 4, "five": 5, "fifth": 5, "six": 6, "sixth": 6]
+
+    private func colour(in text: String) -> String? { Self.colourWords.first { text.contains($0.0) }?.1 }
+
+    private func changeSelected(_ change: (inout TemplateSlot) -> Void) -> Bool {
+        guard var page = draft ?? workingTemplate, let id = selectedSlot, let index = page.slots.firstIndex(where: { $0.id == id }) else { note = "Tap a layer first, or say select and its name."; return false }
+        change(&page.slots[index])
+        commit(page)
+        return true
+    }
+
+    /// Spoken or typed commands for every step. Returns false only on the last step, so the usual card commands can handle the rest.
+    private func handleVoice(_ raw: String) -> Bool {
+        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".,!?"))).lowercased()
+        guard !text.isEmpty else { return true }
+        func has(_ words: String...) -> Bool { words.contains { text.contains($0) } }
+        func after(_ words: String...) -> String? {
+            for word in words { if let range = text.range(of: word + " ") { return String(text[range.upperBound...]).trimmingCharacters(in: .whitespaces) } }
+            return nil
+        }
+        let original = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        func originalAfter(_ words: String...) -> String? {
+            for word in words { if let range = original.lowercased().range(of: word + " ") { return String(original[range.upperBound...]).trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: ".,!?"))) } }
+            return nil
+        }
+        // Anywhere
+        if has("design with keydo", "make backgrounds", "draw backgrounds", "make the backgrounds") { step = 0; generate(); return true }
+        if has("chatgpt", "chat gpt", "gemini") { step = 0; showPrompt = true; return true }
+        if text == "import" || has("import png", "import backgrounds") { importPNGs(); return true }
+        if has("activate") || text == "launch" || has("launch the app") { go(2); activate(); return true }
+        if let phrase = originalAfter("add voice command", "add voice phrase", "add phrase") {
+            go(2)
+            phrases = (phrases.isEmpty ? "" : phrases + "\n") + phrase
+            note = "Voice phrase added. It is saved when you activate."
+            return true
+        }
+        if let word = after("shortcut", "command word", "set the word", "call the app", "word") , step == 2 || has("shortcut") {
+            shortcut = DesignCommands.sanitize(word)
+            go(2); note = "Shortcut is \\\(shortcut)."
+            return true
+        }
+        // Steps
+        let stepWords: [(String, Int)] = [("prompt", 0), ("start", 0), ("design", 1), ("activate", 2), ("live card", 3), ("make a card", 3), ("use", 3)]
+        if text == "next" || text == "continue" { go(min(3, step + 1)); return true }
+        if text == "back" || text == "previous" { go(max(0, step - 1)); return true }
+        if text.hasPrefix("go to ") || text.hasPrefix("open ") || text.hasPrefix("show ") {
+            if let target = stepWords.first(where: { text.contains($0.0) }) { go(target.1); return true }
+        }
+        // Greeting words in step 1
+        if step == 0 {
+            if let value = originalAfter("heading", "title") { headingBinding.wrappedValue = value; note = "Heading saved."; return true }
+            if let value = originalAfter("sign off", "signoff", "from") {
+                UserDefaults.standard.set("From " + value, forKey: "wishSender." + appID); applyGreeting(); note = "Sign-off saved."; return true
+            }
+            if let value = originalAfter("example", "example name") { UserDefaults.standard.set(value, forKey: "wishExample." + appID); applyGreeting(); note = "Example name saved."; return true }
+        }
+        if step == 3 {
+            if has("download", "save the card", "save card", "save png") { make { model.exportPNG() }; return true }
+            if text == "copy" || has("copy the card", "copy card", "copy image") { make { model.copyImage() }; return true }
+            if text == "share" || has("share the card", "share card") { make { model.shareImage() }; return true }
+            if has("template", "number") {
+                if let digits = text.split(whereSeparator: { !$0.isNumber }).first, let number = Int(digits) { selectTemplate(number); return true }
+                if let number = Self.numberWords.first(where: { text.contains($0.key) })?.value { selectTemplate(number); return true }
+            }
+            return false
+        }
+        if step == 2 {
+            note = "Say: shortcut and a word, add voice command and a phrase, or activate the app."
+            return true
+        }
+        if step == 0 {
+            note = "Say: design with KeyDo, send to ChatGPT, import, or next."
+            return true
+        }
+        // Design step
+        if has("add") {
+            let kinds: [(String, String)] = [("variable", "variable"), ("collection", "collection"), ("function", "function"), ("text", "text"), ("image", "image"), ("picture", "image"), ("photo", "image"), ("logo", "logo")]
+            if let kind = kinds.first(where: { text.contains($0.0) }) { addLayer(kind.1); note = "Added a \(kind.0). Drag it into place."; return true }
+        }
+        if text.hasPrefix("select ") || text.hasPrefix("choose layer "), let name = after("select", "choose layer"), let page = draft ?? workingTemplate,
+           let slot = page.slots.first(where: { $0.key.lowercased().contains(name) || name.contains($0.key.lowercased()) }) {
+            selectedSlot = slot.id; note = "Selected \(slot.key)."; return true
+        }
+        if has("remove layer", "delete layer", "remove it", "delete it") {
+            guard var page = draft ?? workingTemplate, let id = selectedSlot else { note = "Tap a layer first."; return true }
+            WishLayerOps.remove(&page, slotID: id, model: model); selectedSlot = nil; commit(page); note = "Removed."; return true
+        }
+        if has("make it fixed", "set fixed", "fixed") || has("make it dynamic", "set dynamic", "dynamic") {
+            let toDynamic = has("dynamic")
+            guard var page = draft ?? workingTemplate, let id = selectedSlot else { note = "Tap a layer first."; return true }
+            if toDynamic { WishLayerOps.makeDynamic(&page, slotID: id, model: model) } else { WishLayerOps.makeFixed(&page, slotID: id, model: model) }
+            commit(page); note = toDynamic ? "Dynamic: asked each time." : "Fixed: saved with the template."; return true
+        }
+        if has("not required", "optional") || has("required", "mandatory") {
+            guard let id = selectedSlot, let key = (draft ?? workingTemplate)?.slots.first(where: { $0.id == id })?.key else { note = "Tap a layer first."; return true }
+            let on = !has("not required", "optional")
+            WishLayerOps.setRequired(on, key: key, model: model); model.objectWillChange.send()
+            note = on ? "\(key) is required." : "\(key) is optional."; return true
+        }
+        if let name = originalAfter("rename to", "rename it to", "call it") {
+            guard var page = draft ?? workingTemplate, let id = selectedSlot else { note = "Tap a layer first."; return true }
+            if let error = WishLayerOps.rename(&page, slotID: id, to: name, model: model) { note = error } else { commit(page); note = "Renamed." }
+            return true
+        }
+        if text.hasPrefix("background ") || has("background colour", "background color"), let hex = colour(in: text) {
+            setBackground(hex); note = "Background changed."; return true
+        }
+        if has("bigger", "larger", "increase", "grow") { _ = changeSelected { $0.fontSize = min(0.2, ($0.fontSize > 0 ? $0.fontSize : 0.06) * 1.18) }; return true }
+        if has("smaller", "decrease", "reduce", "shrink") { _ = changeSelected { $0.fontSize = max(0.015, ($0.fontSize > 0 ? $0.fontSize : 0.06) / 1.18) }; return true }
+        if has("bold") { _ = changeSelected { $0.bold = !has("not bold", "unbold") }; return true }
+        if has("colour", "color", "make it"), let hex = colour(in: text) { _ = changeSelected { $0.colorHex = hex }; return true }
+        if has("move") || text == "center" || text == "centre" {
+            let delta: Double = 0.04
+            _ = changeSelected { slot in
+                if text == "center" || text == "centre" { slot.cx = 0.5; return }
+                if text.contains("up") { slot.cy = max(0.02, slot.cy - delta) }
+                if text.contains("down") { slot.cy = min(0.98, slot.cy + delta) }
+                if text.contains("left") { slot.cx = max(0.02, slot.cx - delta) }
+                if text.contains("right") { slot.cx = min(0.98, slot.cx + delta) }
+            }
+            return true
+        }
+        note = "I did not catch that. Try: add variable, make it fixed, required, bigger, background pink, move up, next."
+        return true
     }
 }
 
@@ -588,6 +912,8 @@ private struct PromptStep: View {
     var onPick: (String, Bool) -> Void
     var onDesign: () -> Void
     var onNext: () -> Void
+    var onImport: () -> Void
+    var onGreeting: () -> Void
     @State private var example = ""
     @State private var sender = ""
     @State private var brief = ""
@@ -609,13 +935,13 @@ private struct PromptStep: View {
                             HStack(spacing: 8) {
                                 TextField("Happy Birthday", text: $heading).textFieldStyle(.roundedBorder).font(WishSimpleTheme.serif(20)).frame(maxWidth: 230)
                                 TextField("Rohit", text: $example).textFieldStyle(.roundedBorder).font(WishSimpleTheme.serif(20)).frame(maxWidth: 150)
-                                    .onChange(of: example) { _, value in UserDefaults.standard.set(value, forKey: "wishExample." + appID) }
+                                    .onChange(of: example) { _, value in UserDefaults.standard.set(value, forKey: "wishExample." + appID); onGreeting() }
                             }
                             HStack(spacing: 8) {
                                 Text("From").font(WishSimpleTheme.serif(20))
                                 TextField("Jay Jain & Family", text: Binding(get: { sender.hasPrefix("From ") ? String(sender.dropFirst(5)) : sender }, set: { sender = "From " + $0 }))
                                     .textFieldStyle(.roundedBorder).font(WishSimpleTheme.serif(20)).frame(maxWidth: 300)
-                                    .onChange(of: sender) { _, value in UserDefaults.standard.set(value, forKey: "wishSender." + appID) }
+                                    .onChange(of: sender) { _, value in UserDefaults.standard.set(value, forKey: "wishSender." + appID); onGreeting() }
                             }
                         }
                         Text("The name changes each time you make a card. The heading and sign-off are saved with the template.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
@@ -634,7 +960,7 @@ private struct PromptStep: View {
                     HStack {
                         Text("4 transparent PNGs \u{00B7} 2160 \u{00D7} 2160").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
                         Spacer()
-                        Button { importPNGs() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
+                        Button { onImport() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10)
                 }
@@ -659,18 +985,6 @@ private struct PromptStep: View {
             brief = UserDefaults.standard.string(forKey: "wishBrief." + appID) ?? "Elegant artwork with celebratory details around the edges. Leave the centre clear for the recipient's name."
         }
     }
-
-    private func importPNGs() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.png]
-        panel.allowsMultipleSelection = true
-        panel.message = "Choose PNG backgrounds with a transparent background"
-        guard panel.runModal() == .OK else { return }
-        var last: String?
-        for url in panel.urls { if let image = NSImage(contentsOf: url), let file = WishLookStore.add(image, appID: appID) { last = file } }
-        lookFiles = WishLookStore.files(appID)
-        if let last { onPick(last, false) }
-    }
 }
 
 // MARK: - Looks strip
@@ -691,7 +1005,7 @@ struct LooksStrip: View {
                             if let image = WishLookStore.image(file) { Image(nsImage: image).resizable().scaledToFit() }
                         }
                         .aspectRatio(1, contentMode: .fit)
-                        Text(index < WishLookMaker.names.count ? WishLookMaker.names[index % WishLookMaker.names.count] : "Look \(index + 1)").font(.system(size: 11)).lineLimit(1)
+                        Text("\(index + 1)").font(.system(size: 12, weight: .semibold)).lineLimit(1)
                     }
                     .padding(5)
                     .background(RoundedRectangle(cornerRadius: 8).fill(WishSimpleTheme.white))

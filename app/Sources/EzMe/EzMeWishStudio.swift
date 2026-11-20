@@ -89,6 +89,8 @@ final class WishStudioModel: ObservableObject {
     /// The App Designer editor is open inside Wish Studio.
     /// The simple four-step Wish Studio. "Advanced tools" turns it off.
     @Published var simple = true
+    /// Set by the simple studio: handles a spoken or typed command for the step in view. False means "not mine".
+    var simpleVoice: ((String) -> Bool)? = nil
     @Published var designMode = false
     /// Design mode shows every design and template (the whole App Designer) instead of this app's own design.
     @Published var designAll = false
@@ -595,6 +597,7 @@ final class WishStudioModel: ObservableObject {
     }
 
     private func handleStudio(_ text: String) {
+        if simple, let handler = simpleVoice, handler(text) { return }
         if linkedTemplate != nil, WishTemplateVoice.handle(text, model: self) { return }
         let env = environment
         let commands = WishCommandParser.parse(text, env: env)
@@ -883,7 +886,8 @@ final class WishStudioModel: ObservableObject {
     func templateCardImage(_ template: ImageTemplate, maxSide: CGFloat?) -> NSImage? {
         var extra: [String: NSImage] = [:]
         for item in card.media ?? [] where item.kind == "image" {
-            if let url = store.mediaURL(item.file), let image = NSImage(contentsOf: url), let key = template.imageKeys.first(where: { extra[TemplateFill.normal($0)] == nil }) { extra[key] = image }
+            let named = template.imageKeys.first { TemplateFill.normal($0) == TemplateFill.normal(item.placement) }
+            if let url = store.mediaURL(item.file), let image = NSImage(contentsOf: url), let key = named ?? template.imageKeys.first(where: { extra[TemplateFill.normal($0)] == nil }) { extra[key] = image }
         }
         let values = DesignFill.merge(TemplateLinks.variables(for: TemplateStore.wishTemplateID(appID: app.id)), context.variables.filter { !$0.value.isEmpty })
         return TemplateFill.render(template, values: values, extraImages: extra, clips: AppDesignContext.shared.clips, maxSide: maxSide)
@@ -999,7 +1003,7 @@ struct WishStudioWorkspace: View {
             WishHeader(model: model, store: model.store)
             Divider().overlay(WishTheme.line)
             content
-            if !model.designMode && !model.simple {
+            if !model.designMode || model.simple {
                 Divider().overlay(WishTheme.line)
                 WishCommandBar(model: model, voice: model.voice)
             }
@@ -1605,7 +1609,7 @@ struct WishStudioView: View {
             WishDesignSync.sync(model)
             if !startedOnDesign {
                 startedOnDesign = true
-                if let id = WishAppLink.designID(model), (AppDesignStore.shared.design(id: id)?.version ?? 0) == 0 { model.designMode = true }
+                if !model.simple, let id = WishAppLink.designID(model), (AppDesignStore.shared.design(id: id)?.version ?? 0) == 0 { model.designMode = true }
             }
         }
         .onReceive(TemplateStore.shared.objectWillChange.receive(on: DispatchQueue.main)) { _ in WishDesignSync.sync(model) }

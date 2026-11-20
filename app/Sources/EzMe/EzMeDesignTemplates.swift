@@ -41,7 +41,13 @@ struct DesignVariant: Codable, Identifiable, Hashable {
         if said == "tempr" || said == "random" || said == "rand" { return all.randomElement() }
         if let named = all.first(where: { $0.name.lowercased() == said }) { return named }
         if said.hasPrefix("temp"), let number = Int(said.dropFirst(4)), number >= 1, number <= all.count { return all[number - 1] }
+        // A bare number is the template number (\hbd-Rohit-3 is the third template), unless the app takes numbers as values.
+        if let number = Int(said), number >= 1, number <= all.count, !takesNumbers(design) { return all[number - 1] }
         return nil
+    }
+
+    private static func takesNumbers(_ design: AppDesign) -> Bool {
+        DesignDataType.names(design.variables).contains { [.number, .whole, .currency].contains(DesignDataType.of($0, in: design.variables)) }
     }
 
     static func isToken(_ text: String, design: AppDesign) -> Bool {

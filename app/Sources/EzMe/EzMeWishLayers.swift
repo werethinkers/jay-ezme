@@ -100,6 +100,7 @@ struct WishLayerProperties: View {
     @State private var size = 0.06
     @State private var optionsDraft = ""
     @State private var message = ""
+    @State private var mustFill = false
 
     private var index: Int? { template.slots.firstIndex { $0.id == slotID } }
     private var slot: TemplateSlot? { index.map { template.slots[$0] } }
@@ -121,6 +122,12 @@ struct WishLayerProperties: View {
                     TextField("name", text: $nameDraft).textFieldStyle(.roundedBorder).onSubmit { rename() }
                 }
                 valueEditor(slot)
+                if (kind == .variable || kind == .collection || (kind == .image && kind.isDynamic(slot))) {
+                    Toggle("Required: a card cannot be made without it", isOn: Binding(get: { mustFill }, set: { value in
+                        mustFill = value
+                        WishLayerOps.setRequired(value, key: slot.key, model: model)
+                    })).toggleStyle(.checkbox).font(.system(size: 12))
+                }
                 if slot.kind == .text {
                     labelled("Text size") {
                         Slider(value: $size, in: 0.02...0.16, onEditingChanged: { editing in
@@ -151,6 +158,7 @@ struct WishLayerProperties: View {
         nameDraft = slot.key
         size = slot.fontSize > 0 ? slot.fontSize : 0.06
         optionsDraft = (model.app.field(slot.key)?.choices ?? []).joined(separator: ", ")
+        mustFill = WishLayerOps.isRequired(key: slot.key, model: model)
         message = ""
     }
 
@@ -287,54 +295,33 @@ struct WishLayerProperties: View {
     }
 
     private func makeFixed() {
-        guard let slot, let i = index else { return }
-        if kind == .image { template.slots[i].content = nil; uploadPicture(); return }
-        var app = model.app
-        let first = app.field(slot.key)?.choices?.first
-        let value = first ?? (slot.sample.isEmpty ? "Your text" : slot.sample)
-        template.slots[i].content = value
-        template.slots[i].sample = value
-        app.fields.removeAll { $0.key.caseInsensitiveCompare(slot.key) == .orderedSame }
-        model.store.updateApp(app)
+        guard slot != nil else { return }
+        if kind == .image { uploadPicture(); return }
+        var page = template
+        WishLayerOps.makeFixed(&page, slotID: slotID, model: model)
+        template = page
         load()
     }
 
     private func makeDynamic() {
-        guard let slot, let i = index else { return }
-        if kind == .image { template.slots[i].content = nil; return }
-        var app = model.app
-        template.slots[i].content = "{{\(slot.key)}}"
-        if app.field(slot.key) == nil {
-            var field = WishField(key: slot.key, label: slot.key.prefix(1).uppercased() + slot.key.dropFirst())
-            field.placeholder = slot.sample
-            app.fields.append(field)
-            model.store.updateApp(app)
-        }
+        guard slot != nil else { return }
+        var page = template
+        WishLayerOps.makeDynamic(&page, slotID: slotID, model: model)
+        template = page
         load()
     }
 
     private func rename() {
-        guard let slot, let i = index else { return }
-        let clean = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: " ", with: "-")
-        guard !clean.isEmpty, clean != slot.key else { return }
-        if template.slots.contains(where: { $0.id != slotID && $0.key.caseInsensitiveCompare(clean) == .orderedSame }) { message = "Another layer already has that name."; return }
-        var app = model.app
-        if let at = app.fields.firstIndex(where: { $0.key.caseInsensitiveCompare(slot.key) == .orderedSame }) {
-            app.fields[at].key = clean
-            app.fields[at].label = clean.prefix(1).uppercased() + clean.dropFirst()
-            model.store.updateApp(app)
-        }
-        if let content = slot.content, content.contains("{{\(slot.key)}}") { template.slots[i].content = content.replacingOccurrences(of: "{{\(slot.key)}}", with: "{{\(clean)}}") }
-        template.slots[i].key = clean
-        nameDraft = clean
+        var page = template
+        if let error = WishLayerOps.rename(&page, slotID: slotID, to: nameDraft, model: model) { message = error; return }
+        template = page
+        load()
     }
 
     private func remove() {
-        guard let slot else { return }
-        var app = model.app
-        app.fields.removeAll { $0.key.caseInsensitiveCompare(slot.key) == .orderedSame }
-        model.store.updateApp(app)
-        template.slots.removeAll { $0.id == slotID }
+        var page = template
+        WishLayerOps.remove(&page, slotID: slotID, model: model)
+        template = page
         onRemoved()
     }
 
@@ -360,5 +347,81 @@ private struct SimpleQuietMini: ButtonStyle {
             .padding(.horizontal, 10).padding(.vertical, 6)
             .background(RoundedRectangle(cornerRadius: 7).fill(WishSimpleTheme.white.opacity(configuration.isPressed ? 0.7 : 1)))
             .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(WishSimpleTheme.line, lineWidth: 1))
+    }
+}
+
+// MARK: - Changes to a layer, also used by voice commands
+
+@MainActor enum WishLayerOps {
+    static func label(_ key: String) -> String { key.prefix(1).uppercased() + key.dropFirst() }
+
+    static func makeFixed(_ page: inout ImageTemplate, slotID: String, model: WishStudioModel) {
+        guard let i = page.slots.firstIndex(where: { $0.id == slotID }), page.slots[i].kind == .text else { return }
+        var app = model.app
+        let key = page.slots[i].key
+        let first = app.field(key)?.choices?.first
+        let value = first ?? (page.slots[i].sample.isEmpty ? "Your text" : page.slots[i].sample)
+        page.slots[i].content = value
+        page.slots[i].sample = value
+        app.fields.removeAll { $0.key.caseInsensitiveCompare(key) == .orderedSame }
+        model.store.updateApp(app)
+        setRequired(false, key: key, model: model)
+    }
+
+    static func makeDynamic(_ page: inout ImageTemplate, slotID: String, model: WishStudioModel) {
+        guard let i = page.slots.firstIndex(where: { $0.id == slotID }) else { return }
+        if page.slots[i].kind == .image { page.slots[i].content = nil; return }
+        guard page.slots[i].kind == .text else { return }
+        var app = model.app
+        let key = page.slots[i].key
+        page.slots[i].content = "{{\(key)}}"
+        if app.field(key) == nil {
+            var field = WishField(key: key, label: label(key))
+            field.placeholder = page.slots[i].sample
+            app.fields.append(field)
+            model.store.updateApp(app)
+        }
+    }
+
+    /// Returns a message when the name cannot be used.
+    static func rename(_ page: inout ImageTemplate, slotID: String, to name: String, model: WishStudioModel) -> String? {
+        guard let i = page.slots.firstIndex(where: { $0.id == slotID }) else { return nil }
+        let old = page.slots[i].key
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: " ", with: "-")
+        guard !clean.isEmpty, clean != old else { return nil }
+        if page.slots.contains(where: { $0.id != slotID && $0.key.caseInsensitiveCompare(clean) == .orderedSame }) { return "Another layer already has that name." }
+        var app = model.app
+        if let at = app.fields.firstIndex(where: { $0.key.caseInsensitiveCompare(old) == .orderedSame }) {
+            app.fields[at].key = clean
+            app.fields[at].label = label(clean)
+            model.store.updateApp(app)
+        }
+        let wasRequired = isRequired(key: old, model: model)
+        if let content = page.slots[i].content, content.contains("{{\(old)}}") { page.slots[i].content = content.replacingOccurrences(of: "{{\(old)}}", with: "{{\(clean)}}") }
+        page.slots[i].key = clean
+        if wasRequired { setRequired(false, key: old, model: model); setRequired(true, key: clean, model: model) }
+        return nil
+    }
+
+    static func remove(_ page: inout ImageTemplate, slotID: String, model: WishStudioModel) {
+        guard let slot = page.slots.first(where: { $0.id == slotID }) else { return }
+        var app = model.app
+        app.fields.removeAll { $0.key.caseInsensitiveCompare(slot.key) == .orderedSame }
+        model.store.updateApp(app)
+        setRequired(false, key: slot.key, model: model)
+        page.slots.removeAll { $0.id == slotID }
+    }
+
+    static func isRequired(key: String, model: WishStudioModel) -> Bool {
+        guard let id = WishAppLink.designID(model), let design = AppDesignStore.shared.design(id: id) else { return false }
+        return DesignDataType.isRequired(key, in: design.variables)
+    }
+
+    /// By default nothing is required.
+    static func setRequired(_ on: Bool, key: String, model: WishStudioModel) {
+        guard let id = WishAppLink.designID(model), var design = AppDesignStore.shared.design(id: id) else { return }
+        let name = DesignDataType.requiredKey(key)
+        if on { design.variables[name] = "1" } else { design.variables[name] = nil }
+        AppDesignStore.shared.save(design)
     }
 }

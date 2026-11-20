@@ -63,6 +63,12 @@ import AppKit
         return image
     }
 
+    /// A transparent PNG over the colour; any other picture as it is.
+    static func composite(_ art: NSImage, hex: String) -> NSImage? {
+        guard analyse(art).transparent else { return art }
+        return render(art: art, size: TemplateImages.pixelSize(art), hex: hex)
+    }
+
     static let cannot = "This background is a flat picture, so its colour cannot change. Upload a PNG with a transparent background to change colours."
 
     /// The background in a new colour: the transparent PNG over the colour, or a new flat colour. Otherwise nothing, with the reason.
