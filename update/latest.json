@@ -1,9 +1,9 @@
 {
-  "version": "4.27",
-  "build": 435,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.27-build435/EzMe-4.27-macOS.zip",
-  "sha256": "12ccd41e5fb465acfe8ea0f91b406d032a164da4a40ad10604f3c3dd198909bd",
-  "notes": "# KeyDo 4.27\n\n## What's new\n- **Video Editor** replaces Video Cutter. Three modes: **Cut** (trim a clip, as before), **Join clips** (add videos or shortcuts, reorder, export one video) and **Filters** (Prism-style).\n- **Filters**: live preview with Hold to compare, full screen, four sample scenes, Upload or From shortcut. A carousel of 10 filters (Grayscale, Soft Focus, Invert, Hue Shift, Vintage Sepia, Neon Cyber, High Contrast, Dark Noir, Golden Hour, Arctic Frost) with arrows and the left/right keys. The inspector has one slider per filter, 25/50/75/100% steppers, the live CSS filter string, and export of a picture (PNG) or a filtered video. Camera capture is not included.\n- **Wish Studio, Create an app**: choose to build from a prompt (copies the app you pick and changes the name, heading and sign-off; uses your AI key if set), start blank, or duplicate an app.\n- **Skip step 1**: new apps always have 4 default designs. \"Skip: use the 4 default designs\" (or going straight to Design) makes them for you.\n- **Activate to Use**: pick a default template in Activate; Use opens with it, and \"Make default\" is in Use too.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback. The new \u2190/\u2192 keys only act inside the Video Editor's Filters view.",
-  "published": "2026-11-20T19:13:51Z",
+  "version": "4.28",
+  "build": 436,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.28-build436/EzMe-4.28-macOS.zip",
+  "sha256": "71457b6dbb977a9583534d7157b780d1aa158d6e682725234f3337e62a77d113",
+  "notes": "# KeyDo 4.28\n\n## What's new\n- **Video Editor, Join clips**: add elements between clips, a picture (shown 1 to 30 seconds) or a title card with your own text. Videos of different sizes can be mixed; choose the output size (match the first video, 1920x1080, vertical 1080x1920 or square) and every clip is fitted to it with black bars.\n- **Clip positions**: drag a row, use the arrows, or open a row's Position menu and move it to any place.\n- **Filters** now accept videos up to 100 MB. Larger videos are refused with a clear message (cut them shorter in Cut mode first).\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
+  "published": "2026-11-20T19:37:46Z",
   "minimumSystemVersion": "14.0"
 }
