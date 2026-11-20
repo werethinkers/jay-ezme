@@ -75,6 +75,8 @@ struct WishField: Codable, Identifiable, Hashable {
     /// A name or a date is the same in every language, so changing it in one changes both.
     var universal: Bool = false
     var placeholder: String = ""
+    /// When set, the field is a collection: the person chooses one of these instead of typing.
+    var choices: [String]? = nil
 }
 
 /// Shows values from one of the user's EzMe collections as tappable chips for a field.

@@ -1,13 +1,12 @@
-# KeyDo 4.18: Wish Studio and Design on one page
+# KeyDo 4.19: Wish Studio in four simple steps
 
-**Design is now part of Wish Studio.** One bar at the top switches between **Design**, **Card** and **All designs**. A Wish app that has a design you have not launched yet opens on Design.
+Wish Studio has a new, calmer look and opens on a simple four-step flow. The old studio is still there under **Advanced tools**.
 
-**Variables now change the card live.** Every variable, collection and text box you add in Design becomes a field in Details automatically. Type in a field and the card updates as you type, the same as Try it did in App Designer. Boxes you add later appear too.
+1. **Prompt.** Write the sample wish: a heading, a name that changes each time, and a sign-off that stays the same (for example "Happy Birthday Rohit, From Jay Jain & Family"). Then press **Design with KeyDo** for four transparent Happy Birthday backgrounds (Ribbon, Midnight, Party, Marigold), or **Send to ChatGPT** and **Import PNGs** it makes.
+2. **Design.** Add a Variable, Collection (choose from options you type), Function (date, time, greeting, capitals), Text, Image or Logo. Each one is Fixed or Dynamic. Drag every layer into place on the card. Change the background colour; PNGs with a transparent background keep their artwork when the colour changes.
+3. **Activate.** Choose the word that runs the app (such as `\bday`, with suggestions) and press Activate app.
+4. **Use.** Fill in the blanks, watch the card change, then download, copy or share it.
 
-**No repeated steps or buttons.**
-- One **Launch** button (top bar) instead of three Publish and Launch buttons.
-- The app name and the word after the backslash are set only in step 4 of Design.
-- The old "Add boxes", "App command" and "More looks" sections were removed from the Templates tab; they are in Design.
-- The designer's own Templates, Save and close, Publish and app-name controls are hidden inside Wish Studio. The side-panel button is now "More looks with ChatGPT" so it is not confused with background pictures.
+Colours and spacing across Wish Studio now match the new look. Collections show as tappable choices in Details.
 
 **Keyboard safety checked:** nothing in the key tap, popup, voice or key-swallowing modes was touched.

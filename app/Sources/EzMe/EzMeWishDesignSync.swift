@@ -40,7 +40,11 @@ extension EnvironmentValues {
         }
         for page in design.pages {
             guard let template = TemplateStore.shared.template(id: page) else { continue }
-            for slot in template.slots where slot.kind == .text { add(slot.key, type: .text, value: "", placeholder: slot.sample) }
+            for slot in template.slots where slot.kind == .text {
+                // Fixed text and functions are not asked for. Only boxes that take a value are.
+                if let content = slot.content, !content.contains("{{") { continue }
+                add(slot.key, type: .text, value: "", placeholder: slot.sample)
+            }
         }
         guard added > 0 else { return 0 }
         model.store.updateApp(app)
@@ -91,6 +95,7 @@ struct WishModeBar: View {
                 .font(.system(size: 11)).foregroundStyle(WishTheme.muted).lineLimit(1)
             Spacer()
             if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(WishTheme.muted).lineLimit(1) }
+            Button { model.simple = true } label: { Label("Simple view", systemImage: "sparkles") }
             if hasDesign {
                 Button { message = WishDesignSync.launch(model) } label: { Label("Launch", systemImage: "paperplane.fill") }
                     .buttonStyle(.borderedProminent).tint(WishTheme.accent)

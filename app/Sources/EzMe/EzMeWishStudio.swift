@@ -10,12 +10,12 @@ import AVFoundation
 import UniformTypeIdentifiers
 
 enum WishTheme {
-    static let accent = Color(wishHex: "#6D4AB0")
-    static let accentSoft = Color(wishHex: "#F1EAFB")
-    static let page = Color(wishHex: "#FBFAFE")
-    static let line = Color(wishHex: "#E5DEF2")
-    static let ink = Color(wishHex: "#2B1E45")
-    static let muted = Color(wishHex: "#7A6F8F")
+    static let accent = Color(wishHex: "#A9402D")
+    static let accentSoft = Color(wishHex: "#F8E7E0")
+    static let page = Color(wishHex: "#F9F7F3")
+    static let line = Color(wishHex: "#E7E0D7")
+    static let ink = Color(wishHex: "#26221F")
+    static let muted = Color(wishHex: "#655F58")
     static let swatches = ["#EC6AA8", "#D63B3B", "#F28A2E", "#F2C230", "#3FA66A", "#3B6FD6", "#7B52B8", "#1A1A1A", "#FFFFFF", "#8B5A2B"]
 }
 
@@ -87,6 +87,8 @@ final class WishStudioModel: ObservableObject {
     }
     @Published var selected: String? = nil
     /// The App Designer editor is open inside Wish Studio.
+    /// The simple four-step Wish Studio. "Advanced tools" turns it off.
+    @Published var simple = true
     @Published var designMode = false
     /// Design mode shows every design and template (the whole App Designer) instead of this app's own design.
     @Published var designAll = false
@@ -997,7 +999,7 @@ struct WishStudioWorkspace: View {
             WishHeader(model: model, store: model.store)
             Divider().overlay(WishTheme.line)
             content
-            if !model.designMode {
+            if !model.designMode && !model.simple {
                 Divider().overlay(WishTheme.line)
                 WishCommandBar(model: model, voice: model.voice)
             }
@@ -1579,6 +1581,9 @@ struct WishStudioView: View {
 
     var body: some View {
         Group {
+            if model.simple {
+                WishSimpleStudio(model: model).id(model.appID)
+            } else {
             VStack(spacing: 0) {
                 WishModeBar(model: model)
                 Divider().overlay(WishTheme.line)
@@ -1593,6 +1598,7 @@ struct WishStudioView: View {
                     .padding(.horizontal, 22)
                     .padding(.vertical, 14)
                 }
+            }
             }
         }
         .onAppear {
@@ -1750,6 +1756,11 @@ struct WishFieldEditor: View {
     let field: WishField
     @FocusState private var focused: Bool
 
+    init(model: WishStudioModel, field: WishField) {
+        self.model = model
+        self.field = field
+    }
+
     private var label: String {
         if model.card.language == .hindi && !field.labelHi.isEmpty { return field.labelHi }
         return field.label
@@ -1774,7 +1785,21 @@ struct WishFieldEditor: View {
                 }
                 Spacer()
             }
-            if field.type == .longText || field.type == .list {
+            if let choices = field.choices, !choices.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(choices, id: \.self) { choice in
+                            let on = binding.wrappedValue == choice
+                            Button { model.edit(field.key, to: choice) } label: {
+                                Text(choice).font(.system(size: 12, weight: .semibold)).padding(.horizontal, 11).padding(.vertical, 6)
+                                    .background(Capsule().fill(on ? WishTheme.accent : Color.white))
+                                    .overlay(Capsule().strokeBorder(on ? WishTheme.accent : WishTheme.line, lineWidth: 1))
+                                    .foregroundStyle(on ? Color.white : WishTheme.ink)
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                }
+            } else if field.type == .longText || field.type == .list {
                 TextEditor(text: binding)
                     .font(.system(size: 13))
                     .scrollContentBackground(.hidden)
