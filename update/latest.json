@@ -1,9 +1,9 @@
 {
-  "version": "4.05",
-  "build": 410,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.05-build410/EzMe-4.05-macOS.zip",
-  "sha256": "f192df3982fab33df17cfbc110192bcdb1b22051d15c0027de095137a6ae4d8e",
-  "notes": "# KeyDo 4.05\n\n## Browser start page: folders and groups\n- The start page now shows your folders (collections) with their links, not only Favorites. Make a folder with \"New folder\", add a link with \"Add link\", and move a link between folders with a right click.\n- Your tab groups are listed too. \"Save as folder\" keeps a group's links in a folder.\n\n## Split view: choose the visible part\nEach pane has a new menu (the box icon). Pick a page width (900 to 1680 px, or fit the pane) and which part to show: left, centre or right. The rest is cropped out so a narrow pane no longer squeezes the site.\n\n## Media only\nA new media button (in the toolbar and on each split pane) works over any website:\n- Media wall, One by one, Filmstrip or Scroll list: an overlay with only the pictures, GIFs and videos of the page (Rescan loads more after you scroll; Esc closes).\n- Blur the text or Hide the text while the media stays visible.\n- Pop the main video out (Picture in Picture).\n- Back to the normal page.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.",
-  "published": "2026-11-20T04:44:53Z",
+  "version": "4.06",
+  "build": 411,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.06-build411/EzMe-4.06-macOS.zip",
+  "sha256": "0bf4fc29dad085c433a3d09834f179b2ddd12c98a860485e5367bef8f84aed99",
+  "notes": "# KeyDo 4.06\n\n## Hover preview no longer hides or gets cut off\nThe big preview that appears when you hover a media thumbnail now opens as a floating pop-over. It always stays on top of the rows and inside the screen, instead of sliding under other rows or off the left edge.\n\n## One voice for the whole app\nThe preview no longer has its own separate listener. The same KeyDo voice that opens the dashboard or the Prompt Builder now also adapts to the screen on top: with the media preview open it understands \"rename to \u2026\", \"save\", \"next\", \"previous\", \"favourite\", \"move to \u2026\" and \"close\". Anything else you say still works as before (\"open dashboard\", \"open prompt builder\", \"stop listening\"). The preview's microphone button simply starts and stops that one voice. Double backslash and \"Hey KeyDo\" keep priority.\n\n## No small KeyDo icon on popups\nThe little KeyDo badge that was added to every sheet and pop-over (everywhere except the backslash popup) has been removed, because at that size it did not look like proper branding.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, or key-swallowing modes was touched. The voice change only adds a short pause before phrases are interpreted while the media preview is open.",
+  "published": "2026-11-20T05:16:15Z",
   "minimumSystemVersion": "14.0"
 }
