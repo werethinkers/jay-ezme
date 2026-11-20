@@ -512,7 +512,8 @@ struct EzMeUpdateSheet: View {
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
-            content
+            content.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            Divider()
             HStack {
                 if case .available = updater.phase {
                     Button("Skip this version") { updater.skipThisVersion() }
@@ -531,7 +532,8 @@ struct EzMeUpdateSheet: View {
             }
         }
         .padding(24)
-        .frame(width: 460)
+        // A fixed size, so the window is the same while checking, downloading and showing the notes (it was cut off before).
+        .frame(width: 560, height: 480)
     }
 
     private var closeTitle: String {
@@ -550,7 +552,7 @@ struct EzMeUpdateSheet: View {
                 Text("Version \(manifest.version) (build \(String(manifest.build))) is ready.").font(.headline)
                 if let notes = manifest.notes, !notes.isEmpty {
                     ScrollView { Text(notes).font(.callout).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled) }
-                        .frame(maxHeight: 180)
+                        .frame(maxHeight: .infinity)
                         .padding(10)
                         .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
                 }
