@@ -693,7 +693,7 @@ struct LibraryMediaViewer: View {
     /// Everything done here is applied once the viewer closes, so the grid behind it is not rebuilt while you work.
     var onFinished: (([ViewerEdit]) -> Void)? = nil
     @State private var edits: [ViewerEdit] = []
-    @StateObject private var voice = WishVoiceController()
+    @ObservedObject private var voice = KeyDoVoice.shared
     @State private var heard = ""
     @State private var voiceWanted = false
     @Environment(\.dismiss) private var dismiss
@@ -804,8 +804,8 @@ struct LibraryMediaViewer: View {
         }
         .frame(minWidth: 820, idealWidth: 1040, minHeight: 600, idealHeight: 760)
         .onChange(of: voice.errorMessage) { _, message in if !message.isEmpty { stopVoice() } }
-        .onReceive(NotificationCenter.default.publisher(for: .keydoVoicePriority)) { _ in stopVoice() }
-        .onDisappear { stopVoice(); onFinished?(edits); edits = [] }
+        .onAppear { registerScreenVoice() }
+        .onDisappear { releaseScreenVoice(); onFinished?(edits); edits = [] }
     }
 
     private func toggleFavourite() {
@@ -819,8 +819,9 @@ struct LibraryMediaViewer: View {
 
     // MARK: Voice (the Mac's own speech recognition, whole sentences, clear on/off)
 
-    private var voiceOn: Bool { voice.isListening }
-    private var hearing: Bool { voice.isListening && !voice.heard.isEmpty }
+    /// The preview uses the one KeyDo voice bubble. There is no second microphone here, so nothing can conflict.
+    private var voiceOn: Bool { voice.phase != .off }
+    private var hearing: Bool { voiceOn && !voice.partial.isEmpty }
 
     /// Off, Listening (waiting for you) or Hearing (you are speaking): the button always says which.
     private var voiceButton: some View {
@@ -851,7 +852,7 @@ struct LibraryMediaViewer: View {
             if !voice.errorMessage.isEmpty {
                 Text(voice.errorMessage).foregroundStyle(.orange)
             } else if voiceOn {
-                Text(hearing ? "Hearing: \u{201C}\(voice.heard)\u{201D}" : "Listening. Say “rename to …”, then “save”. Or “use full name as shortcut”, “tag work”, “favourite”, “next”, “close”.")
+                Text(hearing ? "Hearing: \u{201C}\(voice.partial)\u{201D}" : "Listening. Say “rename to …”, then “save”. Or “use full name as shortcut”, “tag work”, “favourite”, “next”, “close”.")
             }
             if !heard.isEmpty { Text(heard).fontWeight(.semibold) }
         }
@@ -861,27 +862,23 @@ struct LibraryMediaViewer: View {
 
     private func toggleVoice() { voiceOn ? stopVoice() : startVoice() }
 
+    private func registerScreenVoice() {
+        KeyDoVoice.shared.screenVoice = KeyDoVoice.ScreenVoice(hint: "rename to \u{2026}, save, favourite, next, close") { sentence in MainActor.assumeIsolated { handleVoice(sentence) } }
+    }
+
+    private func releaseScreenVoice() {
+        KeyDoVoice.shared.screenVoice = nil
+    }
+
     private func startVoice() {
-        voiceWanted = true
-        NotificationCenter.default.post(name: .keydoVoiceTakeover, object: voice)
-        KeyDoVoice.shared.suspended = true
-        KeyDoVoice.shared.stop(announce: false)
-        let saved = UserDefaults.standard.string(forKey: "keydoVoiceLocale") ?? ""
-        voice.start(localeIdentifier: saved.isEmpty ? Locale.current.identifier : saved, commitDelay: 1.0) { sentence in
-            Task { @MainActor in _ = handleVoice(sentence) }
-        }
+        registerScreenVoice()
+        KeyDoVoice.shared.start(.app, yielding: false)
         heard = ""
     }
 
     private func stopVoice() {
-        guard voiceWanted || voice.isListening else { return }
-        voiceWanted = false
-        voice.stop()
-        KeyDoVoice.shared.suspended = false
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 900_000_000)
-            KeyDoVoice.shared.startWakeIfNeeded()
-        }
+        guard voiceOn else { return }
+        KeyDoVoice.shared.stop()
     }
 
     private func firstMatch(_ pattern: String, in text: String) -> String? {

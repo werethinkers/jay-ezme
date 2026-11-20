@@ -1,7 +1,8 @@
-# KeyDo 4.33
+# KeyDo 4.34
 
 ## What's new
-- **Wish Studio, Design step, Function**: the Function button is now a menu with every function: date and time (today's date, time, date and time, month, year, weekday, date + 7 or 30 days, day of the year), where you are (city, place, area, state or region, country, coordinates), weather and sky, money and more. Before it only added the date.
+- **One voice for renaming files**: the media preview in Library (rename to ..., save, use full name as shortcut, favourite, next, close) no longer starts its own microphone. Its voice button now turns on the one KeyDo voice bubble, and the preview listens through it. With a single microphone in use, the popup, the bubble and the preview can no longer fight each other.
+- **Collection categories**: a search box finds collections by name or by category.
 
 ## Keyboard safety
-Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.
+Checked: the key tap `miniJSlashTap`, the popup, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback. The voice change only swaps which microphone engine the preview uses; it does not add any key handling.
