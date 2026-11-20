@@ -1,13 +1,14 @@
-# KeyDo 4.06
+# KeyDo 4.07
 
-## Hover preview no longer hides or gets cut off
-The big preview that appears when you hover a media thumbnail now opens as a floating pop-over. It always stays on top of the rows and inside the screen, instead of sliding under other rows or off the left edge.
+## Browser start page: neat and collapsed
+Favorites stay open. Every folder and tab group is now a single tidy row that is collapsed by default; tap a row to open it (or use Expand all / Collapse all). Add link, Open all and Save as folder appear only when a row is open.
 
-## One voice for the whole app
-The preview no longer has its own separate listener. The same KeyDo voice that opens the dashboard or the Prompt Builder now also adapts to the screen on top: with the media preview open it understands "rename to …", "save", "next", "previous", "favourite", "move to …" and "close". Anything else you say still works as before ("open dashboard", "open prompt builder", "stop listening"). The preview's microphone button simply starts and stops that one voice. Double backslash and "Hey KeyDo" keep priority.
-
-## No small KeyDo icon on popups
-The little KeyDo badge that was added to every sheet and pop-over (everywhere except the backslash popup) has been removed, because at that size it did not look like proper branding.
+## Media button: real playback
+The media view now plays the page's own media instead of showing stills:
+- Videos are the page's real players (so streamed videos work too): they autoplay muted in the wall, filmstrip and scroll views while visible, and play with sound in "One by one".
+- GIFs animate. Pictures use the largest version the page offers.
+- When you reach the end, the page is scrolled and "Load more" is pressed for you, and new media is added without losing your place. There is also a Load more button, and a "Look again" button when nothing more is found.
+- Close (or Esc) puts every video back where it was on the page.
 
 ## Keyboard safety
-Checked. Nothing in the key tap, popup, or key-swallowing modes was touched. The voice change only adds a short pause before phrases are interpreted while the media preview is open.
+Checked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.

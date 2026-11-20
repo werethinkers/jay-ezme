@@ -1286,6 +1286,7 @@ private struct BrowserFavoritesHome:View{
       Button{onAddFavorite()}label:{Image(systemName:"plus")}.buttonStyle(.borderedProminent).tint(Butter.coral).help("Add favorite link")
      }
     }
+    Label("Favorites",systemImage:"star.fill").font(.system(size:16,weight:.bold,design:.rounded)).foregroundStyle(.primary)
     if saved.isEmpty{
      ContentUnavailableView("No favorite links yet",systemImage:"star",description:Text("Open a website and save it to the Favorites collection."))
     }else{
@@ -1293,8 +1294,7 @@ private struct BrowserFavoritesHome:View{
       ForEach(saved){site in favoriteCard(site)}
      }
     }
-    Divider()
-    BrowserHomeFolders(state:state)
+    BrowserHomeFolders(state:state).padding(.top,6)
    }.padding(16).frame(maxWidth:1050,alignment:.leading)
   }.frame(maxWidth:.infinity,maxHeight:.infinity).background(Butter.coral.opacity(0.035))
  }
