@@ -1,9 +1,9 @@
 {
-  "version": "4.01",
-  "build": 406,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.01-build406/EzMe-4.01-macOS.zip",
-  "sha256": "d8d49c4e8dc8ec440803aaf98dd768d5877a1a326b6240662f881144efd520ce",
-  "notes": "# KeyDo 4.01\n\n## Voice priority\nDouble backslash and \"Hey KeyDo\" now come first. When either opens the popup, every other microphone in KeyDo (WishStudio voice, dictation buttons, form voice) stops so only the popup listens.\n\n## Across and down in Sheets\n- `Tirth!` + Space still pastes the next 10 shortcuts down a column.\n- `Tirth>` + Space now pastes them across one row (tab separated and as a one-row table), for Google Sheets and other documents.\n\n## Rewrite studio: `\\@r`\n`\\@r`, `\\@reply`, `\\@rephrase` and `\\@rewrite` + Space open the studio popup: edit your copied text, pick a tone (Rephrase, Professional, Friendly, Respectful, Polite, Concise, Warm), rewrite, then paste it back. `\\r` and `\\reply` still rewrite directly with no popup.\n\n## Small bar\nThe small bar after a backslash now has a capture button beside the 3-second timer.\n\n## Keyboard safety\nChecked. The key tap gained no new swallow paths: the only change lets `>` continue a typed shortcut (it is a symbol, so it was never swallowed). The popup guard, 60-second release, Escape and heartbeat watchdog are untouched, and nothing slow runs in the callback.",
-  "published": "2026-11-20T02:33:31Z",
+  "version": "4.02",
+  "build": 407,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.02-build407/EzMe-4.02-macOS.zip",
+  "sha256": "afb035ac9c5cf96b512ebf45fadb65c0fc245b23d6efeedd3073fe8f78beea7d",
+  "notes": "# KeyDo 4.02\n\n## Collections: grid view keeps loading\nThe grid in a collection no longer stops at 50 videos. It now loads the whole collection as you scroll down, a few rows at a time, so there is no Next button to look for. The Previous/Next pager remains for the list view.\n\n## Database Organizer\nThe file list loads the next 150 files automatically as you reach the bottom. The \"Show more\" button is still there.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.",
+  "published": "2026-11-20T02:47:40Z",
   "minimumSystemVersion": "14.0"
 }
