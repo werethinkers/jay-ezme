@@ -239,6 +239,9 @@ struct FormItem: Identifiable {
     var current: FormItem? { index >= 0 && index < items.count ? items[index] : nil }
 
     init() {
+        NotificationCenter.default.addObserver(forName: .keydoVoicePriority, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.stop(message: nil) }
+        }
         voice.$heard.dropFirst().sink { [weak self] text in
             if !text.isEmpty { self?.lastActivity = Date() }
         }.store(in: &listeners)

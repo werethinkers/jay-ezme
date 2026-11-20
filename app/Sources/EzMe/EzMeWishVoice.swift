@@ -46,8 +46,16 @@ final class WishVoiceController: ObservableObject {
 
     // MARK: Start and stop
 
+    private var priorityObserver: NSObjectProtocol?
+
     func start(localeIdentifier: String, commitDelay: Double, onCommand: @escaping (String) -> Void) {
         guard !wanted else { return }
+        // Double backslash and "Hey KeyDo" come first: this mic gives way to them.
+        if priorityObserver == nil {
+            priorityObserver = NotificationCenter.default.addObserver(forName: .keydoVoicePriority, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in self?.stop() }
+            }
+        }
         errorMessage = ""
         self.onCommand = onCommand
         self.localeIdentifier = localeIdentifier
