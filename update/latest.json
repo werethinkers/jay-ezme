@@ -1,9 +1,9 @@
 {
-  "version": "4.29",
-  "build": 437,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.29-build437/EzMe-4.29-macOS.zip",
-  "sha256": "5e1baab17dd53fc9052a1d68f8293149cfc70f473ca40aff0190128bb3d19ea0",
-  "notes": "# KeyDo 4.29\n\n## What's new\n- **Wish Studio background library**: in step 1, the new **Library** button opens a shelf of transparent PNG backgrounds. Import PNG files, a folder of them, or a library zip; pick any backgrounds and use them in the app you are making (they become its templates). \"Add this app's backgrounds\" saves what you made into the library.\n- **Publish and download**: \"Download library (zip)\" saves the whole shelf as one zip you can publish or send. Anyone who has it imports it with the same button.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
-  "published": "2026-11-20T19:57:34Z",
+  "version": "4.30",
+  "build": 438,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.30-build438/EzMe-4.30-macOS.zip",
+  "sha256": "e53bfac88a6f828f9a02b7456363d5ed8e7f4f68ae811d5a476919dfeb106632",
+  "notes": "# KeyDo 4.30\n\n## What's new\n- **Older Wish Studio designs are in the background library.** The Birthday and Anniversary cards and the 12 greeting colour designs (Lavender wishes, Blush & balloons, Mint garden, Soft sky, Golden hour, Peach glow, Rose petal, Sage calm, Midnight, Coral sunrise, Ink & ivory, Saffron festival) are added the first time you open the library. Pick any and press \"Use in this app\" to make them templates 1, 2, 3 of that app.\n- **Add older designs** button in the library restores any you have removed.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
+  "published": "2026-11-20T20:15:12Z",
   "minimumSystemVersion": "14.0"
 }
