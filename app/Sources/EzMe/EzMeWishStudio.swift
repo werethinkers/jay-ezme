@@ -908,10 +908,12 @@ final class WishStudioModel: ObservableObject {
                 self.status = "Download cancelled."
                 return
             }
+            guard let spent = self.chargeUse("Download card") else { return }
             do {
                 try data.write(to: url)
-                self.status = "Saved \(url.lastPathComponent)."
+                self.status = "Saved \(url.lastPathComponent). \(self.useCost) credits used."
             } catch {
+                self.refundUse(spent, reason: "The card could not be saved.")
                 self.status = "Could not save: \(error.localizedDescription)"
             }
         }
@@ -924,9 +926,10 @@ final class WishStudioModel: ObservableObject {
                 self.status = "Could not make the image."
                 return
             }
+            guard self.chargeUse("Copy card") != nil else { return }
             NSPasteboard.general.clearContents()
             NSPasteboard.general.writeObjects([image])
-            self.status = "Image copied. Paste it into a message."
+            self.status = "Image copied. Paste it into a message. \(self.useCost) credits used."
         }
     }
 
@@ -937,6 +940,7 @@ final class WishStudioModel: ObservableObject {
                 self.status = "Could not make the image."
                 return
             }
+            guard self.chargeUse("Share card") != nil else { return }
             let picker = NSSharingServicePicker(items: [image])
             let anchor = NSRect(x: view.bounds.midX, y: 40, width: 1, height: 1)
             picker.show(relativeTo: anchor, of: view, preferredEdge: .minY)
@@ -946,6 +950,7 @@ final class WishStudioModel: ObservableObject {
     /// Saves the card as a real web page (with its pictures, GIFs and videos) and opens it in the browser.
     func openAsWebPage() {
         guard let base = store.directory else { return }
+        guard let spent = chargeUse("Card as web page") else { return }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HHmm"
         let folder = base.appendingPathComponent("WishPages", isDirectory: true)
@@ -964,8 +969,9 @@ final class WishStudioModel: ObservableObject {
             let index = folder.appendingPathComponent("index.html")
             try WishHTML.page(stateJSON: json, interactive: false).write(to: index, atomically: true, encoding: .utf8)
             NSWorkspace.shared.open(index)
-            status = "Opened as a web page. It is saved in \(folder.path)."
+            status = "Opened as a web page. It is saved in \(folder.path). \(useCost) credits used."
         } catch {
+            refundUse(spent, reason: "The web page could not be saved.")
             status = "Could not save the web page: \(error.localizedDescription)"
         }
     }
@@ -2163,41 +2169,20 @@ struct WishTemplatesTab: View {
     @ObservedObject var model: WishStudioModel
     @State private var name = ""
     @State private var includeText = false
+    @State private var open = "save"
+
+    private var builderApp: String? { WishOccasions.all.first(where: { $0.appName == model.app.name || $0.reuses == model.app.name })?.presetName }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Templates").font(.system(size: 17, weight: .semibold))
-                Text("Save the colours, lettering and layout you like, then use them again in a click.")
+                Text("Open a section to use it. Test the app in App Designer, then finish it here with small changes.")
                     .font(.system(size: 12))
                     .foregroundStyle(WishTheme.muted)
             }
-            VStack(alignment: .leading, spacing: 8) {
-                wishCaption("Default look")
-                Text("Cards made by typing a shortcut for \(model.app.name) use the default look. Add a dash and a look name after the name to use another one for that card only, like \(WishOccasions.all.first(where: { $0.appName == model.app.name || $0.reuses == model.app.name })?.prefix ?? "thanks")-Hiral-gold, or the name of a template you saved below.")
-                    .font(.system(size: 11))
-                    .foregroundStyle(WishTheme.muted)
-                Button {
-                    model.makeCurrentDesignDefault()
-                } label: {
-                    Label("Make the current look the default", systemImage: "checkmark.seal")
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.accentSoft))
 
-            if let builderApp = WishOccasions.all.first(where: { $0.appName == model.app.name || $0.reuses == model.app.name })?.presetName {
-                VStack(alignment: .leading, spacing: 8) {
-                    wishCaption("Voice and sentence commands")
-                    BuilderPhrasesEditor(app: builderApp).id(builderApp)
-                }
-                .padding(12)
-                .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.accentSoft))
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                wishCaption("Save this look")
+            WishAccordion(id: "save", title: "Save this look", symbol: "square.and.arrow.down", summary: "Keep the colours, lettering and layout", open: $open) {
                 TextField("Template name, like Soft pink family", text: $name).textFieldStyle(.roundedBorder)
                 Toggle("Also keep my text", isOn: $includeText).toggleStyle(.checkbox).font(.system(size: 12))
                 Button {
@@ -2209,13 +2194,10 @@ struct WishTemplatesTab: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 12).fill(WishTheme.accentSoft))
 
-            VStack(alignment: .leading, spacing: 8) {
-                wishCaption("Your templates for \(model.app.name)")
+            WishAccordion(id: "mine", title: "Your templates for \(model.app.name)", symbol: "rectangle.stack", summary: "\(model.templatesForApp.count) saved", open: $open) {
                 if model.templatesForApp.isEmpty {
-                    Text("None yet.").font(.system(size: 12)).foregroundStyle(WishTheme.muted)
+                    Text("None yet. Save a look above.").font(.system(size: 12)).foregroundStyle(WishTheme.muted)
                 }
                 ForEach(model.templatesForApp) { template in
                     HStack(spacing: 10) {
@@ -2236,6 +2218,40 @@ struct WishTemplatesTab: View {
                     .background(RoundedRectangle(cornerRadius: 10).fill(Color.white))
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(WishTheme.line, lineWidth: 1))
                 }
+            }
+
+            WishAccordion(id: "add", title: "Add boxes to this template", symbol: "plus.rectangle.on.rectangle", summary: "Variables, collections, functions, text, pictures", open: $open) {
+                WishAddToTemplateSection(model: model)
+            }
+
+            WishAccordion(id: "default", title: "Default look", symbol: "checkmark.seal", summary: "The look shortcuts use", open: $open) {
+                Text("Cards made by typing a shortcut for \(model.app.name) use the default look. Add a dash and a look name after the name to use another one for that card only.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(WishTheme.muted)
+                Button {
+                    model.makeCurrentDesignDefault()
+                } label: {
+                    Label("Make the current look the default", systemImage: "checkmark.seal")
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if let builderApp {
+                WishAccordion(id: "voice", title: "Voice and sentence commands", symbol: "mic", summary: "Sentences that run this app", open: $open) {
+                    BuilderPhrasesEditor(app: builderApp).id(builderApp)
+                }
+            }
+
+            WishAccordion(id: "command", title: "App command after the backslash", symbol: "chevron.left.forwardslash.chevron.right", summary: "Change the word you type", open: $open) {
+                WishCommandWordSection(model: model)
+            }
+
+            WishAccordion(id: "more", title: "More looks from the browser", symbol: "globe", summary: "Ask ChatGPT or Gemini for more templates", open: $open) {
+                WishMoreLooksSection(model: model)
+            }
+
+            WishAccordion(id: "credits", title: "Credits for each use", symbol: "bolt.fill", summary: "\(model.useCost) credits per card", open: $open) {
+                WishCreditsSection(model: model)
             }
         }
     }

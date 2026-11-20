@@ -1,17 +1,15 @@
-# KeyDo 4.09
+# KeyDo 4.10
+
+## Wish Studio: build on the template you already use
+- **Add boxes to this template** (Templates tab): the same simple tools as App Designer. Say or type "two variables string and date", or tap Variable, Collection, Function, Text or Picture, and the boxes are added to the background template already in use. No new template is created, and the look stays as it is.
+- **Save this look** now sits at the top of the Templates tab, above Voice and sentence commands.
+- **Accordion layout:** Save this look, Your templates, Add boxes, Default look, Voice and sentence commands, App command, More looks, Credits. Open one at a time so each part is readable.
+- **App command after the backslash:** change the word you type (for example \hbd) without changing the app name. A word already used by another app is refused.
+- **More looks from the browser:** send the card to ChatGPT or Gemini in the side browser and ask for more templates, the same as in App Designer (for apps linked to an App Designer design).
+- Test the app in App Designer, then finish it in Wish Studio with small changes.
 
 ## Credits
-KeyDo now runs on credits, built so buying and selling credits can be added later.
-- **10,000 free credits** are added to each account the first time it is used.
-- **Prices of 5 to 30 credits** by how much work a service does: cards and wishes 10, invoices and business papers 15, posters and multi-page designs 20, AI rewrite 5, picture with AI 25, video with AI 30. Every price can be changed in Settings.
-- **Approval limit:** anything above 20 credits (you can change the limit) asks you first. Everything else just goes ahead.
-- **Returned automatically** when a design, picture or video could not be made.
-- **History:** Settings > Credits and usage shows the balance, what was used this month, where credits went, every entry with the balance after it, and an Export CSV.
-
-## App popup: simpler and always shows the cost
-- Templates are shown as small pictures to tap (with a Random choice), instead of a drop-down.
-- Fields called colour show colour swatches.
-- The popup always shows your credit balance, and the Make button shows what it will cost.
+- Every card made from a Wish Studio app (download, copy, share, open as web page) uses **10 credits** ("Wish Studio card", changeable in Settings). It returns the credits if the save fails, and the approval limit applies as before. The cost is shown in the Templates tab.
 
 ## Keyboard safety
 Checked. Nothing in the key tap, popup key handling, voice or key-swallowing modes was touched.

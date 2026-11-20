@@ -71,6 +71,8 @@ import AppKit
         return builderApps().filter { $0 != own && !designApps.contains($0) }
     }
 
+    static func appName(forDesign id: String) -> String? { registered()[id] }
+
     static func isDesignApp(_ app: String) -> Bool { registered().values.contains(app) }
 
     static func designID(forApp app: String) -> String? { registered().first(where: { $0.value == app })?.key }
