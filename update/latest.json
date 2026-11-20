@@ -1,9 +1,9 @@
 {
-  "version": "4.03",
-  "build": 408,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.03-build408/EzMe-4.03-macOS.zip",
-  "sha256": "55382e73a646de6094c8bb95c4e5e8356e558ecfb781d351900fa35f958b1478",
-  "notes": "# KeyDo 4.03\n\n## Collections, grid view\nPrevious / Next now sit above the grid as well as below it (50 items a page, with the page number and total).\n\n## Viewer: rename and file location\n- A pencil button renames the file you are watching. The real saved file is renamed in its folder (the extension stays), and the shortcut points at the new name. A name that already exists is refused.\n- An info button shows the full path where the media is saved, with Copy path and Show in Finder.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.",
-  "published": "2026-11-20T03:01:52Z",
+  "version": "4.04",
+  "build": 409,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.04-build409/EzMe-4.04-macOS.zip",
+  "sha256": "0d58fdd98ac79b5649d3b810e5e0650bfbc97f847bef250e42cb1ca44b03b862",
+  "notes": "# KeyDo 4.04\n\n## The preview stays open\nRenaming, favouriting or moving a file no longer closes the preview. The shortcuts update when you close the preview, and the file on disk is renamed straight away.\n\n## Favourites\nA heart in the preview (and a \"Favourites only\" button above the collection) marks and shows favourites. Favourites carry a small heart in the grid.\n\n## Voice in the preview\nPress Voice in the preview, then say:\n- \"rename to sunset beach\", then \"save\" (or \"rename to sunset beach and save\"). The saved file is renamed in its folder.\n- \"next\", \"previous\", \"favourite\", \"info\", \"cancel\", \"close\".\n- \"move to <collection name>\" to organise the shortcut into another collection.\nDouble backslash and \"Hey KeyDo\" still take priority and stop this microphone.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice-popup or key-swallowing modes was touched.",
+  "published": "2026-11-20T03:53:10Z",
   "minimumSystemVersion": "14.0"
 }
