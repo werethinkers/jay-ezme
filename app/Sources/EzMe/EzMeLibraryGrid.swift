@@ -331,7 +331,7 @@ struct LibraryPreview: View {
 }
 
 struct AnimatedGIFView: NSViewRepresentable {
-    let path: String
+    var path: String
 
     func makeNSView(context: Context) -> NSImageView {
         let view = NSImageView()
@@ -454,7 +454,7 @@ enum LibraryThumbs {
 
 /// A resized picture, or a video's first frame. Cleared when the tile scrolls away.
 struct LibraryPosterTile: View {
-    let path: String
+    var path: String
     let isVideo: Bool
     @State private var image: NSImage?
 
@@ -495,7 +495,7 @@ enum LibraryThumbnails {
 }
 
 struct QuickLookThumbnailView: View {
-    let path: String
+    var path: String
     @State private var image: NSImage?
 
     var body: some View {
@@ -618,7 +618,7 @@ struct LibraryGalleryItem: Identifiable {
     let id: String
     let clipID: UUID
     let title: String
-    let path: String
+    var path: String
     var favorite: Bool = false
     var key: String = ""
     var group: String = ""
