@@ -169,6 +169,11 @@ struct LibraryGridView: View {
     static let firstBatch = 24
     private static let nextBatch = 24
 
+    private func setFavorite(_ clip: Clip, _ on: Bool) {
+        let edit: ViewerEdit = .favourite(clip.id, on)
+        onViewerEdits?([edit])
+    }
+
     private func openViewer(_ clip: Clip, path: String?) {
         let items = LibraryGalleryItem.items(from: galleryClips ?? clips)
         guard !items.isEmpty else { return }
@@ -189,7 +194,7 @@ struct LibraryGridView: View {
                             if selectedIDs.contains(clip.id) { selectedIDs.remove(clip.id) } else { selectedIDs.insert(clip.id) }
                         },
                         onEdit: { onEdit(clip) },
-                        onFavorite: { on in onViewerEdits?([.favourite(clip.id, on)]) },
+                        onFavorite: { on in setFavorite(clip, on) },
                         onEnlarge: { openViewer(clip, path: clip.files.first { FileManager.default.fileExists(atPath: $0) }) }
                     )
                 }
