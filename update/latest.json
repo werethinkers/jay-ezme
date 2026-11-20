@@ -1,9 +1,9 @@
 {
-  "version": "4.14",
-  "build": 421,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.14-build421/EzMe-4.14-macOS.zip",
-  "sha256": "6486f4eb4f24db9437cf6bfd6f5e84b15fc046b838bf223df35bc4cb915f3201",
-  "notes": "# KeyDo 4.14\n\n## Collection preview: rename changes the shortcut too\n- As soon as you save a new file name (typing or by voice), the display name **and the shortcut** change together. The shortcut becomes the full file name in the collection's own prefix or suffix pattern, for example \\sunset-beach.media.\n- The suggestions under the name refresh to match the new name. If you prefer the short one, or your own, tap it or say \"short shortcut\". Everything is applied when you close the preview.\n\n## Keyboard safety\nChecked. The key tap, popup key handling, voice and key-swallowing modes were not touched.",
-  "published": "2026-11-20T08:20:25Z",
+  "version": "4.15",
+  "build": 422,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.15-build422/EzMe-4.15-macOS.zip",
+  "sha256": "65681f28ea67c5e8a4023ca8e59f6cd1da58c5181e546e0cc5c04577c255984a",
+  "notes": "# KeyDo 4.15\n\n## Wish Studio: all of App Designer, inside Wish Studio\n- **Design** (above the card) opens the editor in place, with every App Designer option: replace the whole background, add variables, collections, functions, text and picture boxes, drag and resize them, pages, other looks (temp2, temp3), more looks from the browser, try it, output format, app name and the word after the backslash, then Launch.\n- **Templates** (next to Design) shows all your designs and templates, the same as App Designer: open any one to edit it here, make a new one from a picture, a bill, an agreement or a document, and pick **Use a design for this app** to link it. No separate window.\n- A switch at the top moves between **This app** and **All designs**.\n- **You place everything:** variables, collections and functions are only added when you add them, and you put them where you want on the background. The Templates tab no longer places boxes for you; it opens Design for that.\n\n## Keyboard safety\nChecked. The key tap, popup key handling, voice and key-swallowing modes were not touched.",
+  "published": "2026-11-20T08:49:22Z",
   "minimumSystemVersion": "14.0"
 }
