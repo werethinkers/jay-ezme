@@ -1,9 +1,9 @@
 {
-  "version": "4.07",
-  "build": 412,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.07-build412/EzMe-4.07-macOS.zip",
-  "sha256": "427b0cb073af12e32b82bbdb17daabc5c1aa8e0b5e8d39975442e78ce61d8528",
-  "notes": "# KeyDo 4.07\n\n## Browser start page: neat and collapsed\nFavorites stay open. Every folder and tab group is now a single tidy row that is collapsed by default; tap a row to open it (or use Expand all / Collapse all). Add link, Open all and Save as folder appear only when a row is open.\n\n## Media button: real playback\nThe media view now plays the page's own media instead of showing stills:\n- Videos are the page's real players (so streamed videos work too): they autoplay muted in the wall, filmstrip and scroll views while visible, and play with sound in \"One by one\".\n- GIFs animate. Pictures use the largest version the page offers.\n- When you reach the end, the page is scrolled and \"Load more\" is pressed for you, and new media is added without losing your place. There is also a Load more button, and a \"Look again\" button when nothing more is found.\n- Close (or Esc) puts every video back where it was on the page.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.",
-  "published": "2026-11-20T05:30:00Z",
+  "version": "4.08",
+  "build": 413,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.08-build413/EzMe-4.08-macOS.zip",
+  "sha256": "eaf98322759edeb5affa3cdd82f2c6481327bfee2364dedcc5fb4d5c8c02be12",
+  "notes": "# KeyDo 4.08\n\n## Update window is no longer cut off\nThe window that opens from \"Check for updates\" now has one fixed, larger size (560 x 480). It stays the same while checking, showing the notes, downloading and installing, so the notes and the Later / Update now buttons are always fully visible. The notes area scrolls inside it.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.",
+  "published": "2026-11-20T06:06:18Z",
   "minimumSystemVersion": "14.0"
 }
