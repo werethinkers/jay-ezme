@@ -1,9 +1,9 @@
 {
-  "version": "4.25",
-  "build": 432,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.25-build432/EzMe-4.25-macOS.zip",
-  "sha256": "4072e50605d82e5b033d8cc4c26d0275f0e608c69ac1f99e4505ad7c0f70e9ef",
-  "notes": "# KeyDo 4.25\n\nTemplate pictures in the popup.\n\n- **Numbered templates in the popup.** When you type a design app in the popup, such as `\\ha-Rohit`, its card now shows the same template pictures as the full form, numbered 1, 2, 3, 4 and Random, with the default marked. Tap one and Generate uses it. Typing `-temp2`, `-temp3` or `-tempr` still works and highlights the matching picture.\n- The popup grows a little to make room for the pictures, and only for apps that have more than one template.\n\n## Keyboard safety\nChecked: the key tap (`miniJSlashTap`), popup key handling, voice and the key-swallowing modes (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not changed. This change only adds a picture strip to a card; nothing new swallows keys, the heartbeat watchdog is kept, and no work was added inside the callback.",
-  "published": "2026-11-20T17:58:44Z",
+  "version": "4.26",
+  "build": 434,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.26-build434/EzMe-4.26-macOS.zip",
+  "sha256": "11962eace25ecf4f4bc19b722e616b54f9824aa412b41c3d729e440218443f0b",
+  "notes": "# KeyDo 4.26\n\nDatabase Organizer grid, and Save in the popup.\n\n- **Grid view in the Database Organizer.** Contacts, Links, Files and Media each have a List / Grid switch next to the search box. The grid uses tiles like the Collections grid: pictures, videos, documents and websites preview, pictures and videos open large with Previous and Next, and contacts show their photo or initials.\n- **Rename on the tile.** Double-click a title, or press the pencil, to rename in place.\n- **Make a shortcut from any tile** with the lightning button, or from the menu. Select several tiles and use Make shortcuts at the top for all of them.\n- **Everything else on the tile menu:** Edit, Open link or file, Document Viewer, Show in Finder, Copy path, link, number or email, Move to a collection, Delete.\n- **Save\u2026 in the popup.** After a card or file is made with `\\app-name`, press Save\u2026 to keep the picture, PDF or text wherever you choose, next to Paste and Share.\n- Numbered template pictures and `-3` style template numbers keep working.\n\n## Keyboard safety\nChecked: the key tap (`miniJSlashTap`), popup key handling, voice and the key-swallowing modes (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not changed. This release adds tiles and a Save button only; nothing new swallows keys, the heartbeat watchdog is kept, and no work was added inside the callback.",
+  "published": "2026-11-20T18:29:51Z",
   "minimumSystemVersion": "14.0"
 }
