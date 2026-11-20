@@ -1,9 +1,9 @@
 {
-  "version": "4.28",
-  "build": 436,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.28-build436/EzMe-4.28-macOS.zip",
-  "sha256": "71457b6dbb977a9583534d7157b780d1aa158d6e682725234f3337e62a77d113",
-  "notes": "# KeyDo 4.28\n\n## What's new\n- **Video Editor, Join clips**: add elements between clips, a picture (shown 1 to 30 seconds) or a title card with your own text. Videos of different sizes can be mixed; choose the output size (match the first video, 1920x1080, vertical 1080x1920 or square) and every clip is fitted to it with black bars.\n- **Clip positions**: drag a row, use the arrows, or open a row's Position menu and move it to any place.\n- **Filters** now accept videos up to 100 MB. Larger videos are refused with a clear message (cut them shorter in Cut mode first).\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
-  "published": "2026-11-20T19:37:46Z",
+  "version": "4.29",
+  "build": 437,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.29-build437/EzMe-4.29-macOS.zip",
+  "sha256": "5e1baab17dd53fc9052a1d68f8293149cfc70f473ca40aff0190128bb3d19ea0",
+  "notes": "# KeyDo 4.29\n\n## What's new\n- **Wish Studio background library**: in step 1, the new **Library** button opens a shelf of transparent PNG backgrounds. Import PNG files, a folder of them, or a library zip; pick any backgrounds and use them in the app you are making (they become its templates). \"Add this app's backgrounds\" saves what you made into the library.\n- **Publish and download**: \"Download library (zip)\" saves the whole shelf as one zip you can publish or send. Anyone who has it imports it with the same button.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
+  "published": "2026-11-20T19:57:34Z",
   "minimumSystemVersion": "14.0"
 }
