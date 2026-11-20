@@ -1,9 +1,9 @@
 {
-  "version": "4.02",
-  "build": 407,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.02-build407/EzMe-4.02-macOS.zip",
-  "sha256": "afb035ac9c5cf96b512ebf45fadb65c0fc245b23d6efeedd3073fe8f78beea7d",
-  "notes": "# KeyDo 4.02\n\n## Collections: grid view keeps loading\nThe grid in a collection no longer stops at 50 videos. It now loads the whole collection as you scroll down, a few rows at a time, so there is no Next button to look for. The Previous/Next pager remains for the list view.\n\n## Database Organizer\nThe file list loads the next 150 files automatically as you reach the bottom. The \"Show more\" button is still there.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.",
-  "published": "2026-11-20T02:47:40Z",
+  "version": "4.03",
+  "build": 408,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.03-build408/EzMe-4.03-macOS.zip",
+  "sha256": "55382e73a646de6094c8bb95c4e5e8356e558ecfb781d351900fa35f958b1478",
+  "notes": "# KeyDo 4.03\n\n## Collections, grid view\nPrevious / Next now sit above the grid as well as below it (50 items a page, with the page number and total).\n\n## Viewer: rename and file location\n- A pencil button renames the file you are watching. The real saved file is renamed in its folder (the extension stays), and the shortcut points at the new name. A name that already exists is refused.\n- An info button shows the full path where the media is saved, with Copy path and Show in Finder.\n\n## Keyboard safety\nChecked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.",
+  "published": "2026-11-20T03:01:52Z",
   "minimumSystemVersion": "14.0"
 }
