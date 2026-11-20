@@ -1,9 +1,9 @@
 {
-  "version": "4.17",
-  "build": 424,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.17-build424/EzMe-4.17-macOS.zip",
-  "sha256": "746950c60e55057bd6c284581344b5c00287b5450cbb55b359a655c05ff4712b",
-  "notes": "# KeyDo 4.17: Background first, simple steps\n\n**Designer and Wish Studio design mode now start with the background.**\n- Step 1 \u00b7 Background (first thing you see): **Replace background**, **Get background pictures with ChatGPT** (or Gemini), and background colour swatches.\n- Step 2 \u00b7 Add variables, collections, functions, text and pictures.\n- Step 3 \u00b7 Place them where you want: drag to move, drag the dots to resize.\n- Step 4 \u00b7 Name the app, with suggested command words that run it after the backslash.\n- Tip shown when you upload a background: use a **PNG with a transparent background** so the colour can be changed.\n\n**Background colour now works properly.** A transparent PNG, or a flat colour page, changes colour without losing the picture. A flat photo keeps its colours and the app says why. Text turns light or dark automatically so it stays readable. Saying \"background pink\" in Wish Studio uses the same logic; font size, colours, bold and the other voice changes are unchanged.\n\n**Keyboard safety checked:** nothing in the key tap, popup, voice or key-swallowing modes was touched.",
-  "published": "2026-11-20T09:33:38Z",
+  "version": "4.18",
+  "build": 425,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.18-build425/EzMe-4.18-macOS.zip",
+  "sha256": "3e0de850bfc920e23df2f27dcdcb8b1c58be78b97840646e1e6c625836be80c4",
+  "notes": "# KeyDo 4.18: Wish Studio and Design on one page\n\n**Design is now part of Wish Studio.** One bar at the top switches between **Design**, **Card** and **All designs**. A Wish app that has a design you have not launched yet opens on Design.\n\n**Variables now change the card live.** Every variable, collection and text box you add in Design becomes a field in Details automatically. Type in a field and the card updates as you type, the same as Try it did in App Designer. Boxes you add later appear too.\n\n**No repeated steps or buttons.**\n- One **Launch** button (top bar) instead of three Publish and Launch buttons.\n- The app name and the word after the backslash are set only in step 4 of Design.\n- The old \"Add boxes\", \"App command\" and \"More looks\" sections were removed from the Templates tab; they are in Design.\n- The designer's own Templates, Save and close, Publish and app-name controls are hidden inside Wish Studio. The side-panel button is now \"More looks with ChatGPT\" so it is not confused with background pictures.\n\n**Keyboard safety checked:** nothing in the key tap, popup, voice or key-swallowing modes was touched.",
+  "published": "2026-11-20T09:57:01Z",
   "minimumSystemVersion": "14.0"
 }
