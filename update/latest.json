@@ -1,9 +1,9 @@
 {
-  "version": "4.15",
-  "build": 422,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.15-build422/EzMe-4.15-macOS.zip",
-  "sha256": "65681f28ea67c5e8a4023ca8e59f6cd1da58c5181e546e0cc5c04577c255984a",
-  "notes": "# KeyDo 4.15\n\n## Wish Studio: all of App Designer, inside Wish Studio\n- **Design** (above the card) opens the editor in place, with every App Designer option: replace the whole background, add variables, collections, functions, text and picture boxes, drag and resize them, pages, other looks (temp2, temp3), more looks from the browser, try it, output format, app name and the word after the backslash, then Launch.\n- **Templates** (next to Design) shows all your designs and templates, the same as App Designer: open any one to edit it here, make a new one from a picture, a bill, an agreement or a document, and pick **Use a design for this app** to link it. No separate window.\n- A switch at the top moves between **This app** and **All designs**.\n- **You place everything:** variables, collections and functions are only added when you add them, and you put them where you want on the background. The Templates tab no longer places boxes for you; it opens Design for that.\n\n## Keyboard safety\nChecked. The key tap, popup key handling, voice and key-swallowing modes were not touched.",
-  "published": "2026-11-20T08:49:22Z",
+  "version": "4.16",
+  "build": 423,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.16-build423/EzMe-4.16-macOS.zip",
+  "sha256": "2b2c63139ac60d2e672b3121b4965dc993c72d439692fad94dea7de1157a58e1",
+  "notes": "# KeyDo 4.16\n\n## Hover to see it bigger\n- Rest the pointer on a picture, GIF, video or document card for a moment and a larger view appears (GIFs and videos play). It is sized to the picture's own shape, placed over the card, and always kept fully on the screen, never cut off by the window edge or the scroll area.\n- Works in **Collections** (grid cards), **AppBuilder** and **Wish Studio** app covers, **AppDesigner** design cards and the **template library**.\n- Move the pointer away and it closes.\n\n## Keyboard safety\nChecked. The key tap, popup key handling, voice and key-swallowing modes were not touched. The hover view ignores the mouse and keyboard.",
+  "published": "2026-11-20T09:13:20Z",
   "minimumSystemVersion": "14.0"
 }
