@@ -466,7 +466,13 @@ struct WishSimpleStudio: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 3), spacing: 7) {
                     addButton("Variable", "curlybraces", "variable")
                     addButton("Collection", "list.bullet", "collection")
-                    addButton("Function", "function", "function")
+                    Menu {
+                        DesignFunctionMenu { addLayer("function", pick: $0) }
+                    } label: {
+                        HStack(spacing: 4) { Image(systemName: "function").font(.system(size: 11)); Text("Function").font(.system(size: 11, weight: .semibold)) }
+                            .frame(maxWidth: .infinity).padding(.vertical, 8)
+                    }
+                    .menuStyle(.borderlessButton).buttonStyle(SimpleQuietButton())
                     addButton("Text", "textformat", "text")
                     addButton("Image", "photo", "image")
                     addButton("Logo", "flag", "logo")
@@ -514,7 +520,7 @@ struct WishSimpleStudio: View {
         .buttonStyle(.plain)
     }
 
-    private func addLayer(_ kind: String) {
+    private func addLayer(_ kind: String, pick: DesignFunction? = nil) {
         guard var page = draft ?? workingTemplate else { note = "Choose a background first."; return }
         var app = model.app
         func unique(_ base: String) -> String {
@@ -537,9 +543,10 @@ struct WishSimpleStudio: View {
             field.choices = ["Option A", "Option B", "Option C"]
             app.fields.append(field)
         case "function":
-            slot = TemplateSlot(key: unique("today"), kind: .text); slot.content = "{=Date}"
+            let word = (pick?.title ?? "today").lowercased().replacingOccurrences(of: "[^a-z0-9]+", with: "", options: .regularExpression)
+            slot = TemplateSlot(key: unique(word.isEmpty ? "today" : String(word.prefix(14))), kind: .text); slot.content = pick?.token ?? "{=Date}"
             let formatter = DateFormatter(); formatter.dateStyle = .medium
-            slot.sample = formatter.string(from: Date())
+            slot.sample = pick == nil || (pick?.token ?? "").contains("TODAY") || pick?.token == "{=Date}" ? formatter.string(from: Date()) : (pick?.title ?? "")
         case "image":
             slot = TemplateSlot(key: unique("photo"), kind: .image); slot.sample = ""
             slot.w = 0.3; slot.h = 0.3 * aspect

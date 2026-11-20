@@ -1,8 +1,7 @@
-# KeyDo 4.32
+# KeyDo 4.33
 
 ## What's new
-- **Wish Studio occasion apps (Happy Anniversary, Thank You, Diwali and the others)**: choosing a design in the Use step now also saves it as the default for the app, so the typed shortcut (for example \wed-Rohit in WhatsApp) makes the card in the design you picked. Before, only the screen changed and the shortcut still used the old design.
-- To use another design for one card only, add its name after the name, for example \wed-Rohit-night.
+- **Wish Studio, Design step, Function**: the Function button is now a menu with every function: date and time (today's date, time, date and time, month, year, weekday, date + 7 or 30 days, day of the year), where you are (city, place, area, state or region, country, coordinates), weather and sky, money and more. Before it only added the date.
 
 ## Keyboard safety
 Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.
