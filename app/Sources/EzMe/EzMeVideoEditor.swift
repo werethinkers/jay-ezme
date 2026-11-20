@@ -85,25 +85,99 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
 
 // MARK: - Join clips
 
+/// One thing in the joined video: a clip, a picture shown for a few seconds, or a title card.
+private struct JoinItem: Identifiable, Equatable {
+    enum Kind { case video, picture, title }
+    var id = UUID()
+    var kind: Kind
+    var url: URL?
+    var text = ""
+    var seconds = 3.0
+}
+
+private enum JoinStills {
+    static func card(_ item: JoinItem, canvas: CGSize) -> NSImage {
+        let image = NSImage(size: canvas)
+        image.lockFocus()
+        NSColor.black.setFill()
+        NSRect(origin: .zero, size: canvas).fill()
+        if item.kind == .picture, let url = item.url, let picture = NSImage(contentsOf: url), picture.size.width > 0, picture.size.height > 0 {
+            let scale = min(canvas.width / picture.size.width, canvas.height / picture.size.height)
+            let size = NSSize(width: picture.size.width * scale, height: picture.size.height * scale)
+            picture.draw(in: NSRect(x: (canvas.width - size.width) / 2, y: (canvas.height - size.height) / 2, width: size.width, height: size.height))
+        } else if item.kind == .title {
+            let style = NSMutableParagraphStyle()
+            style.alignment = .center
+            let font = NSFont.systemFont(ofSize: canvas.height * 0.09, weight: .bold)
+            let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.white, .paragraphStyle: style]
+            let box = NSRect(x: canvas.width * 0.08, y: canvas.height * 0.2, width: canvas.width * 0.84, height: canvas.height * 0.6)
+            let text = NSAttributedString(string: item.text, attributes: attributes)
+            let needed = text.boundingRect(with: box.size, options: [.usesLineFragmentOrigin]).height
+            text.draw(with: NSRect(x: box.minX, y: box.midY - needed / 2, width: box.width, height: needed), options: [.usesLineFragmentOrigin])
+        }
+        image.unlockFocus()
+        return image
+    }
+
+    /// Writes the picture as a short silent video of the given length.
+    static func write(_ image: NSImage, canvas: CGSize, seconds: Double, to url: URL) async throws {
+        let width = Int(canvas.width), height = Int(canvas.height)
+        guard let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil) else { throw EditorError(text: "A picture or title could not be drawn.") }
+        try? FileManager.default.removeItem(at: url)
+        let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height])
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32ARGB, kCVPixelBufferWidthKey as String: width, kCVPixelBufferHeightKey as String: height])
+        writer.add(input)
+        guard writer.startWriting() else { throw EditorError(text: "A picture or title could not be turned into video.") }
+        writer.startSession(atSourceTime: .zero)
+        var buffer: CVPixelBuffer?
+        CVPixelBufferCreate(nil, width, height, kCVPixelFormatType_32ARGB, nil, &buffer)
+        guard let pixels = buffer else { throw EditorError(text: "A picture or title could not be turned into video.") }
+        CVPixelBufferLockBaseAddress(pixels, [])
+        if let context = CGContext(data: CVPixelBufferGetBaseAddress(pixels), width: width, height: height, bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(pixels),
+                                   space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue) {
+            context.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        CVPixelBufferUnlockBaseAddress(pixels, [])
+        let frames = max(2, Int(seconds * 10))
+        for index in 0..<frames {
+            while !input.isReadyForMoreMediaData { try await Task.sleep(nanoseconds: 5_000_000) }
+            adaptor.append(pixels, withPresentationTime: CMTime(value: Int64(index), timescale: 10))
+        }
+        input.markAsFinished()
+        writer.endSession(atSourceTime: CMTime(value: Int64(frames), timescale: 10))
+        await writer.finishWriting()
+        if writer.status != .completed { throw EditorError(text: "A picture or title could not be turned into video.") }
+    }
+}
+
 @MainActor struct VideoJoinView: View {
     var clips: [Clip]
     var attachmentDirectory: URL
     var onSave: (Clip) -> Void
     var onExport: (Clip) -> Void
 
-    @State private var items: [URL] = []
-    @State private var lengths: [String: Double] = [:]
+    @State private var items: [JoinItem] = []
+    @State private var lengths: [UUID: Double] = [:]
+    @State private var outputSize = "Match first video"
     @State private var name = "Joined video"
     @State private var code = "joined"
     @State private var saveTo = "Save as shortcut"
     @State private var busy = false
     @State private var message = ""
 
+    private static let sizes: [(String, CGSize?)] = [
+        ("Match first video", nil), ("1920 \u{00D7} 1080 landscape", CGSize(width: 1920, height: 1080)),
+        ("1080 \u{00D7} 1920 vertical", CGSize(width: 1080, height: 1920)), ("1080 \u{00D7} 1080 square", CGSize(width: 1080, height: 1080))
+    ]
+
     private var videoShortcuts: [Clip] {
         clips.filter { clip in clip.files.contains { editorIsVideo(URL(fileURLWithPath: $0)) && FileManager.default.fileExists(atPath: $0) } }
     }
 
-    private var totalLength: Double { items.reduce(0) { $0 + (lengths[$1.path] ?? 0) } }
+    private func length(_ item: JoinItem) -> Double { item.kind == .video ? (lengths[item.id] ?? 0) : item.seconds }
+    private var totalLength: Double { items.reduce(0) { $0 + length($1) } }
 
     var body: some View {
         HStack(alignment: .top, spacing: 18) {
@@ -116,19 +190,23 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
                         }
                     } label: { Label("From shortcut", systemImage: "command") }
                     .disabled(videoShortcuts.isEmpty)
+                    Menu {
+                        Button("Picture\u{2026}") { addPicture() }
+                        Button("Title card") { items.append(JoinItem(kind: .title, text: "Your title", seconds: 3)) }
+                    } label: { Label("Add element", systemImage: "square.stack.3d.up.badge.a") }
                     Spacer()
-                    if !items.isEmpty { Text("\(items.count) clips \u{00B7} \(editorClock(totalLength))").font(.caption).foregroundStyle(.secondary) }
+                    if !items.isEmpty { Text("\(items.count) items \u{00B7} \(editorClock(totalLength))").font(.caption).foregroundStyle(.secondary) }
                 }
                 if items.isEmpty {
                     ContentUnavailableView("Add the clips to join", systemImage: "film.stack",
-                                           description: Text("They play one after another in the order shown. Move a clip up or down to change the order."))
+                                           description: Text("Add videos of any size, plus pictures or title cards as elements. Drag a row, or use the arrows or its position menu, to change the order."))
                         .frame(maxWidth: .infinity, minHeight: 300)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(Array(items.enumerated()), id: \.element.path) { index, url in row(index, url) }
-                        }
+                    List {
+                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in row(index, item) }
+                            .onMove { source, target in items.move(fromOffsets: source, toOffset: target) }
                     }
+                    .listStyle(.plain)
                     .frame(minHeight: 300, maxHeight: 520)
                 }
             }
@@ -140,6 +218,8 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
                 TextField("joined", text: $code).textFieldStyle(.roundedBorder).font(.system(size: 14, weight: .semibold, design: .monospaced))
                 Text("Displayed name").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 TextField("Name", text: $name).textFieldStyle(.roundedBorder)
+                Text("Video size").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                Picker("", selection: $outputSize) { ForEach(Self.sizes, id: \.0) { Text($0.0).tag($0.0) } }.labelsHidden()
                 Picker("Save as", selection: $saveTo) {
                     Text("Shortcut").tag("Save as shortcut")
                     Text("Desktop file").tag("Save to Desktop")
@@ -148,7 +228,7 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
                     .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(busy || items.count < 2)
                 if busy { ProgressView().controlSize(.small) }
                 if !message.isEmpty { Text(message).font(.caption).foregroundStyle(.secondary) }
-                Text("Clips of different sizes are fitted to the first clip's size, with black bars where needed.").font(.caption2).foregroundStyle(.secondary)
+                Text("Clips of different sizes are fitted to the video size, with black bars where needed.").font(.caption2).foregroundStyle(.secondary)
             }
             .padding(14).frame(width: 300, alignment: .topLeading)
             .background(Butter.cream.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
@@ -157,29 +237,49 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private func row(_ index: Int, _ url: URL) -> some View {
+    private func row(_ index: Int, _ item: JoinItem) -> some View {
         HStack(spacing: 10) {
             Text("\(index + 1)").font(.system(size: 12, weight: .bold, design: .rounded)).frame(width: 24, height: 24)
                 .background(Butter.coral.opacity(0.18), in: Circle())
-            Image(systemName: "play.rectangle.fill").foregroundStyle(Butter.coral)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(url.lastPathComponent).font(.system(size: 13, weight: .semibold)).lineLimit(1).truncationMode(.middle)
-                Text(editorClock(lengths[url.path] ?? 0)).font(.caption).foregroundStyle(.secondary)
+            Image(systemName: item.kind == .video ? "play.rectangle.fill" : (item.kind == .picture ? "photo" : "textformat")).foregroundStyle(Butter.coral)
+            VStack(alignment: .leading, spacing: 2) {
+                if item.kind == .title {
+                    TextField("Title", text: binding(item.id, \.text)).textFieldStyle(.roundedBorder)
+                } else {
+                    Text(item.url?.lastPathComponent ?? "").font(.system(size: 13, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+                }
+                if item.kind == .video {
+                    Text(editorClock(lengths[item.id] ?? 0)).font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Stepper("Shown for \(Int(item.seconds)) s", value: binding(item.id, \.seconds), in: 1...30, step: 1).font(.caption)
+                }
             }
             Spacer()
+            Menu("Position") {
+                ForEach(items.indices, id: \.self) { slot in Button("Move to \(slot + 1)") { place(index, at: slot) } }
+            }.menuStyle(.borderlessButton).fixedSize()
             Button { move(index, by: -1) } label: { Image(systemName: "arrow.up") }.buttonStyle(.bordered).controlSize(.small).disabled(index == 0)
             Button { move(index, by: 1) } label: { Image(systemName: "arrow.down") }.buttonStyle(.bordered).controlSize(.small).disabled(index == items.count - 1)
             Button { items.remove(at: index) } label: { Image(systemName: "trash") }.buttonStyle(.bordered).controlSize(.small)
         }
-        .padding(10)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.secondary.opacity(0.2)))
+        .padding(.vertical, 4)
+    }
+
+    private func binding<T>(_ id: UUID, _ path: WritableKeyPath<JoinItem, T>) -> Binding<T> {
+        Binding(get: { items.first { $0.id == id }![keyPath: path] },
+                set: { value in if let at = items.firstIndex(where: { $0.id == id }) { items[at][keyPath: path] = value } })
     }
 
     private func move(_ index: Int, by delta: Int) {
         let target = index + delta
         guard items.indices.contains(index), items.indices.contains(target) else { return }
         items.swapAt(index, target)
+    }
+
+    private func place(_ index: Int, at slot: Int) {
+        guard items.indices.contains(index), items.indices.contains(slot), index != slot else { return }
+        let moved = items.remove(at: index)
+        items.insert(moved, at: slot)
     }
 
     private func addFiles() {
@@ -191,23 +291,50 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
         add(panel.urls)
     }
 
+    private func addPicture() {
+        let panel = NSOpenPanel()
+        panel.title = "Choose a picture to show between clips"
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls { items.append(JoinItem(kind: .picture, url: url, seconds: 3)) }
+    }
+
     private func add(_ urls: [URL]) {
-        for url in urls where !items.contains(url) {
-            items.append(url)
+        for url in urls {
+            let item = JoinItem(kind: .video, url: url)
+            items.append(item)
             Task {
                 let seconds = (try? await AVURLAsset(url: url).load(.duration).seconds) ?? 0
-                lengths[url.path] = seconds.isFinite ? seconds : 0
+                lengths[item.id] = seconds.isFinite ? seconds : 0
             }
         }
     }
 
+    private func even(_ value: CGFloat) -> CGFloat { max(2, (value / 2).rounded() * 2) }
+
     private func join() async {
-        guard items.count >= 2 else { message = "Add at least two clips to join."; return }
+        guard items.count >= 2 else { message = "Add at least two items to join."; return }
         busy = true
-        message = "Joining \(items.count) clips\u{2026}"
-        defer { busy = false }
+        message = "Joining \(items.count) items\u{2026}"
+        let scratch = FileManager.default.temporaryDirectory.appendingPathComponent("keydo-join-" + String(UUID().uuidString.prefix(6)))
+        defer { busy = false; try? FileManager.default.removeItem(at: scratch) }
         do {
             try FileManager.default.createDirectory(at: attachmentDirectory, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+
+            // The picture size: chosen, or the first video's.
+            var canvas = CGSize(width: 1280, height: 720)
+            if let chosen = Self.sizes.first(where: { $0.0 == outputSize })?.1 {
+                canvas = chosen
+            } else if let first = items.first(where: { $0.kind == .video }), let url = first.url,
+                      let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first {
+                let natural = try await track.load(.naturalSize)
+                let turn = try await track.load(.preferredTransform)
+                let shown = CGRect(origin: .zero, size: natural).applying(turn)
+                canvas = CGSize(width: even(abs(shown.width)), height: even(abs(shown.height)))
+            }
+
             let composition = AVMutableComposition()
             guard let videoTrack = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
                 throw EditorError(text: "This Mac could not start the joined video.")
@@ -217,7 +344,14 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
             struct Piece { var start: CMTime; var length: CMTime; var natural: CGSize; var turn: CGAffineTransform }
             var pieces: [Piece] = []
             var cursor = CMTime.zero
-            for url in items {
+            for item in items {
+                var url = item.url
+                if item.kind != .video {
+                    let made = scratch.appendingPathComponent(item.id.uuidString + ".mp4")
+                    try await JoinStills.write(JoinStills.card(item, canvas: canvas), canvas: canvas, seconds: item.seconds, to: made)
+                    url = made
+                }
+                guard let url else { continue }
                 let asset = AVURLAsset(url: url)
                 let length = try await asset.load(.duration)
                 guard let source = try await asset.loadTracks(withMediaType: .video).first else { continue }
@@ -231,9 +365,7 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
                 pieces.append(Piece(start: cursor, length: length, natural: natural, turn: turn))
                 cursor = CMTimeAdd(cursor, length)
             }
-            guard let first = pieces.first else { throw EditorError(text: "None of these files has a video track.") }
-            let firstShown = CGRect(origin: .zero, size: first.natural).applying(first.turn)
-            let canvas = CGSize(width: max(2, abs(firstShown.width).rounded()), height: max(2, abs(firstShown.height).rounded()))
+            guard !pieces.isEmpty else { throw EditorError(text: "None of these files has a video track.") }
 
             var instructions: [AVMutableVideoCompositionInstruction] = []
             for piece in pieces {
@@ -268,7 +400,7 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
             let key = editorFreeKey(code, fallback: "joined", in: clips)
             let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
             let made = Clip(key: key, name: title.isEmpty ? output.deletingPathExtension().lastPathComponent : title,
-                            text: "\(pieces.count) clips joined", group: "Sound & media", files: [output.path], directMediaPaste: true)
+                            text: "\(pieces.count) items joined", group: "Sound & media", files: [output.path], directMediaPaste: true)
             if saveTo == "Save to Desktop" { onExport(made); message = "Joined and saved to the Desktop as \(output.lastPathComponent)." }
             else { onSave(made); message = "Joined and saved as \(displayTrigger(made.key))." }
         } catch {
@@ -688,8 +820,18 @@ private enum PrismSamples {
         stamp += 1
     }
 
+    private static let filterLimit = 100 * 1024 * 1024
+
+    private func fileBytes(_ url: URL) -> Int {
+        ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? NSNumber)?.intValue ?? 0
+    }
+
     private func load(_ url: URL) {
         message = ""
+        if editorIsVideo(url), fileBytes(url) > Self.filterLimit {
+            message = "Filters work on videos up to 100 MB. This one is \(fileBytes(url) / 1_048_576) MB. Cut it shorter in Cut mode first."
+            return
+        }
         if editorIsVideo(url) {
             sourceURL = url
             sourceLabel = url.lastPathComponent
@@ -771,6 +913,7 @@ private enum PrismSamples {
             let strength = amount
             let output: URL
             if isVideoSource, let url = sourceURL {
+                if fileBytes(url) > Self.filterLimit { throw EditorError(text: "Filters work on videos up to 100 MB.") }
                 output = attachmentDirectory.appendingPathComponent(fileStem + ".mp4")
                 let asset = AVURLAsset(url: url)
                 let composition = AVMutableVideoComposition(asset: asset, applyingCIFiltersWithHandler: { request in
