@@ -378,7 +378,8 @@ enum EzMeNavigation {
         ]),
         Area(title: "SETUP", items: [
             Item(id: "API configuration", title: "AI keys", hint: "Paste the secret keys that let the AI robots work. Do it once."),
-            Item(id: "Ezyourlife credits", title: "Credits", hint: "Your coins for Ezyourlife apps. Top up here."),
+            Item(id: "KeyDo credits", title: "Credits", hint: "Your KeyDo credits: balance, prices of each service and where credits were used."),
+            Item(id: "Ezyourlife credits", title: "Ezyourlife coins", hint: "Your coins for Ezyourlife apps. Top up here."),
             Item(id: "Settings", title: "Account & settings", hint: "Your account, colours and backups."),
             Item(id: "User guide", title: "Guide", hint: "A picture guide to using KeyDo."),
         ]),
