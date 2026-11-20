@@ -877,6 +877,10 @@ struct AppDesignerView: View {
                 }
             }
             .frame(height: 170).clipShape(RoundedRectangle(cornerRadius: 10))
+            .hoverEnlarge(image: {
+                guard let first, let picture = templates.basePicture(for: first) else { return nil }
+                return TemplateRenderer.render(first, base: picture, texts: nil, images: [:], useSamples: true, maxSide: 900) ?? picture
+            })
             .onTapGesture { open(design) }
             if renamingID == design.id {
                 HStack(spacing: 6) {

@@ -140,6 +140,10 @@ struct TemplateLibraryView: View {
                 }
             }
             .frame(height: 170).clipShape(RoundedRectangle(cornerRadius: 10))
+            .hoverEnlarge(image: {
+                guard let picture = store.basePicture(for: template) else { return nil }
+                return TemplateRenderer.render(template, base: picture, texts: nil, images: [:], useSamples: true, maxSide: 900) ?? picture
+            })
             .onTapGesture { editingID = template.id }
             Text(template.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Butter.cocoa).lineLimit(1)
             Text("\(template.slots.count) boxes \u{00B7} \(template.pixelWidth)\u{00D7}\(template.pixelHeight)").font(.system(size: 11)).foregroundStyle(.secondary)

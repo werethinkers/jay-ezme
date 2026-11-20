@@ -227,6 +227,7 @@ struct LibraryGridCard: View {
                 .frame(height: 160)
                 .frame(maxWidth: .infinity)
                 .clipped()
+                .hoverEnlarge(path: [.image, .gif, .video, .pdf, .sheet, .word, .slides, .document].contains(type) ? clip.files.first : nil)
                 .overlay(alignment: .topLeading) { badge.padding(8) }
                 .overlay(alignment: .topTrailing) { corner.padding(8) }
                 .overlay(alignment: .bottomTrailing) { if canEnlarge && !selecting { enlargeButton.padding(8) } }
