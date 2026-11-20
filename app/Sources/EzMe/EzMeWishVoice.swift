@@ -62,31 +62,13 @@ final class WishVoiceController: ObservableObject {
         self.commitDelay = commitDelay
         wanted = true
         silentRestarts = 0
-        SFSpeechRecognizer.requestAuthorization { [weak self] status in
+        SpeechPermission.request { [weak self] answer in
             Task { @MainActor in
                 guard let self = self, self.wanted else { return }
-                guard status == .authorized else {
-                    self.fail("Enable Speech Recognition for KeyDo in System Settings \u{2192} Privacy & Security.")
-                    return
-                }
-                let audio = AVCaptureDevice.authorizationStatus(for: .audio)
-                if audio == .denied || audio == .restricted {
-                    self.fail("Enable Microphone access for KeyDo in System Settings \u{2192} Privacy & Security.")
-                    return
-                }
-                if audio == .authorized {
-                    self.begin()
-                    return
-                }
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    Task { @MainActor in
-                        guard self.wanted else { return }
-                        if granted {
-                            self.begin()
-                        } else {
-                            self.fail("Microphone access is needed for voice commands.")
-                        }
-                    }
+                switch answer {
+                case .ready: self.begin()
+                case .speechDenied: self.fail("Enable Speech Recognition for KeyDo in System Settings \u{2192} Privacy & Security.")
+                case .micDenied: self.fail("Enable Microphone access for KeyDo in System Settings \u{2192} Privacy & Security.")
                 }
             }
         }

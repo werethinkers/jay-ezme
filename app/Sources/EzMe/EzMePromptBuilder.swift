@@ -512,7 +512,7 @@ struct PromptBuilderView: View {
         .sheet(isPresented: $showAddSite) { addSiteSheet }
         .sheet(item: $siteBeingEdited) { _ in editSiteSheet }
         .onReceive(NotificationCenter.default.publisher(for: .keydoPromptTargetsChanged)) { _ in targets = PromptTargets.load() }
-        .onReceive(NotificationCenter.default.publisher(for: .keydoSiriSend)) { note in
+        .onReceive(NotificationCenter.default.publisher(for: .keydoPromptSpoken)) { note in
             guard let spoken = note.object as? String else { return }
             let wanted = String(spoken.lowercased().filter { $0.isLetter || $0.isNumber })
             if ["clear", "clearlink", "clearthelink", "clearlinks", "cleartemporarylink"].contains(wanted) { tempLink = ""; notice = "Temporary link cleared."; return }

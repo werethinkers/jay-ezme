@@ -110,7 +110,8 @@ final class KeyDoVoice: ObservableObject {
 
     // MARK: Settings (also edited with @AppStorage in the settings panel)
     /// Listen quietly for "Hey KeyDo" the whole time the app is open (on unless switched off in voice settings).
-    var wakeAlways: Bool { UserDefaults.standard.object(forKey: VoiceKeys.wakeAlways) as? Bool ?? true }
+    /// The always-on "Hey KeyDo" microphone is switched off for good: it asked for the microphone at launch and fought the other voice features.
+    var wakeAlways: Bool { false }
     /// True while the mic only waits for the wake phrase and ignores everything else that is said.
     @Published private(set) var wakeOnly = false
     private var watchdog: Timer?
@@ -324,26 +325,14 @@ final class KeyDoVoice: ObservableObject {
     private func ensureRunning() {
         guard !running, !authorizing else { return }
         authorizing = true
-        SFSpeechRecognizer.requestAuthorization { status in
+        SpeechPermission.request { answer in
             Task { @MainActor in
                 self.authorizing = false
                 guard self.phase != .off else { return }
-                guard status == .authorized else {
-                    self.fail("Enable Speech Recognition for KeyDo in System Settings → Privacy & Security.")
-                    return
-                }
-                switch AVCaptureDevice.authorizationStatus(for: .audio) {
-                case .authorized:
-                    self.beginRecognition()
-                case .notDetermined:
-                    AVCaptureDevice.requestAccess(for: .audio) { granted in
-                        Task { @MainActor in
-                            guard self.phase != .off else { return }
-                            if granted { self.beginRecognition() } else { self.fail("Microphone access is needed for voice commands.") }
-                        }
-                    }
-                default:
-                    self.fail("Enable Microphone access for KeyDo in System Settings → Privacy & Security.")
+                switch answer {
+                case .ready: self.beginRecognition()
+                case .speechDenied: self.fail("Enable Speech Recognition for KeyDo in System Settings \u{2192} Privacy & Security.")
+                case .micDenied: self.fail("Enable Microphone access for KeyDo in System Settings \u{2192} Privacy & Security.")
                 }
             }
         }
@@ -793,7 +782,6 @@ struct VoiceControlBar: View {
 struct VoiceSettingsPanel: View {
     @ObservedObject var voice: KeyDoVoice
     @AppStorage(VoiceKeys.continuous) private var continuous = false
-    @AppStorage(VoiceKeys.wakeAlways) private var wakeAlways = true
     @AppStorage(VoiceKeys.doubleBackslash) private var doubleBackslash = true
     @AppStorage(VoiceKeys.sounds) private var sounds = true
     @AppStorage(VoiceKeys.locale) private var locale = ""
@@ -812,8 +800,6 @@ struct VoiceSettingsPanel: View {
                 Text("Voice settings").font(.system(size: 13, weight: .semibold))
                 Spacer()
             }
-            toggle("Always listen for “Hey KeyDo”", "While KeyDo is open the mic waits quietly and ignores everything except “Hey KeyDo”, which opens the popup. macOS shows its mic indicator while this is on.", $wakeAlways)
-                .onChange(of: wakeAlways) { on in if on { voice.startWakeIfNeeded() } else if voice.wakeOnly { voice.stop(announce: false) } }
             toggle("Keep listening after a shortcut is pasted", "The microphone stays on in the background. Say “open popup” to bring the popup back.", $continuous)
             toggle("Press \\ twice to start voice", "A quick double backslash starts listening. Turn this off if you type \\\\ in code or file paths.", $doubleBackslash)
             toggle("Sound cues", "A short sound when listening starts, pauses, stops or when you say enter.", $sounds)
@@ -980,7 +966,7 @@ struct VoiceSearchAssistant: View {
             return model.clips.prefix(60).flatMap { clip in [clip.name, String(clip.key.drop(while: { $0 == "/" || $0 == "\\" }))] }.filter { !$0.isEmpty }
         }
         KeyDoVoice.shared.attach(.app, handlers)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { KeyDoVoice.shared.armWatchdog(); KeyDoVoice.shared.startWakeIfNeeded() }
+        
     }
 
     private var microphoneButton: some View {

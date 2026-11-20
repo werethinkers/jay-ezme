@@ -1,4 +1,4 @@
-// One place that understands a spoken or typed "open ..." command, so voice, Siri and Shortcuts all behave the same.
+// One place that understands a spoken or typed "open ..." command, so typed and spoken commands behave the same.
 import Foundation
 import AppKit
 
@@ -12,7 +12,7 @@ enum VoiceAction {
 }
 
 enum VoiceRouter {
-    private static let lead = ["hey siri", "ok siri", "siri", "in keydo", "on keydo", "with keydo", "to keydo", "keydo", "key do", "ezme", "ez me",
+    private static let lead = ["in keydo", "on keydo", "with keydo", "to keydo", "keydo", "key do", "ezme", "ez me",
                                "please", "can you", "could you", "i want to", "i would like to", "take me to", "bring me to", "switch to", "go to", "show me", "pull up",
                                "open up", "open", "launch", "start", "run"]
     private static let noise: Set<String> = ["the", "my", "app", "application", "page", "tab", "screen", "section", "window", "please", "for", "me", "a", "to"]
@@ -81,7 +81,7 @@ enum VoiceRouter {
         ("User guide", ["user guide", "help guide", "guide", "help"]),
         ("Browser", ["browser", "web browser", "internet", "safari"]),
         ("Ez Studio", ["ez studio", "studio", "image studio"]),
-        ("Settings", ["settings", "preferences", "siri settings"])
+        ("Settings", ["settings", "preferences"])
     ]
 
     static func builderNames() -> [String] {
