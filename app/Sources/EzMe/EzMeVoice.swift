@@ -275,7 +275,12 @@ final class KeyDoVoice: ObservableObject {
     func announce(_ text: String) { say(text, sound: nil); touch() }
 
     // MARK: Buttons
-    func start(_ context: Context) {
+    /// `yielding` is false for screens that borrow this microphone for their own sentences: they must not stop each other.
+    func start(_ context: Context, yielding: Bool = true) {
+        if phase == .off {
+            NotificationCenter.default.post(name: .keydoDictationYield, object: self)
+            if yielding { NotificationCenter.default.post(name: .keydoVoicePriority, object: self) }
+        }
         errorMessage = ""
         wakeOnly = false
         if self.context != context { phraseWords = []; phrase = "" }
@@ -408,12 +413,58 @@ final class KeyDoVoice: ObservableObject {
         if abs(smooth - level) > 0.03 { level = smooth }
     }
 
+    // MARK: One microphone for screens that take whole sentences (Wish Studio, Fill by voice, designers)
+    /// While this is set and the voice is in the app context, every finished sentence goes here with its capital letters,
+    /// instead of the shortcut grammar. The bubble stays the only microphone; "pause listening" and "stop listening" still work.
+    var sentenceSink: ((String) -> Void)?
+    /// How long a pause ends a sentence.
+    var sentencePause: Double = 0.9
+    private var sinkText = ""
+    private var sinkCommit: Task<Void, Never>?
+    private var lastSink = ""
+    private var lastSinkTime = Date.distantPast
+    private var sinkActive: Bool { sentenceSink != nil && context == .app && !wakeOnly }
+
+    private func scheduleSentenceCommit() {
+        sinkCommit?.cancel()
+        let delay = UInt64(max(0.3, sentencePause) * 1_000_000_000)
+        sinkCommit = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            self?.commitSentence(restart: true)
+        }
+    }
+
+    private func commitSentence(restart: Bool) {
+        sinkCommit?.cancel()
+        let text = sinkText.trimmingCharacters(in: .whitespacesAndNewlines)
+        sinkText = ""
+        guard !text.isEmpty else { return }
+        let words = VoiceGrammar.normalized(text)
+        if let (command, length) = VoiceGrammar.match(words, at: 0), length == words.count, [VoiceCommand.start, .pause, .stop].contains(command) {
+            run(command)
+        } else if phase == .listening {
+            // The same words twice within two seconds are one sentence heard twice.
+            if text == lastSink, Date().timeIntervalSince(lastSinkTime) < 2 { if restart { recycle(after: 0.15) }; return }
+            lastSink = text
+            lastSinkTime = Date()
+            sentenceSink?(text)
+            touch()
+        }
+        if restart { recycle(after: 0.15) }
+    }
+
     private func handle(result: SFSpeechRecognitionResult?, error: Error?, token: Int) {
         guard token == sessionToken, phase != .off else { return }
         if let result {
             let text = result.bestTranscription.formattedString
             if text != partial, !text.isEmpty { touch() }
             partial = text
+            if sinkActive {
+                sinkText = text
+                if result.isFinal { commitSentence(restart: false); recycle(after: 0.15) } else { scheduleSentenceCommit() }
+                return
+            }
             if result.isFinal {
                 debounce?.cancel()
                 process(text, final: true)
@@ -424,7 +475,8 @@ final class KeyDoVoice: ObservableObject {
         }
         if error != nil, result?.isFinal != true {
             debounce?.cancel()
-            if !partial.isEmpty { process(partial, final: true) }
+            if sinkActive { sinkText = partial; commitSentence(restart: false) }
+            else if !partial.isEmpty { process(partial, final: true) }
             quickFailures = Date().timeIntervalSince(lastStart) < 2 ? quickFailures + 1 : 0
             if quickFailures >= 5 {
                 fail("Voice commands stopped because the speech service is not responding. Check your internet connection, then press Start.")
