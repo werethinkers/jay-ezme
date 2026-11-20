@@ -1,19 +1,16 @@
-# KeyDo 3.98
+# KeyDo 3.99
 
-## Browser: smoother
-- **Switching tabs no longer reloads the page.** Each tab's page is kept alive and shown again as it was (scroll position, forms, video). Moving between split view and single view does not reload either.
-- **Single-page sites stay where they are.** LinkedIn, Gmail, ChatGPT, YouTube and similar sites change their own address without loading a new page. KeyDo used to send such a tab back to its first address on the next refresh of the screen; it now follows the page, and tab titles stay live.
-- **Sign-in pop-ups work** (for example "Continue with Google"): a page's own pop-up window is opened as a tab connected to the page that asked for it, so the sign-in can finish.
-- Swipe left or right with two fingers to go back and forward; pinch to zoom.
-- Sites see KeyDo as Safari, so fewer sites show a "browser not supported" page or a slimmed-down layout.
-- Saving the workspace is spread out instead of writing on every title or address change, which removes small pauses on busy pages.
+## App Designer, Gifting: rebuilt around one real box
+The old Gifting page had 30 hampers and 63 products. It is replaced by **one fixed-size box** that you configure.
 
-## Browser: split view, top and bottom
-- Split view can now be **top and bottom** as well as left and right. Use the new button in the split bar; the choice is remembered. Drag the bar between the two pages to resize, double-click it for equal halves.
-
-## Website icons
-- Every website link now shows the site's own icon: the Favorites home page, the bookmarks menu, Apps & Links, links in the Database Organizer, website shortcuts, and search results. Mac apps in shortcuts show their real app icon.
-- Icons are downloaded once and **stored on this Mac**, then shown from the stored copy (also offline). KeyDo looks for the icon the site names in its own page, then its `favicon.ico`; if a site has neither, a public icon service is used as the last step. Until an icon arrives, the site's first letter is shown. Incognito and Private Mode browsing do not save icons.
+- **The box is always the same size: 34 × 24 × 9 cm** (wall 1.2 cm, inside 31.6 × 21.6 cm, 7.8 cm deep). The size is drawn with dimension lines. This is a proposed design size; tell me the real one and it changes in one place.
+- **Real materials, only the finish changes:** Wood (walnut, teak, whitewash), Metal (brushed brass, brushed silver, antique copper), Leather (tan, black, teal), Rubber (charcoal, sage, navy) and PU (ivory, burgundy, emerald). Each is drawn with its own texture: wood grain, brushed-metal lines, leather grain with stitching, matte rubber, glossy stitched PU. Each has its own fittings (clasp, hinges) and lining.
+- **Jars are drawn to scale inside the box.** Pick a layout (Pair, Trio, Quartet, Centre and sides). Each slot has a measured size, and every jar shows its diameter and the space to spare, so a jar can never be too big for the box.
+- **Change the jar, not the box.** For each jar choose the shape (faceted trinket jar, octagon crystal jar, relief ceramic jar, square perfume bottle, candle bowl, glass jar with wooden lid, reed diffuser bottle, floral tin; your catalogue photos are shown as the reference), the material (crystal glass, frosted glass, ceramic, metal, wood), the size (small, medium, large) and **what is inside** (candle, perfume, diffuser sticks, cookies, dry fruits, chocolates, tea, potpourri). "Same box, other jars" shows the same box with each jar style, one tap to switch all jars.
+- **Filling** between the jars: silk shred, dried petals, golden beads, pearls or paper shred, in any colour.
+- **Flowers are decoration on the lid**, not inside: ivory roses, blush blossoms, gold-leaf blooms or a brass monogram plate. The lid also shows the VYBES label.
+- Prices add up simply (box material + each jar and its contents + filling + lid decoration) and must stay between ₹3,000 and ₹10,000. **Prices are placeholders** until real ones are set.
+- Kept: voice commands (for example "teak box, trio, jar 2 octagon crystal with chocolates, golden beads, gold flowers"), Closed / Inside / Unboxing / Card views, gift card, experience note, order saving, WhatsApp and email, and Save picture.
 
 ## Keyboard safety
-Checked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed. All changes are in the browser view, its saving, and icon display.
+Checked: nothing in the key tap `miniJSlashTap`, the popup, voice key capture or any key-swallowing mode (`pickerActive`, `imagePromptMode`, `triggerTracking`) was changed. The change is only in the WishStudio Gifting page (drawing, model and voice words for that page).

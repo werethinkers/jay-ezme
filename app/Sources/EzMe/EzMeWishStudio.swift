@@ -146,7 +146,7 @@ final class WishStudioModel: ObservableObject {
         switch page {
         case .home: return "Pick an app, or say its name."
         case .builder: return "Describe the app you want, or say it with the mic."
-        case .gifting: return "Pick a box, then say what to change."
+        case .gifting: return "Pick a finish and jars, then say what to change."
         case .app: return "Tap the mic and say one thing to change, like \u{201C}make it pink\u{201D}."
         }
     }
@@ -833,7 +833,7 @@ final class WishStudioModel: ObservableObject {
         case .builder:
             return builder.hints
         case .gifting:
-            return ["make it burgundy with a gold ribbon", "add the coconut candle and a tea set", "put flowers on top", "show unboxing", "show inside", "box 12", "card to Priya from Rahul", "place order"]
+            return ["black leather box", "trio", "jar 2 octagon crystal with chocolates", "golden beads filling", "gold flowers", "show unboxing", "card to Priya from Rahul", "place order"]
         case .app:
             if selected != nil {
                 return ["bigger", "smaller", "make it gold", "move left", "bold", "hide it", "done"]
@@ -849,7 +849,7 @@ final class WishStudioModel: ObservableObject {
         switch page {
         case .home: return "Say or type an app name, like \u{201C}Happy Birthday\u{201D}"
         case .builder: return builder.placeholder
-        case .gifting: return "Say or type, like \u{201C}make it navy, add chocolates, show unboxing\u{201D}"
+        case .gifting: return "Say or type, like \u{201C}teak box, trio, octagon jars with chocolates, show unboxing\u{201D}"
         case .app: return "Say or type one command, like \u{201C}make it pink\u{201D}"
         }
     }
@@ -1491,7 +1491,7 @@ struct WishHomeView: View {
     private var giftingCard: some View {
         AppGalleryCard(
             title: "Gifting",
-            description: "30 VYBES hampers built from real catalogue products, \u{20B9}3,000 to \u{20B9}10,000. Change colours, decoration and products by voice, see inside, unbox, add a card and order.",
+            description: "One fixed-size VYBES box in wood, metal, leather, rubber or PU. Change the finish, the jar shapes and materials, what is inside, the filling and the lid flowers by voice. Drawn to scale, with a card, unboxing and order.",
             sample: "",
             category: "Gifting",
             icon: "gift.fill",
