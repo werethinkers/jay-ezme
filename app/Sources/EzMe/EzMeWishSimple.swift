@@ -765,7 +765,7 @@ struct WishSimpleStudio: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
                                     ForEach(model.designs) { item in
-                                        Button { model.chooseDesign(item.id); model.objectWillChange.send() } label: {
+                                        Button { model.chooseDesign(item.id); model.makeCurrentDesignDefault(); note = "Saved. The shortcut for this app now makes this design."; model.objectWillChange.send() } label: {
                                             VStack(spacing: 3) {
                                                 RoundedRectangle(cornerRadius: 8).fill(Color(wishHex: item.background)).frame(width: 64, height: 46)
                                                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(item.id == model.card.designID ? WishSimpleTheme.accent : WishSimpleTheme.line, lineWidth: item.id == model.card.designID ? 3 : 1))

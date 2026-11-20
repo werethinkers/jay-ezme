@@ -1,8 +1,8 @@
-# KeyDo 4.31
+# KeyDo 4.32
 
 ## What's new
-- **Wish Studio, built-in apps (Happy Anniversary, Happy Birthday and the other occasion apps)**: the Use step now shows the live card and a row of the 12 designs under it. Tap a design to change the card in the same app, then fill in the blanks and download, copy or share. Before, these apps kept their old design with no way to change it.
-- Going straight to Use on a built-in app keeps its own card instead of drawing new backgrounds.
+- **Wish Studio occasion apps (Happy Anniversary, Thank You, Diwali and the others)**: choosing a design in the Use step now also saves it as the default for the app, so the typed shortcut (for example \wed-Rohit in WhatsApp) makes the card in the design you picked. Before, only the screen changed and the shortcut still used the old design.
+- To use another design for one card only, add its name after the name, for example \wed-Rohit-night.
 
 ## Keyboard safety
 Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.
