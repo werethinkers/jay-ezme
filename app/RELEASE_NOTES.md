@@ -1,18 +1,13 @@
-# KeyDo 4.05
+# KeyDo 4.06
 
-## Browser start page: folders and groups
-- The start page now shows your folders (collections) with their links, not only Favorites. Make a folder with "New folder", add a link with "Add link", and move a link between folders with a right click.
-- Your tab groups are listed too. "Save as folder" keeps a group's links in a folder.
+## Hover preview no longer hides or gets cut off
+The big preview that appears when you hover a media thumbnail now opens as a floating pop-over. It always stays on top of the rows and inside the screen, instead of sliding under other rows or off the left edge.
 
-## Split view: choose the visible part
-Each pane has a new menu (the box icon). Pick a page width (900 to 1680 px, or fit the pane) and which part to show: left, centre or right. The rest is cropped out so a narrow pane no longer squeezes the site.
+## One voice for the whole app
+The preview no longer has its own separate listener. The same KeyDo voice that opens the dashboard or the Prompt Builder now also adapts to the screen on top: with the media preview open it understands "rename to …", "save", "next", "previous", "favourite", "move to …" and "close". Anything else you say still works as before ("open dashboard", "open prompt builder", "stop listening"). The preview's microphone button simply starts and stops that one voice. Double backslash and "Hey KeyDo" keep priority.
 
-## Media only
-A new media button (in the toolbar and on each split pane) works over any website:
-- Media wall, One by one, Filmstrip or Scroll list: an overlay with only the pictures, GIFs and videos of the page (Rescan loads more after you scroll; Esc closes).
-- Blur the text or Hide the text while the media stays visible.
-- Pop the main video out (Picture in Picture).
-- Back to the normal page.
+## No small KeyDo icon on popups
+The little KeyDo badge that was added to every sheet and pop-over (everywhere except the backslash popup) has been removed, because at that size it did not look like proper branding.
 
 ## Keyboard safety
-Checked. Nothing in the key tap, popup, voice or key-swallowing modes was touched.
+Checked. Nothing in the key tap, popup, or key-swallowing modes was touched. The voice change only adds a short pause before phrases are interpreted while the media preview is open.

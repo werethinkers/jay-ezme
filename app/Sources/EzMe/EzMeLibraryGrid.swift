@@ -653,9 +653,8 @@ struct LibraryMediaViewer: View {
     /// Everything done here is applied once the viewer closes, so the grid behind it is not rebuilt while you work.
     var onFinished: (([ViewerEdit]) -> Void)? = nil
     @State private var edits: [ViewerEdit] = []
-    @StateObject private var speech = EzMeSpeechDictation()
+    @ObservedObject private var voice = KeyDoVoice.shared
     @State private var heard = ""
-    @State private var voiceOn = false
     @Environment(\.dismiss) private var dismiss
     @State private var index: Int
     @State private var renaming = false
@@ -729,7 +728,7 @@ struct LibraryMediaViewer: View {
                 if !renameError.isEmpty { Text(renameError).font(.caption).foregroundStyle(.orange).lineLimit(2) }
                 Text("\(items.isEmpty ? 0 : index + 1) of \(items.count)").font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button { toggleVoice() } label: { Label(voiceOn ? "Listening" : "Voice", systemImage: voiceOn ? "mic.fill" : "mic") }.buttonStyle(.bordered).tint(voiceOn ? Butter.coral : .secondary).help("Say: next, previous, rename to …, save, favourite, move to …, close")
+                Button { toggleVoice() } label: { Label(voiceOn ? "Listening" : "Voice", systemImage: voiceOn ? "mic.fill" : "mic") }.buttonStyle(.bordered).tint(voiceOn ? Butter.coral : .secondary).help("The same voice as everywhere in KeyDo. Here it also understands: next, previous, rename to …, save, favourite, move to …, close")
                 Button("Close") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             .padding(12)
@@ -758,7 +757,8 @@ struct LibraryMediaViewer: View {
             .background(Color.black.opacity(0.05))
         }
         .frame(minWidth: 820, idealWidth: 1040, minHeight: 600, idealHeight: 760)
-        .onDisappear { speech.stop(); onFinished?(edits); edits = [] }
+        .onAppear { KeyDoVoice.shared.screenVoice = KeyDoVoice.ScreenVoice(hint: "rename to …, save, next, previous, favourite, move to …, close", handle: { handleVoice($0) }) }
+        .onDisappear { KeyDoVoice.shared.screenVoice = nil; onFinished?(edits); edits = [] }
     }
 
     private func toggleFavourite() {
@@ -770,17 +770,18 @@ struct LibraryMediaViewer: View {
         heard = on ? "Added to favourites." : "Removed from favourites."
     }
 
+    private var voiceOn: Bool { voice.phase == .listening }
+
+    /// One voice for the whole app: this button starts or stops the same listener as the main microphone.
     private func toggleVoice() {
-        if voiceOn { speech.stop(); voiceOn = false; return }
-        voiceOn = true
-        speech.startContinuous(onTranscript: { text in handleVoice(text) })
+        if voiceOn { voice.userStop() } else { voice.start(.app) }
     }
 
     /// Spoken commands: next, previous, rename to …, save, favourite, move to …, info, close.
-    private func handleVoice(_ raw: String) {
+    private func handleVoice(_ raw: String) -> Bool {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".,!?")))
         let lower = text.lowercased()
-        guard !lower.isEmpty else { return }
+        guard !lower.isEmpty else { return false }
         func after(_ prefixes: [String]) -> String? {
             for prefix in prefixes where lower.hasPrefix(prefix) { return String(text.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces) }
             return nil
@@ -791,22 +792,23 @@ struct LibraryMediaViewer: View {
             for tail in [" and save", " then save", " and done"] where name.lowercased().hasSuffix(tail) { name = String(name.dropLast(tail.count)); saveNow = true }
             newName = name; renameError = ""; renaming = true; heard = "New name: \(name)"
             if saveNow { commitRename() } else { heard += "  Say “save” to rename the file." }
-            return
+            return true
         }
-        if ["save", "save it", "save name", "confirm", "done", "ok save"].contains(lower) { if renaming { commitRename(); if renameError.isEmpty { heard = "Saved." } } else { heard = "Nothing to save. Say “rename to …” first." }; return }
-        if ["cancel", "cancel rename"].contains(lower) { renaming = false; renameError = ""; heard = "Rename cancelled."; return }
-        if ["next", "next one", "next file", "forward"].contains(lower) { go(1); return }
-        if ["previous", "previous one", "back", "go back", "previous file"].contains(lower) { go(-1); return }
-        if ["favourite", "favorite", "make favourite", "make favorite", "add to favourites", "add to favorites", "love it", "unfavourite", "unfavorite", "remove favourite", "remove favorite"].contains(lower) { toggleFavourite(); return }
-        if ["info", "show path", "where is it saved", "show info"].contains(lower) { showInfo = true; return }
-        if ["close", "close preview", "exit", "stop"].contains(lower) { dismiss(); return }
+        if ["save", "save it", "save name", "confirm", "done", "ok save"].contains(lower) { if renaming { commitRename(); if renameError.isEmpty { heard = "Saved." } } else { heard = "Nothing to save. Say “rename to …” first." }; return true }
+        if ["cancel", "cancel rename"].contains(lower) { renaming = false; renameError = ""; heard = "Rename cancelled."; return true }
+        if ["next", "next one", "next file", "forward"].contains(lower) { go(1); return true }
+        if ["previous", "previous one", "back", "go back", "previous file"].contains(lower) { go(-1); return true }
+        if ["favourite", "favorite", "make favourite", "make favorite", "add to favourites", "add to favorites", "love it", "unfavourite", "unfavorite", "remove favourite", "remove favorite"].contains(lower) { toggleFavourite(); return true }
+        if ["info", "show path", "where is it saved", "show info"].contains(lower) { showInfo = true; return true }
+        if ["close", "close preview", "exit", "stop"].contains(lower) { dismiss(); return true }
         if let target = after(["move to ", "move it to ", "move this to ", "organise into ", "organize into ", "put it in "]), !target.isEmpty, !items.isEmpty {
             if let match = collectionNames.first(where: { $0.caseInsensitiveCompare(target) == .orderedSame }) ?? collectionNames.first(where: { $0.lowercased().contains(target.lowercased()) }) {
                 edits.append(.move(items[index].clipID, match)); heard = "Moved to \(match). It leaves this collection when you close the preview."
             } else { heard = "No collection called “\(target)”." }
-            return
+            return true
         }
         heard = "Heard: \(text)"
+        return false
     }
 
     private func navButton(_ symbol: String, enabled: Bool, action: @escaping () -> Void) -> some View {

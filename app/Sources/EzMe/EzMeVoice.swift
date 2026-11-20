@@ -512,6 +512,34 @@ final class KeyDoVoice: ObservableObject {
             }
             return
         }
+        // A screen that is open (for example the media preview) hears every phrase first, so "rename to …" works
+        // with the same voice button that opens the dashboard.
+        if context == .app, screenVoice != nil {
+            screenWords += fresh
+            screenTimer?.invalidate()
+            screenTimer = Timer.scheduledTimer(withTimeInterval: 0.9, repeats: false) { [weak self] _ in
+                Task { @MainActor in self?.flushScreenWords() }
+            }
+            return
+        }
+        interpretWords(fresh)
+    }
+
+    /// What the screen on top can do by voice. Set while that screen is open, cleared when it closes.
+    struct ScreenVoice { var hint: String; var handle: (String) -> Bool }
+    var screenVoice: ScreenVoice?
+    private var screenWords: [String] = []
+    private var screenTimer: Timer?
+
+    private func flushScreenWords() {
+        let words = screenWords
+        screenWords = []
+        guard !words.isEmpty else { return }
+        if let screenVoice, screenVoice.handle(words.joined(separator: " ")) { touch(); return }
+        interpretWords(words)
+    }
+
+    private func interpretWords(_ fresh: [String]) {
         var index = 0
         var gathered: [String] = []
         while index < fresh.count {
