@@ -37,18 +37,13 @@ struct DesignVariant: Codable, Identifiable, Hashable {
     static func resolve(_ design: AppDesign, token: String?) -> Item? {
         let all = items(design)
         let said = (token ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !said.isEmpty else { return all.first(where: { $0.id == design.defaultTemplate }) ?? all.first }
+        guard !said.isEmpty else { return all.first }
         if said == "tempr" || said == "random" || said == "rand" { return all.randomElement() }
         if let named = all.first(where: { $0.name.lowercased() == said }) { return named }
         if said.hasPrefix("temp"), let number = Int(said.dropFirst(4)), number >= 1, number <= all.count { return all[number - 1] }
         // A bare number is the template number (\hbd-Rohit-3 is the third template), unless the app takes numbers as values.
         if let number = Int(said), number >= 1, number <= all.count, !takesNumbers(design) { return all[number - 1] }
         return nil
-    }
-
-    /// The number (1, 2, 3 ...) of the template used when none is named.
-    static func defaultNumber(_ design: AppDesign) -> Int {
-        (items(design).firstIndex { $0.id == design.defaultTemplate } ?? 0) + 1
     }
 
     private static func takesNumbers(_ design: AppDesign) -> Bool {

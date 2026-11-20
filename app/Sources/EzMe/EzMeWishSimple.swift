@@ -66,6 +66,7 @@ struct WishSimpleStudio: View {
     @State private var step = 0
     @State private var started = false
     @State private var note = ""
+    @State private var showPrompt = false
     @State private var selectedSlot: String?
     @State private var draft: ImageTemplate?
     @State private var preview: NSImage?
@@ -94,9 +95,9 @@ struct WishSimpleStudio: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Group {
                             switch step {
-                            case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note,
+                            case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note, showPrompt: $showPrompt,
                                                onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) },
-                                               onImport: { importPNGs() }, onGreeting: { applyGreeting() }, onSend: { site, prompt in sendToSite(site, prompt) })
+                                               onImport: { importPNGs() }, onGreeting: { applyGreeting() })
                             case 1: designStep
                             case 2: activateStep
                             default: useStep
@@ -125,6 +126,7 @@ struct WishSimpleStudio: View {
             refreshPreview()
         }
         .onDisappear { model.simpleVoice = nil }
+        .sheet(isPresented: $showPrompt) { WishPromptSheet(prompt: chatGPTPrompt) }
         .onChange(of: model.appID) { _, _ in
             started = false
             step = 0
@@ -133,28 +135,12 @@ struct WishSimpleStudio: View {
     }
 
     private var headingBinding: Binding<String> {
-        Binding(get: { heading }, set: { value in
-            UserDefaults.standard.set(value, forKey: "wishHeading." + appID)
-            renameApp(to: value)
-            applyGreeting()
-        })
+        Binding(get: { heading }, set: { UserDefaults.standard.set($0, forKey: "wishHeading." + appID); applyGreeting() })
     }
 
-    /// The app is called what its heading says.
-    private func renameApp(to value: String) {
-        let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, clean != model.app.name else { return }
-        if model.store.apps.contains(where: { $0.id != appID && $0.name.caseInsensitiveCompare(clean) == .orderedSame }) { return }
-        var app = model.app
-        app.name = clean
-        model.store.updateApp(app)
-    }
-
-    private func sendToSite(_ site: String, _ prompt: String) {
-        guard !prompt.isEmpty else { note = "Write the prompt first."; return }
-        guard let target = PromptTargets.load().first(where: { $0.name == site }) else { note = "\(site) is not in your Prompt Builder sites. Add it there first."; return }
-        NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: prompt, files: []))
-        note = "Opening \(site) in the side panel with your prompt. Download the PNGs it makes, then press Import PNGs."
+    private var chatGPTPrompt: String {
+        let brief = UserDefaults.standard.string(forKey: "wishBrief." + appID) ?? "Elegant artwork with celebratory details around the edges. Leave the centre clear for the recipient's name."
+        return "Create 4 different square \(heading) artwork PNGs at 2160 \u{00D7} 2160. Use real alpha transparency throughout the background, with no solid fill or painted checkerboard. Keep the centre and sign-off areas clear so I can place text and a name in KeyDo. Include decorative artwork only: no words and no letters. Creative direction: \(brief)"
     }
 
     // MARK: Rail
@@ -328,12 +314,6 @@ struct WishSimpleStudio: View {
             slot("sign-off", sender, sender, 0.87, 0.045, h: 0.08)
         ]
         page.slots[1].bold = true
-        if let file = UserDefaults.standard.string(forKey: "wishLogo." + appID) {
-            var logo = TemplateSlot(key: "logo", kind: .logo)
-            logo.logo = "file:" + file
-            logo.cx = 0.5; logo.cy = 0.09; logo.w = 0.18; logo.h = 0.18 * Double(page.pixelWidth) / Double(max(1, page.pixelHeight))
-            page.slots.append(logo)
-        }
         var app = model.app
         if app.field("name") == nil {
             var field = WishField(key: "name", label: "Name", type: .text)
@@ -361,16 +341,6 @@ struct WishSimpleStudio: View {
                 changed = true
             default: break
             }
-        }
-        if let file = UserDefaults.standard.string(forKey: "wishLogo." + appID) {
-            if let at = page.slots.firstIndex(where: { $0.key == "logo" && $0.kind == .logo }) { page.slots[at].logo = "file:" + file }
-            else {
-                var logo = TemplateSlot(key: "logo", kind: .logo)
-                logo.logo = "file:" + file
-                logo.cx = 0.5; logo.cy = 0.09; logo.w = 0.18; logo.h = 0.18 * Double(page.pixelWidth) / Double(max(1, page.pixelHeight))
-                page.slots.append(logo)
-            }
-            changed = true
         }
         if changed { draft = page; TemplateStore.shared.save(page); refreshPreview() }
     }
@@ -703,26 +673,12 @@ struct WishSimpleStudio: View {
     private var currentTemplateNumber: Int {
         let token = TemplateLinks.token(WishAppLink.link(model)) ?? ""
         if token.hasPrefix("temp"), let number = Int(token.dropFirst(4)) { return number }
-        return defaultNumber
-    }
-
-    private var defaultNumber: Int { design.map { DesignTemplates.defaultNumber($0) } ?? 1 }
-
-    /// Typed and spoken commands, and the card, use this template when none is named.
-    private func makeDefault(_ number: Int) {
-        guard let id = designID, var current = designs.design(id: id) else { return }
-        let items = DesignTemplates.items(current)
-        guard number >= 1, number <= items.count else { note = "There is no template \(number)."; return }
-        current.defaultTemplate = number == 1 ? nil : items[number - 1].id
-        designs.save(current)
-        TemplateStore.setWishTemplate("design:" + id, appID: appID)
-        note = "Template \(number) is now the default for typed and voice commands. Press Update app in step 3 to publish it."
-        model.objectWillChange.send()
+        return 1
     }
 
     private func selectTemplate(_ number: Int) {
         guard let id = designID, number >= 1, number <= max(1, lookFiles.count) else { note = "There is no template \(number)."; return }
-        TemplateStore.setWishTemplate(number == defaultNumber ? "design:" + id : "design:" + id + "@temp\(number)", appID: appID)
+        TemplateStore.setWishTemplate(number == 1 ? "design:" + id : "design:" + id + "@temp\(number)", appID: appID)
         note = "Template \(number) is the card now."
         model.objectWillChange.send()
     }
@@ -769,18 +725,9 @@ struct WishSimpleStudio: View {
                         }
                         .frame(height: 400)
                         if lookFiles.count > 1 {
-                            LooksStrip(files: lookFiles, selected: lookFiles.indices.contains(currentTemplateNumber - 1) ? lookFiles[currentTemplateNumber - 1] : nil,
-                                       defaultFile: lookFiles.indices.contains(defaultNumber - 1) ? lookFiles[defaultNumber - 1] : nil) { file in
+                            LooksStrip(files: lookFiles, selected: lookFiles.indices.contains(currentTemplateNumber - 1) ? lookFiles[currentTemplateNumber - 1] : nil) { file in
                                 if let at = lookFiles.firstIndex(of: file) { selectTemplate(at + 1) }
                             }
-                            HStack {
-                                Button { makeDefault(currentTemplateNumber) } label: {
-                                    Label(currentTemplateNumber == defaultNumber ? "Template \(currentTemplateNumber) is the default" : "Make template \(currentTemplateNumber) the default", systemImage: currentTemplateNumber == defaultNumber ? "checkmark.circle.fill" : "star")
-                                }
-                                .buttonStyle(SimpleQuietButton()).disabled(currentTemplateNumber == defaultNumber)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12).padding(.bottom, 12)
                         }
                     }
                 }
@@ -854,7 +801,7 @@ struct WishSimpleStudio: View {
         }
         // Anywhere
         if has("design with keydo", "make backgrounds", "draw backgrounds", "make the backgrounds") { step = 0; generate(); return true }
-        if has("chatgpt", "chat gpt", "gemini") { step = 0; sendToSite(has("gemini") ? "Gemini" : "ChatGPT", UserDefaults.standard.string(forKey: "wishPrompt." + appID) ?? ""); return true }
+        if has("chatgpt", "chat gpt", "gemini") { step = 0; showPrompt = true; return true }
         if text == "import" || has("import png", "import backgrounds") { importPNGs(); return true }
         if has("activate") || text == "launch" || has("launch the app") { go(2); activate(); return true }
         if let phrase = originalAfter("add voice command", "add voice phrase", "add phrase") {
@@ -887,11 +834,6 @@ struct WishSimpleStudio: View {
             if has("download", "save the card", "save card", "save png") { make { model.exportPNG() }; return true }
             if text == "copy" || has("copy the card", "copy card", "copy image") { make { model.copyImage() }; return true }
             if text == "share" || has("share the card", "share card") { make { model.shareImage() }; return true }
-            if has("default") && has("template", "this", "number") {
-                let digits = text.split(whereSeparator: { !$0.isNumber }).first.flatMap { Int($0) }
-                makeDefault(digits ?? Self.numberWords.first(where: { text.contains($0.key) })?.value ?? currentTemplateNumber)
-                return true
-            }
             if has("template", "number") {
                 if let digits = text.split(whereSeparator: { !$0.isNumber }).first, let number = Int(digits) { selectTemplate(number); return true }
                 if let number = Self.numberWords.first(where: { text.contains($0.key) })?.value { selectTemplate(number); return true }
@@ -966,74 +908,71 @@ private struct PromptStep: View {
     @Binding var heading: String
     @Binding var lookFiles: [String]
     @Binding var note: String
+    @Binding var showPrompt: Bool
     var onPick: (String, Bool) -> Void
     var onDesign: () -> Void
     var onNext: () -> Void
     var onImport: () -> Void
     var onGreeting: () -> Void
-    var onSend: (String, String) -> Void
     @State private var example = ""
     @State private var sender = ""
-    @State private var logoFile = ""
-    @State private var prompt = ""
-    @State private var generated = ""
-    @State private var original: String?
-    @State private var polishing = false
-    @State private var loaded = false
+    @State private var brief = ""
 
     private var appID: String { model.appID }
-
-    private func build() -> String {
-        let title = heading.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Happy Birthday" : heading
-        let name = example.isEmpty ? "Rohit" : example
-        let from = sender.isEmpty ? "From Jay Jain & Family" : sender
-        var lines = [
-            "Create 4 different square \u{201C}\(title)\u{201D} greeting-card backgrounds as PNG files, 2160 \u{00D7} 2160 pixels each. Elegant, celebratory and premium.",
-            "",
-            "Rules for every image:",
-            "- Real alpha transparency: no solid fill, no background colour and no painted checkerboard. Only the decoration is drawn.",
-            "- Decoration only around the edges and corners. No words, letters, numbers, logos or faces anywhere.",
-            "- Keep the middle calm and empty. These zones stay clear because KeyDo places the fixed text and the variable on top:"
-        ]
-        if !logoFile.isEmpty { lines.append("   \u{2022} top centre: a small clear area for the logo") }
-        lines.append("   \u{2022} upper third: the heading \u{201C}\(title)\u{201D}")
-        lines.append("   \u{2022} centre: a name such as \u{201C}\(name)\u{201D}, which changes for each card")
-        lines.append("   \u{2022} bottom: the sign-off \u{201C}\(from)\u{201D}")
-        lines.append("- Give me the 4 PNG files one by one so I can download them.")
-        return lines.joined(separator: "\n")
-    }
-
-    private func refreshPrompt() {
-        let fresh = build()
-        // Keep the person's own words once they have edited the prompt.
-        if prompt == generated || prompt.isEmpty { prompt = fresh }
-        generated = fresh
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Wish Studio / \(model.app.name)").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
-                Text("Start with a prompt").font(WishSimpleTheme.serif(40)).tracking(-1.4)
-                Text("Get four transparent backgrounds from ChatGPT, or let KeyDo draw starters.").font(.system(size: 14)).foregroundStyle(WishSimpleTheme.muted)
+                Text("Start with a wish").font(WishSimpleTheme.serif(40)).tracking(-1.4)
+                Text("Fill in the sample wish, then choose how to get your artwork.").font(.system(size: 14)).foregroundStyle(WishSimpleTheme.muted)
             }
-            .padding(.bottom, 22)
-            promptCard.padding(.bottom, 19)
+            .padding(.bottom, 24)
             HStack(alignment: .top, spacing: 19) {
-                basicsCard
+                SimpleCard(title: "Your greeting") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                TextField("Happy Birthday", text: $heading).textFieldStyle(.roundedBorder).font(WishSimpleTheme.serif(20)).frame(maxWidth: 230)
+                                TextField("Rohit", text: $example).textFieldStyle(.roundedBorder).font(WishSimpleTheme.serif(20)).frame(maxWidth: 150)
+                                    .onChange(of: example) { _, value in UserDefaults.standard.set(value, forKey: "wishExample." + appID); onGreeting() }
+                            }
+                            HStack(spacing: 8) {
+                                Text("From").font(WishSimpleTheme.serif(20))
+                                TextField("Jay Jain & Family", text: Binding(get: { sender.hasPrefix("From ") ? String(sender.dropFirst(5)) : sender }, set: { sender = "From " + $0 }))
+                                    .textFieldStyle(.roundedBorder).font(WishSimpleTheme.serif(20)).frame(maxWidth: 300)
+                                    .onChange(of: sender) { _, value in UserDefaults.standard.set(value, forKey: "wishSender." + appID); onGreeting() }
+                            }
+                        }
+                        Text("The name changes each time you make a card. The heading and sign-off are saved with the template.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
+                        Text("Artwork prompt").font(.system(size: 12, weight: .semibold))
+                        TextEditor(text: $brief).font(.system(size: 13)).frame(height: 96).padding(6)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(WishSimpleTheme.white))
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WishSimpleTheme.line, lineWidth: 1))
+                            .onChange(of: brief) { _, value in UserDefaults.standard.set(value, forKey: "wishBrief." + appID) }
+                        HStack(spacing: 8) {
+                            Button { onDesign() } label: { Label("Design with KeyDo", systemImage: "wand.and.stars") }.buttonStyle(SimplePrimaryButton())
+                            Button { showPrompt = true } label: { Text("Send to ChatGPT") }.buttonStyle(SimpleQuietButton())
+                        }
+                    }
+                    .padding(16)
+                    Divider().overlay(WishSimpleTheme.line)
+                    HStack {
+                        Text("4 transparent PNGs \u{00B7} 2160 \u{00D7} 2160").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
+                        Spacer()
+                        Button { onImport() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
+                    }
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                }
                 SimpleCard(title: "Artwork options", trailing: "\(lookFiles.count) available") {
                     VStack(alignment: .leading, spacing: 12) {
                         if lookFiles.isEmpty {
-                            Text("Nothing yet. Send the prompt to ChatGPT and import the PNGs it makes, or press Design with KeyDo.")
+                            Text("Nothing yet. Press Design with KeyDo for four starter backgrounds, or send the prompt to ChatGPT and import the PNGs it makes.")
                                 .font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
                         } else {
                             LooksStrip(files: lookFiles, selected: WishLookStore.selectedFile(appID), columns: 2) { onPick($0, false) }
                         }
-                        HStack(spacing: 8) {
-                            Button { onImport() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
-                            Spacer()
-                            Button { onNext() } label: { Text("Continue to design \u{2192}") }.buttonStyle(SimplePrimaryButton()).disabled(lookFiles.isEmpty)
-                        }
+                        Button { onNext() } label: { Text("Continue to design \u{2192}") }.buttonStyle(SimpleQuietButton()).disabled(lookFiles.isEmpty)
                     }
                     .padding(16)
                 }
@@ -1041,108 +980,9 @@ private struct PromptStep: View {
             }
         }
         .onAppear {
-            guard !loaded else { return }
-            loaded = true
             example = UserDefaults.standard.string(forKey: "wishExample." + appID) ?? "Rohit"
             sender = UserDefaults.standard.string(forKey: "wishSender." + appID) ?? "From Jay Jain & Family"
-            logoFile = UserDefaults.standard.string(forKey: "wishLogo." + appID) ?? ""
-            let saved = UserDefaults.standard.string(forKey: "wishPrompt." + appID) ?? ""
-            generated = build()
-            prompt = saved.isEmpty ? generated : saved
-            UserDefaults.standard.set(prompt, forKey: "wishPrompt." + appID)
-        }
-        .onChange(of: heading) { _, _ in refreshPrompt() }
-        .onChange(of: example) { _, value in UserDefaults.standard.set(value, forKey: "wishExample." + appID); onGreeting(); refreshPrompt() }
-        .onChange(of: sender) { _, value in UserDefaults.standard.set(value, forKey: "wishSender." + appID); onGreeting(); refreshPrompt() }
-        .onChange(of: logoFile) { _, _ in refreshPrompt() }
-        .onChange(of: prompt) { _, value in UserDefaults.standard.set(value, forKey: "wishPrompt." + appID) }
-    }
-
-    // The prompt box: one clean box, Polish with AI right under it, then where to send it.
-    private var promptCard: some View {
-        SimpleCard(title: "Prompt", trailing: "for ChatGPT or Gemini") {
-            VStack(alignment: .leading, spacing: 12) {
-                TextEditor(text: $prompt)
-                    .font(.system(size: 14)).scrollContentBackground(.hidden)
-                    .padding(10).frame(minHeight: 210)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(wishHex: "#FBFAF7")))
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(WishSimpleTheme.line, lineWidth: 1))
-                HStack(spacing: 8) {
-                    Button { polish() } label: { Label(polishing ? "Polishing\u{2026}" : "Polish with AI", systemImage: "wand.and.stars") }
-                        .buttonStyle(SimpleQuietButton()).disabled(polishing || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    if let original { Button("Use my words") { prompt = original; self.original = nil }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(WishSimpleTheme.accent) }
-                    Spacer()
-                    Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(prompt, forType: .string); note = "Prompt copied." } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(SimpleQuietButton())
-                    Button { onSend("Gemini", prompt) } label: { Text("Gemini") }.buttonStyle(SimpleQuietButton())
-                    Button { onSend("ChatGPT", prompt) } label: { Label("Send to ChatGPT", systemImage: "paperplane.fill") }.buttonStyle(SimplePrimaryButton())
-                    Button { onDesign() } label: { Label("Design with KeyDo", systemImage: "wand.and.stars") }.buttonStyle(SimpleQuietButton())
-                }
-            }
-            .padding(16)
-        }
-    }
-
-    private var basicsCard: some View {
-        SimpleCard(title: "Basic information", trailing: "fixed in the design") {
-            VStack(alignment: .leading, spacing: 12) {
-                field("Heading", "Happy Birthday", $heading)
-                field("Name (changes for each card)", "Rohit", $example)
-                field("Sign-off", "From Jay Jain & Family", $sender)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Logo").font(.system(size: 11, weight: .semibold)).foregroundStyle(WishSimpleTheme.muted)
-                    HStack(spacing: 10) {
-                        if !logoFile.isEmpty, let image = NSImage(contentsOf: TemplateStore.shared.logoURL(logoFile)) {
-                            Image(nsImage: image).resizable().scaledToFit().frame(width: 44, height: 44)
-                                .background(RoundedRectangle(cornerRadius: 6).fill(Color(wishHex: "#F4EFE8")))
-                        }
-                        Button { chooseLogo() } label: { Label(logoFile.isEmpty ? "Choose logo" : "Change logo", systemImage: "flag") }.buttonStyle(SimpleQuietButton())
-                        if !logoFile.isEmpty { Button("Remove") { logoFile = ""; UserDefaults.standard.removeObject(forKey: "wishLogo." + appID) }.buttonStyle(.plain).font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted) }
-                    }
-                }
-                Text("The heading, sign-off and logo are placed on the card for you. The name is only an example; you type it for each card.")
-                    .font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
-            }
-            .padding(16)
-        }
-    }
-
-    private func field(_ title: String, _ placeholder: String, _ text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(WishSimpleTheme.muted)
-            TextField(placeholder, text: text).textFieldStyle(.roundedBorder)
-        }
-    }
-
-    private func chooseLogo() {
-        guard let image = TemplateDialogs.openImage(title: "Choose your logo (PNG with a transparent background looks best)"), let data = TemplateImages.png(image) else { return }
-        let file = "brand-" + String(UUID().uuidString.prefix(8)) + ".png"
-        guard (try? data.write(to: TemplateStore.shared.logoURL(file), options: .atomic)) != nil else { note = "Could not save the logo."; return }
-        UserDefaults.standard.set(file, forKey: "wishLogo." + appID)
-        logoFile = file
-        onGreeting()
-    }
-
-    private func polish() {
-        let profiles = AIModelProfileStore.load()
-        let selectedID = UserDefaults.standard.string(forKey: "ezmeSelectedAIModelProfile") ?? UserDefaults.standard.string(forKey: "ezmeCollectionSelectedProfile") ?? CollectionAIModelProfile.starter.id
-        let profile = profiles.first(where: { $0.id == selectedID }) ?? .starter
-        let key = KeyStore.load(account: profile.keyAccount) ?? ""
-        guard !key.isEmpty else { note = "Add an API key in API configuration to polish with AI."; return }
-        let snapshot = prompt
-        polishing = true
-        note = ""
-        Task { @MainActor in
-            do {
-                let instruction = "Rewrite the prompt below as one clear, well-structured prompt for an AI image generator. Keep the number of images, the 2160 \u{00D7} 2160 size, the real transparency requirement, the clear zones and every quoted word exactly as written. Do not add text to the images. Return only the prompt.\n\n" + snapshot
-                let result = try await SharedAIClient.generate(profile: profile, key: key, prompt: instruction, maxTokens: 1200)
-                let clean = result.trimmingCharacters(in: .whitespacesAndNewlines)
-                if clean.isEmpty { note = "The AI returned nothing. Your own words are kept." }
-                else if snapshot != prompt { note = "You changed the prompt while the AI was working, so its version was not used." }
-                else { original = snapshot; prompt = clean }
-            } catch {
-                note = "Could not polish: \(error.localizedDescription)"
-            }
-            polishing = false
+            brief = UserDefaults.standard.string(forKey: "wishBrief." + appID) ?? "Elegant artwork with celebratory details around the edges. Leave the centre clear for the recipient's name."
         }
     }
 }
@@ -1153,7 +993,6 @@ struct LooksStrip: View {
     var files: [String]
     var selected: String?
     var columns = 4
-    var defaultFile: String? = nil
     var onSelect: (String) -> Void
 
     var body: some View {
@@ -1166,10 +1005,7 @@ struct LooksStrip: View {
                             if let image = WishLookStore.image(file) { Image(nsImage: image).resizable().scaledToFit() }
                         }
                         .aspectRatio(1, contentMode: .fit)
-                        HStack(spacing: 4) {
-                            Text("\(index + 1)").font(.system(size: 12, weight: .semibold)).lineLimit(1)
-                            if file == defaultFile { Text("Default").font(.system(size: 9, weight: .bold)).foregroundStyle(WishSimpleTheme.accent) }
-                        }
+                        Text("\(index + 1)").font(.system(size: 12, weight: .semibold)).lineLimit(1)
                     }
                     .padding(5)
                     .background(RoundedRectangle(cornerRadius: 8).fill(WishSimpleTheme.white))
@@ -1179,5 +1015,36 @@ struct LooksStrip: View {
             }
         }
         .padding(12)
+    }
+}
+
+// MARK: - The prompt for ChatGPT
+
+struct WishPromptSheet: View {
+    let prompt: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var status = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack { Text("Send to ChatGPT").font(.system(size: 16, weight: .bold)); Spacer(); Button("Close") { dismiss() } }
+            TextEditor(text: .constant(prompt)).font(.system(size: 12)).frame(minHeight: 200).padding(6)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.white))
+                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(WishSimpleTheme.line, lineWidth: 1))
+            HStack(spacing: 8) {
+                Button { send("ChatGPT") } label: { Label("Send to ChatGPT", systemImage: "paperplane.fill") }.buttonStyle(SimplePrimaryButton())
+                Button { send("Gemini") } label: { Text("Send to Gemini") }.buttonStyle(SimpleQuietButton())
+                Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(prompt, forType: .string); status = "Prompt copied." } label: { Text("Copy prompt") }.buttonStyle(SimpleQuietButton())
+            }
+            if !status.isEmpty { Text(status).font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted) }
+            Text("After ChatGPT makes the PNGs, download them and choose Import PNGs here.").font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
+        }
+        .padding(18).frame(width: 560, height: 400)
+    }
+
+    private func send(_ site: String) {
+        guard let target = PromptTargets.load().first(where: { $0.name == site }) else { status = "\(site) is not in your Prompt Builder sites. Add it there first."; return }
+        NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: prompt, files: []))
+        status = "Opening \(site) in the side panel with your request\u{2026}"
     }
 }

@@ -152,8 +152,6 @@ struct AppDesign: Codable, Identifiable, Hashable {
     var mainName: String? = nil
     /// True once the person picked the format themselves; until then a countdown design delivers a web page.
     var formatPinned: Bool? = nil
-    /// The template ("main" or a variant id) typed and spoken commands use when no template is named. Nil means the first.
-    var defaultTemplate: String? = nil
 }
 
 @MainActor final class AppDesignStore: ObservableObject {
@@ -330,10 +328,6 @@ struct AppDesign: Codable, Identifiable, Hashable {
     }
 
     func activePages(_ design: AppDesign) -> [ImageTemplate] {
-        if design.defaultTemplate != nil {
-            let chosen = DesignTemplates.activePages(design, token: nil)
-            if !chosen.isEmpty { return chosen }
-        }
         let ids = (design.releasedPages?.isEmpty == false) ? (design.releasedPages ?? []) : design.pages
         return ids.compactMap { TemplateStore.shared.template(id: $0) }
     }
