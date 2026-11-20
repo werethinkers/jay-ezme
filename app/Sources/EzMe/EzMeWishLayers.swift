@@ -43,7 +43,11 @@ struct WishCanvas: View {
     @Binding var selected: String?
     var onMove: (String, Double, Double) -> Void
     var onEnd: () -> Void
+    /// Resize from a handle: id, centre x, centre y, width, height (all as fractions of the card).
+    var onResize: (String, Double, Double, Double, Double) -> Void = { _, _, _, _, _ in }
     @State private var origin: [String: CGPoint] = [:]
+    @State private var sizeStart: [String: [Double]] = [:]
+    private static let corners: [(Double, Double)] = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 
     var body: some View {
         ZStack {
@@ -75,6 +79,25 @@ struct WishCanvas: View {
                                         .onEnded { _ in origin[slot.id] = nil; onEnd() }
                                 )
                                 .onTapGesture { selected = slot.id }
+                        }
+                        if let chosen = template.slots.first(where: { $0.id == selected }) {
+                            ForEach(0..<Self.corners.count, id: \.self) { number in
+                                let dir = Self.corners[number]
+                                Circle().fill(Color.white).overlay(Circle().strokeBorder(WishSimpleTheme.accent, lineWidth: 2)).frame(width: 12, height: 12)
+                                    .contentShape(Rectangle().inset(by: -6))
+                                    .position(x: w * chosen.cx + CGFloat(dir.0) * max(46, w * chosen.w) / 2, y: h * chosen.cy + CGFloat(dir.1) * max(28, h * chosen.h) / 2)
+                                    .gesture(
+                                        DragGesture(minimumDistance: 0, coordinateSpace: .named("wishCanvas"))
+                                            .onChanged { value in
+                                                let start = sizeStart[chosen.id] ?? [chosen.cx, chosen.cy, max(46 / Double(w), chosen.w), max(28 / Double(h), chosen.h)]
+                                                sizeStart[chosen.id] = start
+                                                let newW = max(0.06, start[2] + dir.0 * Double(value.translation.width / w))
+                                                let newH = max(0.04, start[3] + dir.1 * Double(value.translation.height / h))
+                                                onResize(chosen.id, start[0] + dir.0 * (newW - start[2]) / 2, start[1] + dir.1 * (newH - start[3]) / 2, newW, newH)
+                                            }
+                                            .onEnded { _ in sizeStart[chosen.id] = nil; onEnd() }
+                                    )
+                            }
                         }
                     }
                     .coordinateSpace(name: "wishCanvas")
@@ -133,6 +156,13 @@ struct WishLayerProperties: View {
                         Slider(value: $size, in: 0.02...0.16, onEditingChanged: { editing in
                             if !editing, let i = index { template.slots[i].fontSize = size }
                         })
+                    }
+                    labelled("Font") {
+                        Picker("", selection: Binding(get: { slot.fontName }, set: { if let i = index { template.slots[i].fontName = $0 } })) {
+                            ForEach((TemplateFonts.all.contains(slot.fontName) ? TemplateFonts.all : [slot.fontName] + TemplateFonts.all), id: \.self) { name in
+                                Text(name).font(.custom(name, size: 13)).tag(name)
+                            }
+                        }.labelsHidden()
                     }
                     labelled("Colour") {
                         HStack(spacing: 6) {

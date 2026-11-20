@@ -1,7 +1,11 @@
-# KeyDo 4.36
+# KeyDo 4.37
 
 ## What's new
-- **Wish Studio templates now reach the backslash popup.** After an app is activated, the popup uses a published copy of its templates. Templates you added or changed later (new backgrounds from the library or by import, layer edits) stayed out of that copy, so they showed in Wish Studio but not in the popup, or the popup made the old card. Now the templates are published again automatically when you add a background, move on to Activate or Use, or leave Wish Studio, so the popup strip, the numbers (`\\app-Name-3`) and the cards match what you see.
+- **Wish Studio, simple view**: a **Font** choice for text layers, and the selection box now has 8 handles on the card, so you can drag its corners and edges to resize it.
+- **Collections**: a **Sort** menu in the collection view: name A-Z or Z-A, newest or oldest first (order added), shortcut, category, type, favourites first.
+- **Collections, editing a shortcut**: the first Edit now opens the shortcut you clicked. Before, the first click could open an empty or wrong editor, and you had to open another item first.
+- **Favourite on the tile**: every tile in the collection grid has its own heart button, so you no longer need to open the media. It is still in the large viewer too.
+- **Database Organizer**: lists and grids show 50 items at a time, with Previous and Next.
 
 ## Keyboard safety
 Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.

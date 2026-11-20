@@ -189,6 +189,7 @@ struct LibraryGridView: View {
                             if selectedIDs.contains(clip.id) { selectedIDs.remove(clip.id) } else { selectedIDs.insert(clip.id) }
                         },
                         onEdit: { onEdit(clip) },
+                        onFavorite: { on in onViewerEdits?([.favourite(clip.id, on)]) },
                         onEnlarge: { openViewer(clip, path: clip.files.first { FileManager.default.fileExists(atPath: $0) }) }
                     )
                 }
@@ -215,6 +216,7 @@ struct LibraryGridCard: View {
     var onToggle: () -> Void
     var onEdit: () -> Void
     var onEnlarge: () -> Void = {}
+    var onFavorite: (Bool) -> Void = { _ in }
     @State private var hovering = false
     @State private var visible = false
 
@@ -231,7 +233,16 @@ struct LibraryGridCard: View {
                 .overlay(alignment: .topLeading) { badge.padding(8) }
                 .overlay(alignment: .topTrailing) { corner.padding(8) }
                 .overlay(alignment: .bottomTrailing) { if canEnlarge && !selecting { enlargeButton.padding(8) } }
-                .overlay(alignment: .bottomLeading) { if clip.favorite == true { Image(systemName: "heart.fill").foregroundStyle(.red).padding(6).background(.ultraThinMaterial, in: Circle()).padding(8) } }
+                .overlay(alignment: .bottomLeading) {
+                    if !selecting {
+                        Button { onFavorite(clip.favorite != true) } label: {
+                            Image(systemName: clip.favorite == true ? "heart.fill" : "heart").foregroundStyle(clip.favorite == true ? Color.red : Color.secondary)
+                                .padding(6).background(.ultraThinMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain).padding(8).opacity(clip.favorite == true || hovering ? 1 : 0.55)
+                        .help(clip.favorite == true ? "Remove from favourites" : "Add to favourites")
+                    }
+                }
             VStack(alignment: .leading, spacing: 3) {
                 Text(displayTrigger(clip.key))
                     .font(.system(.caption, design: .monospaced).weight(.semibold))

@@ -431,7 +431,8 @@ struct WishSimpleStudio: View {
                 SimpleCard(title: "Card canvas", trailing: "Template \((lookFiles.firstIndex(of: previewLook ?? "") ?? 0) + 1) of \(max(1, lookFiles.count))") {
                     VStack(spacing: 0) {
                         WishCanvas(template: template, preview: preview, selected: $selectedSlot,
-                                   onMove: { id, x, y in moveSlot(id, x, y) }, onEnd: { if let page = draft { commit(page) } })
+                                   onMove: { id, x, y in moveSlot(id, x, y) }, onEnd: { if let page = draft { commit(page) } },
+                                   onResize: { id, x, y, w, h in resizeSlot(id, x, y, w, h) })
                         backgroundBar
                         LooksStrip(files: lookFiles, selected: previewLook) { pickLook($0) }
                     }
@@ -446,6 +447,15 @@ struct WishSimpleStudio: View {
         guard var page = draft ?? workingTemplate, let index = page.slots.firstIndex(where: { $0.id == id }) else { return }
         page.slots[index].cx = min(0.98, max(0.02, x))
         page.slots[index].cy = min(0.98, max(0.02, y))
+        draft = page
+    }
+
+    private func resizeSlot(_ id: String, _ x: Double, _ y: Double, _ w: Double, _ h: Double) {
+        guard var page = draft ?? workingTemplate, let index = page.slots.firstIndex(where: { $0.id == id }) else { return }
+        page.slots[index].cx = min(0.98, max(0.02, x))
+        page.slots[index].cy = min(0.98, max(0.02, y))
+        page.slots[index].w = min(1, w)
+        page.slots[index].h = min(1, h)
         draft = page
     }
 

@@ -241,6 +241,19 @@ struct MyDatabaseView: View {
     @State private var openTableID: String?
     @State private var newColumnName = ""
     @State private var page = 0
+    @State private var recordPage = 0
+    private let recordPageSize = 50
+    private var pagedVisible: [DBRecord] { Array(visible.dropFirst(min(recordPage, max(0, (visible.count - 1) / recordPageSize)) * recordPageSize).prefix(recordPageSize)) }
+    private var recordPageCount: Int { max(1, (visible.count + recordPageSize - 1) / recordPageSize) }
+    private var recordPager: some View {
+        HStack(spacing: 10) {
+            Spacer()
+            Button { recordPage = max(0, recordPage - 1) } label: { Label("Previous", systemImage: "chevron.left") }.disabled(recordPage == 0)
+            Text("Page \(min(recordPage, recordPageCount - 1) + 1) of \(recordPageCount) \u{00B7} \(visible.count) items").font(.caption).foregroundStyle(.secondary)
+            Button { recordPage = min(recordPageCount - 1, recordPage + 1) } label: { Label("Next", systemImage: "chevron.right") }.disabled(recordPage >= recordPageCount - 1)
+            Spacer()
+        }.controlSize(.small).padding(8)
+    }
     @State private var shortcutSearch = ""
     @State private var newCollectionName = ""
     @State private var showNewCollection = false
@@ -469,7 +482,7 @@ struct MyDatabaseView: View {
                 }
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 Divider()
-                DBGridView(records: visible, selection: $selection, collections: store.collections,
+                DBGridView(records: pagedVisible, selection: $selection, collections: store.collections,
                            onEdit: { editing = $0 },
                            onRename: { record, name in var changed = record; changed.title = name; store.upsert(changed) },
                            onShortcut: { makeSource = DBMakeSource(kind: $0.kind, records: [$0]) },
@@ -478,6 +491,7 @@ struct MyDatabaseView: View {
                            onOpenDocument: { viewerURL = $0 },
                            onCopy: { copy($0) })
                     .padding(10)
+                if visible.count > recordPageSize { recordPager }
             } else {
                 HStack {
                     Toggle("", isOn: Binding(get: { !visible.isEmpty && visible.allSatisfy { selection.contains($0.id) } },
@@ -489,16 +503,18 @@ struct MyDatabaseView: View {
                 .padding(.horizontal, 12).padding(.vertical, 6)
                 Divider()
                 LazyVStack(spacing: 0) {
-                    ForEach(visible.prefix(400)) { record in
+                    ForEach(pagedVisible) { record in
                         recordRow(record)
                         Divider()
                     }
                 }
-                if visible.count > 400 { Text("Showing the first 400. Use search to narrow the list.").font(.caption).foregroundStyle(.secondary).padding(8) }
+                if visible.count > recordPageSize { recordPager }
             }
         }
         .background(Color.white.opacity(0.6), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Butter.honey, lineWidth: 1))
+        .onChange(of: tab) { _ in recordPage = 0 }
+        .onChange(of: search) { _ in recordPage = 0 }
     }
 
     private var emptyTitle: String { "No \(tab.lowercased()) yet" }
