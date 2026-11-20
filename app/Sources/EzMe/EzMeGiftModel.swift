@@ -10,7 +10,16 @@ enum GiftBoxSpec {
     static let wall = 1.2
     static var innerW: Double { return outerW - 2 * wall }
     static var innerD: Double { return outerD - 2 * wall }
-    static var innerHeight: Double { return height - wall }
+    /// The lid is a 1.2 cm slab on a 7.8 cm base; the tray is 1.2 cm thick and each jar sits 0.6 cm into it.
+    static let baseH = 7.8
+    static let lidH = 1.2
+    static let trayH = 1.2
+    static let recess = 0.6
+    /// Clear height inside with the lid shut (floor and lid slab taken off).
+    static var clearHeight: Double { return height - 2 * wall }
+    static var innerHeight: Double { return clearHeight }
+    /// The tallest jar, with its lid on, that still lets the box close.
+    static var maxJarHeight: Double { return clearHeight - (trayH - recess) }
 
     static func cm(_ v: Double) -> String {
         let r = (v * 10).rounded() / 10
@@ -190,6 +199,23 @@ enum GiftCatalogue {
         return jarStyles.first { $0.id == id } ?? jarStyles[0]
     }
 
+    /// Height of each jar with its lid on, at the large size. Small is 80% and medium 90%. Never above what the closed box allows.
+    static func jarHeight(_ styleID: String, _ size: String) -> Double {
+        let large: Double
+        switch styleID {
+        case "octagon": large = 5.8
+        case "relief": large = 5.8
+        case "perfume": large = 6.0
+        case "candlebowl": large = 4.4
+        case "woodlid": large = 6.0
+        case "diffuser": large = 6.0
+        case "tin": large = 4.0
+        default: large = 6.0
+        }
+        let f: Double = size == "S" ? 0.8 : (size == "L" ? 1.0 : 0.9)
+        return min(GiftBoxSpec.maxJarHeight, (large * f * 10).rounded() / 10)
+    }
+
     static let jarMaterials: [JarMaterial] = [
         JarMaterial(id: "crystal", name: "Crystal glass", hex: "#BFD6DE", add: 250, words: ["crystal", "clear glass", "glass"]),
         JarMaterial(id: "frosted", name: "Frosted glass", hex: "#E6ECEF", add: 200, words: ["frosted", "frosted glass", "matte glass"]),
@@ -232,9 +258,13 @@ enum GiftCatalogue {
     }
 
     static let flowers: [GiftFlower] = [
-        GiftFlower(id: "roses", name: "Ivory roses", price: 350, words: ["roses", "rose", "ivory roses", "flowers", "flower"]),
-        GiftFlower(id: "blush", name: "Blush blossoms", price: 300, words: ["blush", "blossoms", "blossom", "blush flowers"]),
-        GiftFlower(id: "gold", name: "Gold-leaf blooms", price: 450, words: ["gold flowers", "gold blooms", "gold leaf", "golden flowers", "blooms"]),
+        GiftFlower(id: "roses", name: "Rose garden", price: 400, words: ["roses", "rose", "ivory roses", "rose garden", "flowers", "flower"]),
+        GiftFlower(id: "blush", name: "Blush blossoms and ferns", price: 300, words: ["blush", "blossoms", "blossom", "blush flowers", "ferns"]),
+        GiftFlower(id: "marigold", name: "Marigold and mango leaves", price: 300, words: ["marigold", "marigolds", "genda", "mango leaves", "diwali flowers"]),
+        GiftFlower(id: "lotus", name: "Lotus and lily", price: 450, words: ["lotus", "lily", "lilies", "lotus flowers"]),
+        GiftFlower(id: "natural", name: "Eucalyptus and pampas", price: 350, words: ["eucalyptus", "pampas", "dried flowers", "natural flowers", "leaves"]),
+        GiftFlower(id: "gold", name: "Gold-leaf sprigs and pearls", price: 450, words: ["gold flowers", "gold blooms", "gold leaf", "golden flowers", "blooms", "gold sprigs"]),
+        GiftFlower(id: "bow", name: "Satin bow", price: 250, words: ["bow", "ribbon", "satin bow", "ribbon bow"]),
         GiftFlower(id: "monogram", name: "Brass monogram plate", price: 250, words: ["monogram", "plate", "brass plate", "initial"]),
         GiftFlower(id: "none", name: "No decoration", price: 0, words: ["no flowers", "no decoration", "plain lid", "remove flowers"]),
     ]
@@ -249,6 +279,7 @@ struct JarSpec: Codable, Equatable {
     var materialID: String
     var sizeID: String
     var contentID: String
+    var lid: Bool = true
 }
 
 struct GiftConfig: Codable {
@@ -265,6 +296,8 @@ struct GiftConfig: Codable {
     var cardTo: String = ""
     var cardFrom: String = ""
     var cardMessage: String = ""
+    var occasion: String = "birthday"
+    var tone: String = "heartfelt"
     var note: String = ""
     var quantity: Int = 1
     var customer: String = ""
@@ -309,4 +342,5 @@ enum GiftView: String, CaseIterable {
     case inside = "Inside"
     case unbox = "Unboxing"
     case card = "Card"
+    case plan = "Plan"
 }

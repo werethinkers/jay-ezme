@@ -4,6 +4,7 @@
 import Foundation
 import SwiftUI
 import AppKit
+import SceneKit
 
 // MARK: - Logo
 
@@ -112,10 +113,35 @@ final class GiftingState: ObservableObject {
     @Published var message: String = "Choose a box finish, then the jars. Or say, for example, \u{201C}teak box, trio, octagon jars with chocolates, gold flowers\u{201D}."
     @Published var placed: GiftOrder?
     @Published var activeJar: Int = 0
+    @Published var cameraPreset: GiftCameraPreset = .threeQuarter
+    @Published var cameraTick: Int = 0
+    weak var sceneView: SCNView?
+
+    /// 0 = lid shut, 1 = lid fully open.
+    var lidOpenAmount: CGFloat {
+        switch view {
+        case .closed, .plan: return 0
+        case .inside, .card: return 1
+        case .unbox: return unboxStep >= 1 ? 1 : 0
+        }
+    }
+
+    /// How many jars are in the tray right now (the unboxing places them one by one).
+    var visibleJars: Int {
+        if view != .unbox { return 99 }
+        if unboxStep <= 2 { return 0 }
+        return unboxStep >= 4 ? 99 : itemsShown
+    }
+
+    func look(_ p: GiftCameraPreset) {
+        cameraPreset = p
+        cameraTick += 1
+        if view == .card || view == .plan { show(.inside) }
+    }
 
     private var undoStack: [GiftConfig] = []
     private var unboxTask: Task<Void, Never>?
-    private static let key = "keydoGiftingConfig3"
+    private static let key = "keydoGiftingConfig4"
 
     init() {
         if let data = UserDefaults.standard.data(forKey: GiftingState.key), let saved = try? JSONDecoder().decode(GiftConfig.self, from: data) {
@@ -238,13 +264,13 @@ final class GiftingState: ObservableObject {
 
     func caption(_ step: Int) -> String {
         switch step {
-        case 0: return "The closed \(config.finish.material.title.lowercased()) box, 34 \u{00D7} 24 \u{00D7} 9 cm, with the VYBES label."
-        case 1: return "The clasp opens and the lid lifts."
-        case 2: return "Inside: the lining and the filling, before the jars."
-        case 3: return "Each jar is set into its slot, one at a time."
-        case 4: return "Every jar sits in its own slot, with filling between."
-        case 5: return "Nothing moves: each jar fits its slot."
-        default: return "The card is tucked in, ready to be read."
+        case 0: return "The closed \(config.finish.material.title.lowercased()) box, 34 \u{00D7} 24 \u{00D7} 9 cm. Drag to turn it."
+        case 1: return "The clasp opens and the lid swings up. The card is fixed under the lid."
+        case 2: return "Inside: the tray with its cut-outs and the filling."
+        case 3: return "Each jar is set into its cut-out, one at a time."
+        case 4: return "Every jar sits in its own cut-out, with filling between."
+        case 5: return "The lid closes flat: no jar is taller than the box allows."
+        default: return "The card is ready to be read."
         }
     }
 
@@ -355,8 +381,12 @@ final class GiftingState: ObservableObject {
     }
 
     func savePicture() {
+        var shots: [NSImage] = []
+        if let snap = sceneView?.snapshot() { shots.append(snap) }
         let sheet = HStack(spacing: 14) {
-            GiftLidView(config: config, dims: true, detail: true).frame(width: 540, height: 400)
+            ForEach(0..<shots.count, id: \.self) { i in
+                Image(nsImage: shots[i]).resizable().scaledToFit().frame(width: 720, height: 520)
+            }
             GiftBoxTop(config: config, jarsShown: 99, dims: true, detail: true).frame(width: 540, height: 400)
             GiftCardArt(config: config, compact: false).frame(width: 400, height: 276)
         }
@@ -370,10 +400,24 @@ final class GiftingState: ObservableObject {
         let name = "VYBES-" + config.boxName.replacingOccurrences(of: " ", with: "-") + ".png"
         do {
             try data.write(to: desktop.appendingPathComponent(name))
-            message = "Saved \(name) on your Desktop."
+            message = "Saved \(name) on your Desktop: the box as you see it, the plan with sizes, and the card."
         } catch {
             message = "Could not save the picture: \(error.localizedDescription)"
         }
+    }
+
+    // MARK: The sender's message
+
+    func writeMessage(occasion: String? = nil, tone: String? = nil) {
+        let o = occasion ?? config.occasion
+        let t = tone ?? config.tone
+        let text = GiftMessages.compose(occasion: o, tone: t, to: config.cardTo, from: config.cardFrom, config: config)
+        change { c in
+            c.occasion = o
+            c.tone = t
+            c.cardMessage = text
+        }
+        message = "I wrote a \(t) \(o) message for the card. You can change any word of it."
     }
 
     // MARK: Spoken commands
@@ -459,6 +503,17 @@ final class GiftingState: ObservableObject {
                 working.removeSubrange(r)
             }
         }
+        var writeRequest: (String?, String?)?
+        if let re = try? NSRegularExpression(pattern: "write (me )?(a |an |the )?([a-z ]*?)message( for me)?", options: [.caseInsensitive]) {
+            let ns = working as NSString
+            if let m = re.firstMatch(in: working, options: [], range: NSRange(location: 0, length: ns.length)) {
+                let desc = normalised(ns.substring(with: m.range(at: 3)))
+                let occ = match(desc, GiftMessages.occasions.map { ($0.id, $0.words) })
+                let tn = match(desc, GiftMessages.tones.map { ($0.id, $0.words) })
+                writeRequest = (occ, tn)
+                working = ns.replacingCharacters(in: m.range, with: " ")
+            }
+        }
         let parts = splitFields(working)
         var did: [String] = []
         if let v = parts.fields["to"] { change { $0.cardTo = v }; did.append("card to \(v)") }
@@ -473,7 +528,31 @@ final class GiftingState: ObservableObject {
             did.append("phone")
         }
 
+        if let w = writeRequest {
+            writeMessage(occasion: w.0, tone: w.1)
+            did.append("a message for the card")
+        }
         let rest = normalised(parts.rest)
+        let cams: [(String, GiftCameraPreset)] = [
+            (" front view ", .front), (" back view ", .back), (" left view ", .left), (" right view ", .right), (" side view ", .right),
+            (" top view ", .top), (" from above ", .top), (" three quarter ", .threeQuarter), (" 3/4 view ", .threeQuarter), (" turn around ", .back),
+        ]
+        for (w, p) in cams where rest.contains(w) {
+            look(p)
+            did.append(p.rawValue.lowercased() + " view")
+            break
+        }
+        if rest.contains(" open the lid ") || rest.contains(" open lid ") {
+            show(.inside)
+            did.append("lid open")
+        } else if rest.contains(" close the lid ") || rest.contains(" shut the lid ") || rest.contains(" close lid ") {
+            show(.closed)
+            did.append("lid closed")
+        }
+        if rest.contains(" plan view ") || rest.contains(" show plan ") || rest.contains(" show sizes ") {
+            show(.plan)
+            did.append("plan view")
+        }
         if rest.contains(" undo ") || rest.contains(" go back ") {
             undo()
             return
@@ -567,6 +646,14 @@ final class GiftingState: ObservableObject {
         let slots = own ?? (layoutMatch == nil && !(c.contains(" all ") || c.contains(" every ") || c.contains(" both ")) ? carry : nil)
         if own != nil { carry = own }
         let targets: [Int] = slots ?? Array(0..<config.jars.count)
+
+        if c.contains(" lid off ") || c.contains(" without lid ") || c.contains(" without lids ") || c.contains(" open jars ") {
+            for i in targets { setJar(i) { $0.lid = false } }
+            did.append("jar lids off")
+        } else if c.contains(" lid on ") || c.contains(" with lid ") || c.contains(" closed jars ") {
+            for i in targets { setJar(i) { $0.lid = true } }
+            did.append("jar lids on")
+        }
 
         let styleRows = table(GiftCatalogue.jarStyles, { $0.id }, { $0.words })
         if let s = match(c, styleRows) {
@@ -671,8 +758,8 @@ struct GiftCardArt: View {
                 .font(.system(size: h * 0.062, design: .serif))
                 .italic()
                 .multilineTextAlignment(.center)
-                .lineLimit(5)
-                .minimumScaleFactor(0.6)
+                .lineLimit(9)
+                .minimumScaleFactor(0.5)
                 .foregroundStyle(ink)
             Text(from).font(.system(size: h * 0.062, design: .serif)).foregroundStyle(ink.opacity(0.8))
         }
@@ -688,41 +775,19 @@ struct GiftStage: View {
         ZStack {
             RoundedRectangle(cornerRadius: 18)
                 .fill(RadialGradient(colors: [Color(wishHex: "#F7F1E8"), Color(wishHex: "#D9CDBB")], center: .center, startRadius: 20, endRadius: 420))
-            content.padding(14)
+            content.padding(8)
         }
-        .animation(.easeInOut(duration: 0.5), value: state.unboxStep)
-    }
+            }
 
     @ViewBuilder
     private var content: some View {
         switch state.view {
-        case .closed:
-            GiftLidView(config: state.config)
-        case .inside:
-            GiftBoxTop(config: state.config)
         case .card:
             GiftCardArt(config: state.config, compact: false).aspectRatio(1.45, contentMode: .fit).padding(8)
-        case .unbox:
-            unbox
-        }
-    }
-
-    @ViewBuilder
-    private var unbox: some View {
-        if state.unboxStep == 0 {
-            GiftLidView(config: state.config)
-        } else if state.unboxStep == 1 {
-            ZStack {
-                GiftBoxTop(config: state.config, jarsShown: 0)
-                GiftLidView(config: state.config).offset(y: -26).opacity(0.45).scaleEffect(1.03)
-            }
-        } else {
-            ZStack(alignment: .bottomTrailing) {
-                GiftBoxTop(config: state.config, jarsShown: state.unboxStep == 2 ? 0 : (state.unboxStep >= 4 ? 99 : state.itemsShown))
-                if state.unboxStep >= 6 {
-                    GiftCardArt(config: state.config, compact: false).aspectRatio(1.45, contentMode: .fit).frame(width: 190).padding(10).transition(.opacity)
-                }
-            }
+        case .plan:
+            GiftBoxTop(config: state.config)
+        default:
+            GiftSceneView(state: state).clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
 }
@@ -763,11 +828,12 @@ struct GiftingView: View {
                     Spacer(minLength: 12)
                     Text(giftRupees(state.config.unitPrice)).font(.system(size: 22, weight: .bold)).foregroundStyle(WishTheme.accent)
                 }
-                GiftStage(state: state).frame(height: 400)
+                cameraRow
+                GiftStage(state: state).frame(height: 470)
                 stageCaption
                 banner
                 specCard
-                otherJars
+                jarStudio
             }
             .padding(16)
         }
@@ -810,7 +876,9 @@ struct GiftingView: View {
             specRow("Material", "\(f.material.title) \u{00B7} \(f.name)")
             specRow("Outer size", "\(GiftBoxSpec.cm(GiftBoxSpec.outerW)) \u{00D7} \(GiftBoxSpec.cm(GiftBoxSpec.outerD)) \u{00D7} \(GiftBoxSpec.cm(GiftBoxSpec.height)) cm (same for every finish)")
             specRow("Wall", "\(GiftBoxSpec.cm(GiftBoxSpec.wall)) cm")
-            specRow("Inside", "\(GiftBoxSpec.cm(GiftBoxSpec.innerW)) \u{00D7} \(GiftBoxSpec.cm(GiftBoxSpec.innerD)) cm, \(GiftBoxSpec.cm(GiftBoxSpec.innerHeight)) cm deep")
+            specRow("Inside", "\(GiftBoxSpec.cm(GiftBoxSpec.innerW)) \u{00D7} \(GiftBoxSpec.cm(GiftBoxSpec.innerD)) cm, \(GiftBoxSpec.cm(GiftBoxSpec.clearHeight)) cm clear height with the lid shut")
+            specRow("Tray", "\(GiftBoxSpec.cm(GiftBoxSpec.trayH)) cm thick with a round cut-out for each jar; a jar sits \(GiftBoxSpec.cm(GiftBoxSpec.recess)) cm into it, so a jar with its lid can be at most \(GiftBoxSpec.cm(GiftBoxSpec.maxJarHeight)) cm tall")
+            specRow("Lid", "\(GiftBoxSpec.cm(GiftBoxSpec.lidH)) cm slab on a hinge, with a clasp. The sender's card is fixed under it.")
             specRow("Finish", f.material.detail)
             Text("Size is a proposed design size. Prices are placeholders until real ones are set.")
                 .font(.caption2).foregroundStyle(WishTheme.muted)
@@ -821,32 +889,34 @@ struct GiftingView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(WishTheme.line, lineWidth: 1))
     }
 
-    private var otherJars: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Same box, other jars").font(.system(size: 14, weight: .bold))
-            Text("Tap one to put that jar in every slot. The box does not change.").font(.caption).foregroundStyle(WishTheme.muted)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 8)], spacing: 8) {
-                ForEach(GiftCatalogue.jarStyles) { style in
-                    Button { state.setAllJarStyle(style.id) } label: {
-                        VStack(spacing: 3) {
-                            GiftBoxTop(config: sample(style), jarsShown: 99, dims: false, detail: false)
-                                .aspectRatio(CGFloat(GiftBoxSpec.outerW / GiftBoxSpec.outerD), contentMode: .fit)
-                            Text(style.name).font(.system(size: 11, weight: .semibold)).lineLimit(1)
-                        }
-                        .padding(6)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white))
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(WishTheme.line, lineWidth: 1))
-                    }
-                    .buttonStyle(.plain)
-                }
+    private var cameraRow: some View {
+        HStack(spacing: 6) {
+            Text("Look from").font(.system(size: 11, weight: .semibold)).foregroundStyle(WishTheme.muted)
+            ForEach(GiftCameraPreset.allCases, id: \.self) { p in
+                chip(p.rawValue, on: state.cameraPreset == p && state.view != .card && state.view != .plan) { state.look(p) }
             }
+            Spacer()
+            Text("or drag the box to turn it").font(.caption2).foregroundStyle(WishTheme.muted)
         }
     }
 
-    private func sample(_ style: JarStyle) -> GiftConfig {
-        var c = state.config
-        for i in 0..<c.jars.count { c.jars[i].styleID = style.id }
-        return c
+    private var jarStudio: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Your jars, from every side").font(.system(size: 14, weight: .bold))
+            Text("Each jar turns slowly. Drag to look from above or below.").font(.caption).foregroundStyle(WishTheme.muted)
+            GiftJarStudio(config: state.config)
+                .frame(height: 230)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            ForEach(0..<state.config.jars.count, id: \.self) { i in
+                let j = state.config.jars[i]
+                let style = GiftCatalogue.jarStyle(j.styleID)
+                let slots = state.config.layout.slots
+                let dia = i < slots.count ? GiftCatalogue.jarDiameter(slot: slots[i], size: j.sizeID) : 0
+                let hgt = GiftCatalogue.jarHeight(j.styleID, j.sizeID)
+                Text("Jar \(i + 1): \(style.name), \(GiftCatalogue.jarMaterial(j.materialID).name), \u{00D8} \(GiftBoxSpec.cm(dia)) \u{00D7} \(GiftBoxSpec.cm(hgt)) cm, \(GiftCatalogue.content(j.contentID).name.lowercased())")
+                    .font(.system(size: 11)).foregroundStyle(WishTheme.ink)
+            }
+        }
     }
 
     // MARK: Right: controls
@@ -956,7 +1026,7 @@ struct GiftingView: View {
             HStack {
                 Text("Jar \(i + 1) \u{00B7} \(slotName)").font(.system(size: 13, weight: .bold))
                 Spacer()
-                Text("\u{00D8} \(GiftBoxSpec.cm(dia)) cm in a \(GiftBoxSpec.cm(slot.maxD)) cm slot \u{00B7} fits, \(GiftBoxSpec.cm(clear)) cm to spare")
+                Text("\u{00D8} \(GiftBoxSpec.cm(dia)) \u{00D7} \(GiftBoxSpec.cm(GiftCatalogue.jarHeight(jar.styleID, jar.sizeID))) cm in a \(GiftBoxSpec.cm(slot.maxD)) cm cut-out \u{00B7} fits, \(GiftBoxSpec.cm(clear)) cm to spare")
                     .font(.caption2).foregroundStyle(Color(wishHex: "#2E7D4F"))
             }
             ScrollView(.horizontal, showsIndicators: false) {
@@ -994,6 +1064,8 @@ struct GiftingView: View {
                     chip(ct.price > 0 ? "\(ct.name) +\(giftRupees(ct.price))" : ct.name, on: jar.contentID == ct.id) { state.setJar(i) { $0.contentID = ct.id } }
                 }
             }
+            Toggle("Lid on (turn off to see the contents from above)", isOn: Binding(get: { jar.lid }, set: { v in state.setJar(i) { $0.lid = v } }))
+                .font(.system(size: 11)).toggleStyle(.switch).controlSize(.small)
             if state.config.jars.count > 1 {
                 Button("Copy jar \(i + 1) to all jars") { state.applyToAllJars(from: i) }.buttonStyle(.bordered).controlSize(.small)
             }
@@ -1030,7 +1102,7 @@ struct GiftingView: View {
 
     private var flowerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("5. Flowers on the lid", "Flowers are decoration on top of the box, not inside it. Switch to Closed to see them.")
+            sectionTitle("5. Flowers and leaves on the lid", "A cluster on the lid with a smaller one at the opposite corner. They sit on top of the box, not inside it.")
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 6)], alignment: .leading, spacing: 6) {
                 ForEach(GiftCatalogue.flowers) { f in
                     chip(f.price > 0 ? "\(f.name) +\(giftRupees(f.price))" : f.name, on: state.config.flowerID == f.id) {
@@ -1088,12 +1160,29 @@ struct GiftingView: View {
 
     private var cardSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionTitle("Gift card", "The VYBES logo is on every card. Say \u{201C}card to Priya from Rahul message Happy birthday\u{201D}.")
+            sectionTitle("Gift card and message", "Fixed under the lid. Say \u{201C}card to Priya from Rahul, write a heartfelt birthday message\u{201D}.")
             HStack(spacing: 8) {
                 field("To", "Priya", Binding(get: { state.config.cardTo }, set: { state.config.cardTo = $0 }))
                 field("From", "Rahul", Binding(get: { state.config.cardFrom }, set: { state.config.cardFrom = $0 }))
             }
-            field("Message", "Wishing you joy, today and always.", Binding(get: { state.config.cardMessage }, set: { state.config.cardMessage = $0 }))
+            Text("Occasion").font(.system(size: 11, weight: .semibold)).foregroundStyle(WishTheme.muted)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 6)], alignment: .leading, spacing: 6) {
+                ForEach(GiftMessages.occasions, id: \.id) { o in
+                    chip(o.name, on: state.config.occasion == o.id) { state.writeMessage(occasion: o.id, tone: nil) }
+                }
+            }
+            Text("Tone").font(.system(size: 11, weight: .semibold)).foregroundStyle(WishTheme.muted)
+            HStack(spacing: 6) {
+                ForEach(GiftMessages.tones, id: \.id) { t in
+                    chip(t.name, on: state.config.tone == t.id) { state.writeMessage(occasion: nil, tone: t.id) }
+                }
+            }
+            Text("Message from the sender (written from the occasion, the names and what is in the box; edit freely)")
+                .font(.caption).foregroundStyle(WishTheme.muted)
+            TextEditor(text: Binding(get: { state.config.cardMessage }, set: { state.config.cardMessage = $0 }))
+                .font(.system(size: 12))
+                .frame(height: 110)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(WishTheme.line, lineWidth: 1))
             Picker("", selection: Binding(get: { state.config.cardStyle }, set: { state.config.cardStyle = $0 })) {
                 Text("Classic").tag("classic")
                 Text("Modern").tag("modern")

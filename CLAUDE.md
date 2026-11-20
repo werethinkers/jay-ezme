@@ -66,7 +66,7 @@ Swift cannot be compiled in the Claude workspace (Linux, no Swift), so GitHub's 
 | In-app browser, tabs and side panel | `final class EzMeBrowserTabs` (`newTab`, `webViews` (kept alive per tab and reused when tabs switch), `coordinators`, `browserMessage`), `struct BrowserWorkspace`, `browserSidePanelVisible` in the root view; open requests in `EzMeButter.swift` (`EzMeOpenRequests`) |
 | AI calls and keys | `enum SharedAIClient` (`generate`, `generateImage`, `generateVideo`), `AIModelProfileStore`, `KeyStore` |
 | WishStudio | `EzMeWish*.swift` |
-| WishStudio Gifting (one fixed 34x24x9 cm box, finishes, jars, contents, filling, lid flowers) | `EzMeGiftModel.swift` (box size `GiftBoxSpec`, `GiftCatalogue`, `GiftConfig`, prices), `EzMeGiftArt.swift` (to-scale drawing), `EzMeWishGifting.swift` (`GiftingState` incl. voice, `GiftingView`) |
+| WishStudio Gifting (one fixed 34x24x9 cm box, finishes, jars, contents, filling, lid flowers) | `EzMeGiftModel.swift` (box size `GiftBoxSpec`, `GiftCatalogue`, `GiftConfig`, prices), `EzMeGiftArt.swift` (2D plan drawing and textures), `EzMeGift3D.swift` (SceneKit box, tray, lathe jars, flowers, camera), `EzMeGiftMessages.swift` (sender message templates), `EzMeWishGifting.swift` (`GiftingState` incl. voice, `GiftingView`) |
 | Updater | `EzMeUpdater.swift` |
 | Launch and smoke test | `app/tests/mac-smoke-test.sh` (checks resources such as `KeyDoLogo.png`; update it when a resource is renamed) |
 
