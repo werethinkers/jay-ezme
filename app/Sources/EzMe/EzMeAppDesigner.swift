@@ -1001,7 +1001,7 @@ struct AppDesignEditor: View {
         VStack(spacing: 0) {
             DesignTemplateBar(designID: designID, selected: $templateID)
                 .overlay(alignment: .trailing) {
-                    Button { showPrompt = true } label: { Label("Prompt for ChatGPT or Gemini", systemImage: "sparkles.rectangle.stack") }
+                    Button { showPrompt = true } label: { Label("More looks with ChatGPT", systemImage: "sparkles.rectangle.stack") }
                         .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small).padding(.trailing, 12)
                         .help("A ready prompt with your template pictures (sample words removed) to get 2 to 5 more looks")
                 }

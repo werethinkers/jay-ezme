@@ -119,30 +119,18 @@ struct WishDesignMode: View {
     private var designID: String? { WishAppLink.designID(model) }
     private var design: AppDesign? { designs.design(id: designID) }
 
-    private var hasBackground: Bool { design != nil }
-    private var hasBoxes: Bool {
-        guard let design else { return false }
-        let slots = design.pages.compactMap { templates.template(id: $0) }.flatMap { $0.slots }
-        return slots.contains { $0.kind != .logo } || !design.variables.isEmpty
-    }
-    private var hasName: Bool { !(design?.appTitle ?? "").isEmpty }
-    private var launched: Bool { (design?.version ?? 0) > 0 }
-
     var body: some View {
-        VStack(spacing: 0) {
-            stepStrip
-            Divider().overlay(WishTheme.line)
-            Group {
-                if model.designAll {
-                    allDesigns
-                } else if let id = designID, designs.design(id: id) != nil {
-                    AppDesignEditor(designID: id, pageIndex: $pageIndex, onClose: { close() })
-                } else {
-                    WishChooseBackground(model: model, message: $message)
-                }
+        Group {
+            if model.designAll {
+                allDesigns
+            } else if let id = designID, designs.design(id: id) != nil {
+                AppDesignEditor(designID: id, pageIndex: $pageIndex, onClose: { close() })
+            } else {
+                WishChooseBackground(model: model, message: $message)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .environment(\.designEmbedded, true)
         .onAppear {
             model.voice.stop()
             AppDesignContext.shared.clips = model.clips
@@ -175,51 +163,11 @@ struct WishDesignMode: View {
         }
     }
 
-    private func step(_ number: Int, _ title: String, _ done: Bool) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: done ? "checkmark.circle.fill" : "\(number).circle")
-                .foregroundStyle(done ? Color.green : WishTheme.muted)
-            Text(title).font(.system(size: 12, weight: .semibold)).foregroundStyle(done ? WishTheme.ink : WishTheme.muted)
-        }
-    }
-
-    private var stepStrip: some View {
-        HStack(spacing: 16) {
-            step(1, "Choose background", hasBackground)
-            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(WishTheme.muted)
-            step(2, "Add variables, collections, functions", hasBoxes)
-            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(WishTheme.muted)
-            step(3, "Name the app", hasName)
-            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(WishTheme.muted)
-            step(4, "Launch", launched)
-            Spacer()
-            if !message.isEmpty { Text(message).font(.system(size: 11)).foregroundStyle(WishTheme.muted).lineLimit(1) }
-            if hasBackground {
-                Button { launch() } label: { Label("Launch in Wish Studio", systemImage: "paperplane.fill") }
-                    .buttonStyle(.borderedProminent).tint(WishTheme.accent)
-                    .help("Publishes this design as the app. Cards, shortcuts and credits then use it.")
-            }
-            Picker("", selection: $model.designAll) {
-                Text("This app").tag(false)
-                Text("All designs").tag(true)
-            }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 190)
-            Button("Back to card") { close() }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 8)
-        .background(WishTheme.accentSoft.opacity(0.6))
-    }
-
     private func close() {
+        model.designAll = false
         model.designMode = false
+        DispatchQueue.main.async { WishDesignSync.sync(model) }
         model.objectWillChange.send()
-    }
-
-    private func launch() {
-        guard let id = designID else { return }
-        message = designs.release(id)
-        model.status = "Launched. Colours and looks can still be changed by voice."
-        close()
     }
 }
 

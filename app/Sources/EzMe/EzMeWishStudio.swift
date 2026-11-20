@@ -1575,21 +1575,35 @@ struct WishStudioView: View {
     @ObservedObject var store: WishStore
     @State private var showNewTemplate = false
     @State private var redesignID: String?
+    @State private var startedOnDesign = false
 
     var body: some View {
         Group {
-            if model.designMode {
-                WishDesignMode(model: model)
-            } else {
-                HStack(alignment: .top, spacing: 16) {
-                    preview
-                    WishInspector(model: model, store: store)
-                        .frame(width: 350)
+            VStack(spacing: 0) {
+                WishModeBar(model: model)
+                Divider().overlay(WishTheme.line)
+                if model.designMode {
+                    WishDesignMode(model: model)
+                } else {
+                    HStack(alignment: .top, spacing: 16) {
+                        preview
+                        WishInspector(model: model, store: store)
+                            .frame(width: 350)
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 14)
                 }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 14)
             }
         }
+        .onAppear {
+            WishDesignSync.sync(model)
+            if !startedOnDesign {
+                startedOnDesign = true
+                if let id = WishAppLink.designID(model), (AppDesignStore.shared.design(id: id)?.version ?? 0) == 0 { model.designMode = true }
+            }
+        }
+        .onReceive(TemplateStore.shared.objectWillChange.receive(on: DispatchQueue.main)) { _ in WishDesignSync.sync(model) }
+        .onReceive(AppDesignStore.shared.objectWillChange.receive(on: DispatchQueue.main)) { _ in WishDesignSync.sync(model) }
         .sheet(isPresented: $showNewTemplate) {
             NewAppWizardView(onDone: { made in
                 showNewTemplate = false
@@ -1615,14 +1629,6 @@ struct WishStudioView: View {
                 Text("LIVE PAGE").font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(WishTheme.muted)
                 Text("Tap any text on the card to select it.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
                 Spacer()
-                Button { model.designAll = true; model.designMode = true } label: { Label("Templates", systemImage: "rectangle.stack") }
-                    .help("All your designs and templates, and make a new one from a picture, bill or agreement, without leaving Wish Studio.")
-                Button {
-                    model.designAll = false
-                    model.designMode = true
-                } label: { Label("Design", systemImage: "paintbrush.pointed") }
-                    .buttonStyle(.borderedProminent).tint(WishTheme.accent)
-                    .help("Choose or replace the background, add variables, collections and functions, drag them into place, name the app and launch it.")
                 Button {
                     model.web.replay()
                 } label: {
@@ -2191,7 +2197,7 @@ struct WishTemplatesTab: View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Templates").font(.system(size: 17, weight: .semibold))
-                Text("Open a section to use it. Test the app in App Designer, then finish it here with small changes.")
+                Text("Save and reuse looks. Background, boxes and the app name are in Design, at the top.")
                     .font(.system(size: 12))
                     .foregroundStyle(WishTheme.muted)
             }
@@ -2234,10 +2240,6 @@ struct WishTemplatesTab: View {
                 }
             }
 
-            WishAccordion(id: "add", title: "Add boxes to this template", symbol: "plus.rectangle.on.rectangle", summary: "Variables, collections, functions, text, pictures", open: $open) {
-                WishAddToTemplateSection(model: model)
-            }
-
             WishAccordion(id: "default", title: "Default look", symbol: "checkmark.seal", summary: "The look shortcuts use", open: $open) {
                 Text("Cards made by typing a shortcut for \(model.app.name) use the default look. Add a dash and a look name after the name to use another one for that card only.")
                     .font(.system(size: 11))
@@ -2254,14 +2256,6 @@ struct WishTemplatesTab: View {
                 WishAccordion(id: "voice", title: "Voice and sentence commands", symbol: "mic", summary: "Sentences that run this app", open: $open) {
                     BuilderPhrasesEditor(app: builderApp).id(builderApp)
                 }
-            }
-
-            WishAccordion(id: "command", title: "App command after the backslash", symbol: "chevron.left.forwardslash.chevron.right", summary: "Change the word you type", open: $open) {
-                WishCommandWordSection(model: model)
-            }
-
-            WishAccordion(id: "more", title: "More looks from the browser", symbol: "globe", summary: "Ask ChatGPT or Gemini for more templates", open: $open) {
-                WishMoreLooksSection(model: model)
             }
 
             WishAccordion(id: "credits", title: "Credits for each use", symbol: "bolt.fill", summary: "\(model.useCost) credits per card", open: $open) {

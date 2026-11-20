@@ -393,6 +393,7 @@ struct TemplateDesignerView: View {
     enum SideTab: Hashable { case library, box, page }
     @State private var openSections: Set<String> = ["background", "add", "box", "name"]
     @State private var showBackgroundIdeas = false
+    @Environment(\.designEmbedded) private var embedded
     @State private var formValues: [String: String] = [:]
     @State private var commandWord = ""
     @State private var appName = ""
@@ -485,19 +486,7 @@ struct TemplateDesignerView: View {
 
     private var topBar: some View {
         HStack(spacing: 10) {
-            Button { finish() } label: { Label("Templates", systemImage: "chevron.left") }.buttonStyle(.bordered)
-            if designTitle != nil {
-                HStack(spacing: 4) {
-                    Text("App").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
-                    TextField("App name", text: $appName).textFieldStyle(.roundedBorder).font(.system(size: 13, weight: .bold)).frame(maxWidth: 180)
-                        .focused($appNameFocused).onSubmit { commitAppName() }
-                        .onChange(of: appNameFocused) { _, focused in if !focused { commitAppName() } }
-                        .accessibilityLabel("App name").help("The name of the app. Press Return to rename it.")
-                    Button { commitAppName() } label: { Label("Save name", systemImage: "checkmark") }
-                        .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
-                        .disabled(appName.trimmingCharacters(in: .whitespacesAndNewlines) == (designTitle ?? "") || appName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
+            if !embedded { Button { finish() } label: { Label("Templates", systemImage: "chevron.left") }.buttonStyle(.bordered) }
             TextField(designTitle == nil ? "Template name" : "Page name", text: $template.name).textFieldStyle(.roundedBorder).frame(maxWidth: 200)
             if let info = pageInfo {
                 HStack(spacing: 4) {
@@ -513,11 +502,13 @@ struct TemplateDesignerView: View {
             if let busy { ProgressView().controlSize(.small); Text(busy).font(.system(size: 12)).foregroundStyle(.secondary) }
             else if !message.isEmpty { Text(message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)).lineLimit(1) }
             Spacer()
-            if onRelease != nil {
+            if onRelease != nil && !embedded {
                 Button { message = perform(.release) } label: { Label("Publish", systemImage: "paperplane.fill") }.buttonStyle(.borderedProminent).tint(.green)
             }
-            Button { finish() } label: { Label("Save and close", systemImage: "checkmark") }
-                .buttonStyle(.borderedProminent).tint(Butter.coral)
+            if !embedded {
+                Button { finish() } label: { Label("Save and close", systemImage: "checkmark") }
+                    .buttonStyle(.borderedProminent).tint(Butter.coral)
+            }
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
     }
@@ -906,7 +897,8 @@ struct TemplateDesignerView: View {
         let suggestions = DesignNameIdeas.words(for: name).filter { !used.contains($0) }
         return VStack(alignment: .leading, spacing: 8) {
             Text("App name").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
-            TextField("Birthday card", text: $appName).textFieldStyle(.roundedBorder).onSubmit { commitAppName() }
+            TextField("Birthday card", text: $appName).textFieldStyle(.roundedBorder).focused($appNameFocused).onSubmit { commitAppName() }
+                .onChange(of: appNameFocused) { _, focused in if !focused { commitAppName() } }
             Text("Word that runs it after the backslash").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
             HStack(spacing: 4) {
                 Text("\\").font(.system(size: 14, weight: .bold, design: .monospaced)).foregroundStyle(Butter.coral)
@@ -2395,15 +2387,8 @@ extension TemplateDesignerView {
             }
             .frame(maxHeight: .infinity).clipShape(RoundedRectangle(cornerRadius: 10))
             if onCommandChange != nil {
-                HStack(spacing: 4) {
-                    Text("Type").font(.system(size: 11)).foregroundStyle(.secondary)
-                    Text("\\").font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundStyle(Butter.coral)
-                    TextField("hbd", text: $commandWord).textFieldStyle(.roundedBorder).frame(width: 90)
-                        .focused($commandFocused2)
-                        .onSubmit { commandWord = onCommandChange?(commandWord) ?? commandWord }
-                        .onChange(of: commandFocused2) { _, focused in if !focused { commandWord = onCommandChange?(commandWord) ?? commandWord } }
-                    Text("-name to run this app anywhere").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
+                Text("Type \\\(commandWord.isEmpty ? "word" : commandWord)-name to run this app anywhere. Change the word in step 4.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             exampleCommands
             DesignVoiceBar(guide: tryGuide, voice: tryGuide.voice)

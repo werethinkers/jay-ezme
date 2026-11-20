@@ -1,12 +1,13 @@
-# KeyDo 4.17: Background first, simple steps
+# KeyDo 4.18: Wish Studio and Design on one page
 
-**Designer and Wish Studio design mode now start with the background.**
-- Step 1 · Background (first thing you see): **Replace background**, **Get background pictures with ChatGPT** (or Gemini), and background colour swatches.
-- Step 2 · Add variables, collections, functions, text and pictures.
-- Step 3 · Place them where you want: drag to move, drag the dots to resize.
-- Step 4 · Name the app, with suggested command words that run it after the backslash.
-- Tip shown when you upload a background: use a **PNG with a transparent background** so the colour can be changed.
+**Design is now part of Wish Studio.** One bar at the top switches between **Design**, **Card** and **All designs**. A Wish app that has a design you have not launched yet opens on Design.
 
-**Background colour now works properly.** A transparent PNG, or a flat colour page, changes colour without losing the picture. A flat photo keeps its colours and the app says why. Text turns light or dark automatically so it stays readable. Saying "background pink" in Wish Studio uses the same logic; font size, colours, bold and the other voice changes are unchanged.
+**Variables now change the card live.** Every variable, collection and text box you add in Design becomes a field in Details automatically. Type in a field and the card updates as you type, the same as Try it did in App Designer. Boxes you add later appear too.
+
+**No repeated steps or buttons.**
+- One **Launch** button (top bar) instead of three Publish and Launch buttons.
+- The app name and the word after the backslash are set only in step 4 of Design.
+- The old "Add boxes", "App command" and "More looks" sections were removed from the Templates tab; they are in Design.
+- The designer's own Templates, Save and close, Publish and app-name controls are hidden inside Wish Studio. The side-panel button is now "More looks with ChatGPT" so it is not confused with background pictures.
 
 **Keyboard safety checked:** nothing in the key tap, popup, voice or key-swallowing modes was touched.
