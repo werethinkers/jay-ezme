@@ -1,9 +1,9 @@
 {
-  "version": "4.31",
-  "build": 439,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.31-build439/EzMe-4.31-macOS.zip",
-  "sha256": "90792f5d1e2da915d28e820e780ae45f62b64b029d8ceba1f09addaf7ef228ef",
-  "notes": "# KeyDo 4.31\n\n## What's new\n- **Wish Studio, built-in apps (Happy Anniversary, Happy Birthday and the other occasion apps)**: the Use step now shows the live card and a row of the 12 designs under it. Tap a design to change the card in the same app, then fill in the blanks and download, copy or share. Before, these apps kept their old design with no way to change it.\n- Going straight to Use on a built-in app keeps its own card instead of drawing new backgrounds.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
-  "published": "2026-11-20T20:41:37Z",
+  "version": "4.32",
+  "build": 440,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.32-build440/EzMe-4.32-macOS.zip",
+  "sha256": "c3b096fcc874491d7685d941198e327598acec69637fc4345ca6f75868081617",
+  "notes": "# KeyDo 4.32\n\n## What's new\n- **Wish Studio occasion apps (Happy Anniversary, Thank You, Diwali and the others)**: choosing a design in the Use step now also saves it as the default for the app, so the typed shortcut (for example \\wed-Rohit in WhatsApp) makes the card in the design you picked. Before, only the screen changed and the shortcut still used the old design.\n- To use another design for one card only, add its name after the name, for example \\wed-Rohit-night.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
+  "published": "2026-11-20T20:58:43Z",
   "minimumSystemVersion": "14.0"
 }
