@@ -134,6 +134,7 @@ struct DesignFieldRow: View {
                     if field.dataType == .date || field.dataType == .time { DesignDatePickButton(type: field.dataType, text: $text) }
                     if field.dataType != .text { Button("Tidy") { tidy() }.buttonStyle(.bordered).controlSize(.small).help("Format it neatly") }
                 }
+                if field.dataType == .text, field.label.lowercased().contains("colour") || field.label.lowercased().contains("color") { ColourOptions(text: $text) }
                 if field.dataType != .text { DesignTypeNote(type: field.dataType, text: text) }
                 if text.trimmingCharacters(in: .whitespaces).isEmpty && !fallback.isEmpty {
                     Text("Left empty, it uses \u{201C}\(String(fallback.prefix(40)))\u{201D}").font(.system(size: 10)).foregroundStyle(Butter.cocoa.opacity(0.6))
@@ -208,6 +209,8 @@ struct AppDesignRunView: View {
     /// "" is the default template; otherwise temp2, a template's name, or tempr for a random one.
     @State private var templateName = ""
     @State private var lastRandom = ""
+    @State private var thumbs: [String: NSImage] = [:]
+    @ObservedObject private var credits = CreditsCenter.shared
 
     private var design: AppDesign? { designs.design(id: designID) }
     /// The template the preview shows: the one chosen, or the one a random pick landed on.
@@ -216,6 +219,36 @@ struct AppDesignRunView: View {
         guard let design else { return [] }
         return DesignFields.fields(pages: AppDesignStore.shared.activePages(design, token: previewToken), variables: design.variables)
     }
+    private var pricing: (service: CreditService, cost: Int) {
+        guard let design else { return (.designSimple, credits.cost(.designSimple)) }
+        return credits.designPricing(name: design.name, pages: AppDesignStore.shared.activePages(design, token: previewToken).count)
+    }
+
+    private func templateChoices(_ items: [DesignTemplates.Item]) -> [TemplateChoice] {
+        var list: [TemplateChoice] = []
+        for item in items {
+            let token = item.isDefault ? "" : item.name
+            list.append(TemplateChoice(token: token, name: item.name + (item.isDefault ? " \u{2022}" : ""), image: thumbs[token]))
+        }
+        list.append(TemplateChoice(token: "tempr", name: "Random", image: nil))
+        return list
+    }
+
+    /// Small pictures of every template, made one at a time so the form opens straight away.
+    private func loadThumbs() async {
+        guard let design else { return }
+        for item in DesignTemplates.items(design) {
+            let token = item.isDefault ? "" : item.name
+            if thumbs[token] != nil { continue }
+            if let first = AppDesignStore.shared.activePages(design, token: token).first, let base = TemplateStore.shared.basePicture(for: first) {
+                let merged = DesignFill.merge(design.variables, [:])
+                let made = TemplateFill.resolved(first, values: merged, clips: AppDesignContext.shared.clips)
+                thumbs[token] = TemplateRenderer.render(first, base: base, texts: made.texts, images: made.images, useSamples: true, maxSide: 220)
+            }
+            await Task.yield()
+        }
+    }
+
     private var format: DesignFormat { DesignDynamic.format(design, pages: design.map { AppDesignStore.shared.activePages($0, token: previewToken) }) }
 
     var body: some View {
@@ -251,6 +284,7 @@ struct AppDesignRunView: View {
                 applyVoice(startPrompt)
             }
         }
+        .task { await loadThumbs() }
         .onDisappear { guide.stop() }
         .onChange(of: values) { _, _ in refreshPreview() }
         .onChange(of: templateName) { _, _ in refreshPreview() }
@@ -297,6 +331,7 @@ struct AppDesignRunView: View {
                     .font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.75))
             }
             Spacer()
+            CreditChip()
             if let onClose { Button("Close") { onClose() }.buttonStyle(.bordered).tint(Butter.cocoa) }
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
@@ -322,14 +357,14 @@ struct AppDesignRunView: View {
                 HStack(spacing: 8) {
                     Text("Details").font(.system(size: 12, weight: .bold)).foregroundStyle(FormVoiceInk.main)
                     Spacer()
-                    if let design {
-                        let items = DesignTemplates.items(design)
-                        Text("Template").font(.system(size: 11)).foregroundStyle(Butter.cocoa.opacity(0.75))
-                        Picker("Template", selection: $templateName) {
-                            ForEach(items) { item in Text(item.name + (item.isDefault ? " (default)" : "")).tag(item.isDefault ? "" : item.name) }
-                            Text("Random (tempr)").tag("tempr")
+                }
+                if let design {
+                    let items = DesignTemplates.items(design)
+                    if items.count > 1 {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("Choose a template").font(.system(size: 11, weight: .semibold)).foregroundStyle(Butter.cocoa.opacity(0.75))
+                            TemplateStrip(choices: templateChoices(items), selection: $templateName)
                         }
-                        .labelsHidden().frame(width: 150).help("temp1 is the default. In a command, add -temp2, -temp3 or -tempr.")
                     }
                 }
                 Text("Red * marks what only you can fill. Everything else already has a value, so you can just press Make.")
@@ -348,6 +383,10 @@ struct AppDesignRunView: View {
             HStack {
                 Button { make() } label: { Label(busy ? "Making\u{2026}" : "Make \(format.title)", systemImage: "sparkle") }
                     .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large).disabled(busy)
+                VStack(alignment: .leading, spacing: 1) {
+                    CreditChip(cost: pricing.cost)
+                    Text(pricing.cost > credits.approvalLimit ? "Asks you first" : "\(credits.balance) left").font(.system(size: 9)).foregroundStyle(Butter.cocoa.opacity(0.6))
+                }
                 if !message.isEmpty { Text(message).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)) }
             }
         }
@@ -392,6 +431,8 @@ struct AppDesignRunView: View {
             message = "Please fill " + missingRequired.map { $0.label }.joined(separator: ", ") + ". The app's maker marked it mandatory."
             return
         }
+        let priced = pricing
+        guard let chargeID = credits.charge(priced.service, cost: priced.cost, detail: design.name) else { message = credits.lastMessage; return }
         busy = true
         message = ""
         let chosen = templateName == "tempr" ? (DesignTemplates.items(design).randomElement()?.name ?? "") : templateName
@@ -406,6 +447,7 @@ struct AppDesignRunView: View {
             let blank = fields.filter { $0.kind == .text || $0.kind == .long }.filter { (values[$0.key] ?? "").trimmingCharacters(in: .whitespaces).isEmpty && DesignMemory.fallback(design.id, field: $0).isEmpty }.map { $0.label }
             message = "Ready" + (chosen.isEmpty ? "" : " (\(chosen))") + "." + (blank.isEmpty ? "" : " Left blank: " + blank.joined(separator: ", ") + ".")
         } catch {
+            credits.refund(chargeID, reason: "Could not make it")
             message = error.localizedDescription
         }
         busy = false
