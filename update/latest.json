@@ -1,9 +1,9 @@
 {
-  "version": "4.33",
-  "build": 441,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.33-build441/EzMe-4.33-macOS.zip",
-  "sha256": "1e2ad51f77488197805b999b31d081949880ba8a5fb471846674809037179b63",
-  "notes": "# KeyDo 4.33\n\n## What's new\n- **Wish Studio, Design step, Function**: the Function button is now a menu with every function: date and time (today's date, time, date and time, month, year, weekday, date + 7 or 30 days, day of the year), where you are (city, place, area, state or region, country, coordinates), weather and sky, money and more. Before it only added the date.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.",
-  "published": "2026-11-20T21:14:41Z",
+  "version": "4.34",
+  "build": 442,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.34-build442/EzMe-4.34-macOS.zip",
+  "sha256": "cbff4eda6aec213a2c58d23c3df166e76693b6bb4591b0f3d566b0d653fb5ef7",
+  "notes": "# KeyDo 4.34\n\n## What's new\n- **One voice for renaming files**: the media preview in Library (rename to ..., save, use full name as shortcut, favourite, next, close) no longer starts its own microphone. Its voice button now turns on the one KeyDo voice bubble, and the preview listens through it. With a single microphone in use, the popup, the bubble and the preview can no longer fight each other.\n- **Collection categories**: a search box finds collections by name or by category.\n\n## Keyboard safety\nChecked: the key tap `miniJSlashTap`, the popup, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback. The voice change only swaps which microphone engine the preview uses; it does not add any key handling.",
+  "published": "2026-11-20T21:29:10Z",
   "minimumSystemVersion": "14.0"
 }
