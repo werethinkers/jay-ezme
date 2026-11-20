@@ -746,6 +746,8 @@ struct LibraryMediaViewer: View {
         edits.append(.rename(item.clipID, old.path, target.path))
         items = items.map { guard $0.path == old.path else { return $0 }; var moved = $0; moved.path = target.path; moved.title = base; return moved }
         showShortcutRow = true
+        // The shortcut follows the new file name, in the collection's own pattern.
+        if let full = shortcutOptions().first { applyShortcut(full.key) }
         renaming = false; renameError = ""
     }
 
@@ -903,12 +905,12 @@ struct LibraryMediaViewer: View {
             name = name.trimmingCharacters(in: CharacterSet(charactersIn: ".,!? "))
             guard !name.isEmpty else { return false }
             newName = name; renameError = ""; renaming = true
-            if saveNow { commitRename(); heard = renameError.isEmpty ? "Renamed to \(name)." : renameError }
+            if saveNow { commitRename(); heard = renameError.isEmpty ? "Renamed to \(name). Shortcut is now \(displayTrigger(items[min(index, items.count - 1)].key))." : renameError }
             else { heard = "New name: \(name). Say “save” to rename the file." }
             return true
         }
         if ["save", "save it", "save name", "save the name", "confirm", "done", "yes", "ok save", "okay save"].contains(lower) {
-            if renaming { commitRename(); heard = renameError.isEmpty ? "Saved. The file is renamed." : renameError }
+            if renaming { commitRename(); heard = renameError.isEmpty ? "Saved. Name and shortcut changed to \(displayTrigger(items[min(index, items.count - 1)].key))." : renameError }
             else { heard = "Nothing to save. Say “rename to …” first." }
             return true
         }
