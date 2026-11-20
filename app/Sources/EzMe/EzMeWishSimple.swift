@@ -67,6 +67,7 @@ struct WishSimpleStudio: View {
     @State private var started = false
     @State private var note = ""
     @State private var showPrompt = false
+    @State private var showLibrary = false
     @State private var selectedSlot: String?
     @State private var draft: ImageTemplate?
     @State private var preview: NSImage?
@@ -106,7 +107,7 @@ struct WishSimpleStudio: View {
                         Group {
                             switch step {
                             case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note, showPrompt: $showPrompt,
-                                               onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) }, onSkip: { go(1) },
+                                               onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) }, onSkip: { go(1) }, onLibrary: { showLibrary = true },
                                                onImport: { importPNGs() }, onGreeting: { applyGreeting() })
                             case 1: designStep
                             case 2: activateStep
@@ -137,6 +138,7 @@ struct WishSimpleStudio: View {
         }
         .onDisappear { model.simpleVoice = nil }
         .sheet(isPresented: $showPrompt) { WishPromptSheet(prompt: chatGPTPrompt) }
+        .sheet(isPresented: $showLibrary) { WishLibrarySheet(appID: appID) { images in useFromLibrary(images) } }
         .onChange(of: model.appID) { _, _ in
             started = false
             step = 0
@@ -235,6 +237,14 @@ struct WishSimpleStudio: View {
         lookFiles = WishLookStore.files(appID)
         afterLooksChanged(select: first)
         note = "KeyDo drew 4 transparent backgrounds. They are templates 1 to \(lookFiles.count). Pick one, then continue."
+    }
+
+    private func useFromLibrary(_ images: [NSImage]) {
+        var last: String?
+        for image in images { if let file = WishLookStore.add(image, appID: appID) { last = file } }
+        lookFiles = WishLookStore.files(appID)
+        afterLooksChanged(select: last)
+        note = images.isEmpty ? "" : "Added \(images.count) from the library. They are templates \(max(1, lookFiles.count - images.count + 1)) to \(lookFiles.count)."
     }
 
     private func importPNGs() {
@@ -944,6 +954,7 @@ private struct PromptStep: View {
     var onDesign: () -> Void
     var onNext: () -> Void
     var onSkip: () -> Void
+    var onLibrary: () -> Void
     var onImport: () -> Void
     var onGreeting: () -> Void
     @State private var example = ""
@@ -993,6 +1004,7 @@ private struct PromptStep: View {
                     HStack {
                         Text("4 transparent PNGs \u{00B7} 2160 \u{00D7} 2160").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
                         Spacer()
+                        Button { onLibrary() } label: { Label("Library", systemImage: "photo.stack") }.buttonStyle(SimpleQuietButton())
                         Button { onImport() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10)

@@ -1,9 +1,8 @@
-# KeyDo 4.28
+# KeyDo 4.29
 
 ## What's new
-- **Video Editor, Join clips**: add elements between clips, a picture (shown 1 to 30 seconds) or a title card with your own text. Videos of different sizes can be mixed; choose the output size (match the first video, 1920x1080, vertical 1080x1920 or square) and every clip is fitted to it with black bars.
-- **Clip positions**: drag a row, use the arrows, or open a row's Position menu and move it to any place.
-- **Filters** now accept videos up to 100 MB. Larger videos are refused with a clear message (cut them shorter in Cut mode first).
+- **Wish Studio background library**: in step 1, the new **Library** button opens a shelf of transparent PNG backgrounds. Import PNG files, a folder of them, or a library zip; pick any backgrounds and use them in the app you are making (they become its templates). "Add this app's backgrounds" saves what you made into the library.
+- **Publish and download**: "Download library (zip)" saves the whole shelf as one zip you can publish or send. Anyone who has it imports it with the same button.
 
 ## Keyboard safety
 Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.
