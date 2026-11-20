@@ -174,6 +174,8 @@ final class WishStudioModel: ObservableObject {
         status = defaultStatus
     }
 
+    @Published var showCreateChoice = false
+
     func openBuilder() {
         voiceGuard()
         page = .builder
@@ -1001,6 +1003,7 @@ struct WishStudioWorkspace: View {
     var body: some View {
         VStack(spacing: 0) {
             WishHeader(model: model, store: model.store)
+                .sheet(isPresented: $model.showCreateChoice) { WishCreateChoiceSheet(model: model, store: model.store) }
             Divider().overlay(WishTheme.line)
             content
             if !model.designMode || model.simple {
@@ -1326,9 +1329,9 @@ struct WishHeader: View {
             }
             Spacer()
             Button {
-                model.openBuilder()
+                model.showCreateChoice = true
             } label: {
-                Label("Create with WishBuilder", systemImage: "wand.and.stars")
+                Label("Create an app", systemImage: "wand.and.stars")
             }
             .buttonStyle(.borderedProminent)
             .tint(Butter.coral)
@@ -1527,14 +1530,14 @@ struct WishHomeView: View {
 
     private var builderCard: some View {
         Button {
-            model.openBuilder()
+            model.showCreateChoice = true
         } label: {
             VStack(spacing: 10) {
                 Image(systemName: "wand.and.stars")
                     .font(.system(size: 34))
                     .foregroundStyle(WishTheme.accent)
-                Text("Create with WishBuilder").font(.system(size: 16, weight: .bold, design: .rounded))
-                Text("Describe the app. WishBuilder asks for anything missing, maps your collections and builds it.")
+                Text("Create an app").font(.system(size: 16, weight: .bold, design: .rounded))
+                Text("Describe it in a prompt, start blank, or duplicate an app you already have.")
                     .font(.system(size: 12))
                     .foregroundStyle(WishTheme.muted)
                     .multilineTextAlignment(.center)

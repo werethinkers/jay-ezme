@@ -1,4 +1,4 @@
-// Video Cutter: open a video from a link.
+// Video Editor: open a video from a link.
 //
 // A direct link to a video file (.mp4, .mov, .m4v, .webm) is downloaded as it is. A page link (YouTube, Vimeo,
 // Instagram and most other video sites) is fetched with the free open-source helper yt-dlp. KeyDo downloads that
@@ -183,7 +183,7 @@ enum VideoLinkFetcher {
     }
 }
 
-/// The "paste a link" row in Video Cutter. `onLoaded` gets the saved video file.
+/// The "paste a link" row in Video Editor. `onLoaded` gets the saved video file.
 struct VideoLinkBar: View {
     let directory: URL
     var onLoaded: (URL) -> Void

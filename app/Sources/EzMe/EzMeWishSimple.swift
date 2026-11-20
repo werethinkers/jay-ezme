@@ -76,6 +76,16 @@ struct WishSimpleStudio: View {
     @State private var phrases = ""
 
     private var appID: String { model.appID }
+    /// The template a card starts with: set in Activate, used in Use. Saved per app.
+    private var defaultTemplate: Int {
+        let saved = UserDefaults.standard.integer(forKey: "wishDefaultTemplate." + appID)
+        return min(max(saved, 1), max(1, lookFiles.count))
+    }
+    private func setDefaultTemplate(_ number: Int) {
+        UserDefaults.standard.set(number, forKey: "wishDefaultTemplate." + appID)
+        selectTemplate(number)
+        note = "Template \(number) is now the default."
+    }
     private var heading: String { UserDefaults.standard.string(forKey: "wishHeading." + appID) ?? model.app.name }
     private var designID: String? { WishAppLink.designID(model) }
     private var design: AppDesign? { designs.design(id: designID) }
@@ -96,7 +106,7 @@ struct WishSimpleStudio: View {
                         Group {
                             switch step {
                             case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note, showPrompt: $showPrompt,
-                                               onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) },
+                                               onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) }, onSkip: { go(1) },
                                                onImport: { importPNGs() }, onGreeting: { applyGreeting() })
                             case 1: designStep
                             case 2: activateStep
@@ -192,12 +202,16 @@ struct WishSimpleStudio: View {
 
     private func go(_ index: Int) {
         if index >= 1 && designID == nil {
-            note = "Choose a background in step 1 first."
-            step = 0
-            return
+            if lookFiles.isEmpty { generate() } else { createDesign() }
+            if designID == nil {
+                note = "Could not start the design. Try step 1 again."
+                step = 0
+                return
+            }
         }
         note = ""
         if index >= 2 { syncTemplates() }
+        if index >= 3, designID != nil, UserDefaults.standard.integer(forKey: "wishDefaultTemplate." + appID) > 0 { selectTemplate(defaultTemplate) }
         step = index
         if index >= 1 { draft = workingTemplate; refreshPreview() }
     }
@@ -589,6 +603,17 @@ struct WishSimpleStudio: View {
                 .background(RoundedRectangle(cornerRadius: 9).fill(Color(wishHex: "#F4EFE8")))
                 Text(lookFiles.count > 1 ? "Type this in any app. Add -3 at the end for the third template." : "Type this in any app to make a card with your words.")
                     .font(.system(size: 12)).foregroundStyle(WishSimpleTheme.muted)
+                if lookFiles.count > 1 {
+                    HStack(spacing: 6) {
+                        Text("Default template").font(.system(size: 12, weight: .semibold))
+                        ForEach(1...lookFiles.count, id: \.self) { number in
+                            Button("\(number)") { setDefaultTemplate(number) }
+                                .buttonStyle(SimpleQuietButton())
+                                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(defaultTemplate == number ? WishSimpleTheme.accent : Color.clear, lineWidth: 2))
+                        }
+                    }
+                    Text("The default is the card Use opens with.").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
+                }
                 Divider().overlay(WishSimpleTheme.line)
                 Text("What people fill in").font(.system(size: 13, weight: .semibold))
                 let asked = askedFields
@@ -663,6 +688,7 @@ struct WishSimpleStudio: View {
             let lines = phrases.components(separatedBy: "\n").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
             if !lines.isEmpty { BuilderPhrases.save(lines, for: target.name) }
         }
+        if designID != nil { selectTemplate(defaultTemplate) }
         model.status = "Activated. Type \\\(shortcut)- and a name in any app."
         note = message.isEmpty ? "Activated. Type \\\(shortcut)- and a name in any app to run it." : message
         model.objectWillChange.send()
@@ -728,6 +754,11 @@ struct WishSimpleStudio: View {
                             LooksStrip(files: lookFiles, selected: lookFiles.indices.contains(currentTemplateNumber - 1) ? lookFiles[currentTemplateNumber - 1] : nil) { file in
                                 if let at = lookFiles.firstIndex(of: file) { selectTemplate(at + 1) }
                             }
+                            HStack {
+                                Text(currentTemplateNumber == defaultTemplate ? "Template \(currentTemplateNumber) is the default" : "Template \(currentTemplateNumber)").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
+                                Spacer()
+                                if currentTemplateNumber != defaultTemplate { Button("Make default") { setDefaultTemplate(currentTemplateNumber) }.buttonStyle(SimpleQuietButton()) }
+                            }.padding(.horizontal, 14).padding(.bottom, 8)
                         }
                     }
                 }
@@ -912,6 +943,7 @@ private struct PromptStep: View {
     var onPick: (String, Bool) -> Void
     var onDesign: () -> Void
     var onNext: () -> Void
+    var onSkip: () -> Void
     var onImport: () -> Void
     var onGreeting: () -> Void
     @State private var example = ""
@@ -954,6 +986,7 @@ private struct PromptStep: View {
                             Button { onDesign() } label: { Label("Design with KeyDo", systemImage: "wand.and.stars") }.buttonStyle(SimplePrimaryButton())
                             Button { showPrompt = true } label: { Text("Send to ChatGPT") }.buttonStyle(SimpleQuietButton())
                         }
+                        Button { onSkip() } label: { Label("Skip: use the 4 default designs", systemImage: "forward.end") }.buttonStyle(SimpleQuietButton())
                     }
                     .padding(16)
                     Divider().overlay(WishSimpleTheme.line)
