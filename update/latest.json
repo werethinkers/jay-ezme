@@ -1,9 +1,9 @@
 {
-  "version": "4.23",
-  "build": 430,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.23-build430/EzMe-4.23-macOS.zip",
-  "sha256": "59af018a526d210213c866a5f9df6f69649824166ccb6e77d52dbae754cd77b1",
-  "notes": "# KeyDo 4.23\n\nStable build. KeyDo no longer asks for Speech Recognition or the microphone when it opens.\n\n- **Speech permission fixed.** Speech Recognition and Microphone access are asked for only when you press a microphone button, through one safe request used by every voice feature.\n- **No more always-on listening.** The \"Hey KeyDo\" wake word, which started the microphone at launch and competed with the other voice features, is removed. Push-to-talk voice, Fill by voice, dictation and Wish Studio voice still work.\n- **Siri removed.** The Siri and Shortcuts settings, the keydo:// links and the related code are gone. Spoken \"send to ChatGPT\" style commands still work inside KeyDo.\n- The code is the stable 4.20 Wish Studio (the 4.21 changes stay out).\n\n## Keyboard safety\nChecked: the key tap (`miniJSlashTap`), popup, voice and the key-swallowing modes (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not changed. Nothing new swallows keys, the heartbeat watchdog is kept, and no work was added inside the callback.",
-  "published": "2026-11-20T16:21:50Z",
+  "version": "4.24",
+  "build": 431,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.24-build431/EzMe-4.24-macOS.zip",
+  "sha256": "5714c4c9c062b5978592a6c590a79fc107d0f8dbdd10ddae6363a575397ca444",
+  "notes": "# KeyDo 4.24\n\nOne voice for all of KeyDo.\n\n- **One microphone.** Wish Studio, Fill by voice, the designers, the library and the quick apps no longer run their own speech recogniser. They all use the one behind the KeyDo voice bubble, so two of them can never listen at once or hear each other's commands.\n- **Commands go where you are.** Start the bubble once: your words go to the screen you are on (Wish Studio, a designer, a form being filled), or to the popup when the popup is open. Open another screen's mic and the previous one hands over.\n- **Plain dictation yields too.** Pressing a dictation mic stops the bubble, and pressing the bubble stops dictation, so only one is ever listening.\n- **Stop and pause by voice work everywhere:** \"pause listening\", \"start listening\", \"stop listening\".\n- One voice language setting is shared across all voice features.\n\n## Keyboard safety\nChecked: the key tap (`miniJSlashTap`), popup, and the key-swallowing modes (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not changed. Nothing new swallows keys, the heartbeat watchdog is kept, and no work was added inside the callback.",
+  "published": "2026-11-20T16:47:50Z",
   "minimumSystemVersion": "14.0"
 }
