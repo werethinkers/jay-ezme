@@ -12,6 +12,7 @@ struct TemplateChoice: Identifiable {
 struct TemplateStrip: View {
     var choices: [TemplateChoice]
     @Binding var selection: String
+    var size: CGFloat = 74
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -29,9 +30,9 @@ struct TemplateStrip: View {
                                     ProgressView().controlSize(.small)
                                 }
                             }
-                            .frame(width: 74, height: 74)
+                            .frame(width: size, height: size)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(selection == choice.token ? Butter.coral : Color.secondary.opacity(0.25), lineWidth: selection == choice.token ? 2.5 : 1))
-                            Text(choice.name).font(.system(size: 10, weight: selection == choice.token ? .bold : .regular)).lineLimit(1).frame(width: 78)
+                            Text(choice.name).font(.system(size: 10, weight: selection == choice.token ? .bold : .regular)).lineLimit(1).frame(width: size + 4)
                         }
                     }.buttonStyle(.plain)
                 }
