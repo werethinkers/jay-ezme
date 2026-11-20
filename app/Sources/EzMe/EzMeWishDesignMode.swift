@@ -123,7 +123,9 @@ struct WishDesignMode: View {
             stepStrip
             Divider().overlay(WishTheme.line)
             Group {
-                if let id = designID, designs.design(id: id) != nil {
+                if model.designAll {
+                    allDesigns
+                } else if let id = designID, designs.design(id: id) != nil {
                     AppDesignEditor(designID: id, pageIndex: $pageIndex, onClose: { close() })
                 } else {
                     WishChooseBackground(model: model, message: $message)
@@ -136,6 +138,30 @@ struct WishDesignMode: View {
             AppDesignContext.shared.clips = model.clips
             AppDesignContext.shared.records = model.records
             AppDesignContext.shared.collections = model.collections
+        }
+    }
+
+    /// The whole App Designer, inside Wish Studio: every design and template, new designs from a picture, bill or agreement.
+    private var allDesigns: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Text("Use a design for \(model.app.name):").font(.system(size: 12, weight: .semibold))
+                Menu {
+                    ForEach(designs.designs) { item in
+                        Button(item.appTitle ?? item.name) {
+                            TemplateStore.setWishTemplate("design:" + item.id, appID: model.appID)
+                            model.designAll = false
+                            model.objectWillChange.send()
+                        }
+                    }
+                } label: { Text(design.map { $0.appTitle ?? $0.name } ?? "Choose a design") }
+                    .fixedSize()
+                Text("Open a design in the list to edit it here, or make a new one.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
+                Spacer()
+            }
+            .padding(.horizontal, 16).padding(.vertical, 6)
+            Divider().overlay(WishTheme.line)
+            AppDesignerView(wishDirectory: model.store.directory, clips: model.clips, records: model.records, collections: model.collections)
         }
     }
 
@@ -163,6 +189,11 @@ struct WishDesignMode: View {
                     .buttonStyle(.borderedProminent).tint(WishTheme.accent)
                     .help("Publishes this design as the app. Cards, shortcuts and credits then use it.")
             }
+            Picker("", selection: $model.designAll) {
+                Text("This app").tag(false)
+                Text("All designs").tag(true)
+            }
+            .pickerStyle(.segmented).labelsHidden().frame(width: 190)
             Button("Back to card") { close() }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)

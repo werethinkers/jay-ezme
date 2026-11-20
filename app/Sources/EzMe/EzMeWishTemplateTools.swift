@@ -97,10 +97,9 @@ struct WishAddToTemplateSection: View {
 
     var body: some View {
         if let template = model.linkedTemplate {
-            Text("Add text boxes, variables, collections, functions and picture boxes to the background \u{201C}\(template.name)\u{201D}. The look stays as it is; only the boxes are added.")
+            Text("Variables, collections, functions, text and picture boxes are added and placed by you on the background \u{201C}\(template.name)\u{201D}. Nothing is put on the card for you.")
                 .font(.system(size: 11)).foregroundStyle(WishTheme.muted)
-            DesignerAddPanel(taken: { takenNames() }, onAdd: { add($0) })
-            Button { model.designMode = true } label: { Label("Open Design to drag boxes into place", systemImage: "paintbrush.pointed") }.buttonStyle(.bordered).controlSize(.small)
+            Button { model.designAll = false; model.designMode = true } label: { Label("Open Design: add boxes and place them", systemImage: "paintbrush.pointed") }.buttonStyle(.borderedProminent).controlSize(.small)
         } else {
             Text("This app has no background template yet. Press New template above the card, pick a background, then come back here to add boxes.")
                 .font(.system(size: 11)).foregroundStyle(WishTheme.muted)

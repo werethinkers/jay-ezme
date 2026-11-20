@@ -88,6 +88,8 @@ final class WishStudioModel: ObservableObject {
     @Published var selected: String? = nil
     /// The App Designer editor is open inside Wish Studio.
     @Published var designMode = false
+    /// Design mode shows every design and template (the whole App Designer) instead of this app's own design.
+    @Published var designAll = false
     @Published var status: String = ""
     @Published var commandText: String = ""
     @Published private(set) var undoStack: [WishCard] = []
@@ -1613,8 +1615,10 @@ struct WishStudioView: View {
                 Text("LIVE PAGE").font(.system(size: 10, weight: .semibold)).tracking(2).foregroundStyle(WishTheme.muted)
                 Text("Tap any text on the card to select it.").font(.system(size: 11)).foregroundStyle(WishTheme.muted)
                 Spacer()
-                Button { showNewTemplate = true } label: { Label("New template", systemImage: "plus.rectangle.on.rectangle") }
+                Button { model.designAll = true; model.designMode = true } label: { Label("Templates", systemImage: "rectangle.stack") }
+                    .help("All your designs and templates, and make a new one from a picture, bill or agreement, without leaving Wish Studio.")
                 Button {
+                    model.designAll = false
                     model.designMode = true
                 } label: { Label("Design", systemImage: "paintbrush.pointed") }
                     .buttonStyle(.borderedProminent).tint(WishTheme.accent)
