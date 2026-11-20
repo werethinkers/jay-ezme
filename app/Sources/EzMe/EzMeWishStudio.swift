@@ -174,6 +174,24 @@ final class WishStudioModel: ObservableObject {
         status = defaultStatus
     }
 
+    /// A new app goes straight to the four steps: no questions first.
+    func startNewApp() {
+        voiceGuard()
+        var name = "My wish app"
+        var count = 2
+        while store.apps.contains(where: { $0.name.caseInsensitiveCompare(name) == .orderedSame }) {
+            name = "My wish app " + String(count)
+            count += 1
+        }
+        let made = WishApp(name: name, tagline: "Made in Wish Studio", symbol: "sparkles", artwork: "sparkles", kind: .greeting)
+        store.apps.append(made)
+        openApp(made.id)
+        simple = true
+        designMode = false
+        designAll = false
+        status = "Step 1: write your prompt, then get your backgrounds."
+    }
+
     func openBuilder() {
         voiceGuard()
         page = .builder
@@ -575,7 +593,7 @@ final class WishStudioModel: ObservableObject {
             return
         }
         if lower.contains("builder") || lower.contains("create") || lower.contains("new app") || lower.contains("\u{092C}\u{093F}\u{0932}\u{094D}\u{0921}\u{0930}") || lower.contains("\u{0928}\u{092F}\u{093E}") {
-            openBuilder()
+            startNewApp()
             return
         }
         let env = WishCommandEnvironment(app: app, apps: store.apps.filter { $0.id != "__none__" }, designs: designs, chips: [])
@@ -1326,9 +1344,9 @@ struct WishHeader: View {
             }
             Spacer()
             Button {
-                model.openBuilder()
+                model.startNewApp()
             } label: {
-                Label("Create with WishBuilder", systemImage: "wand.and.stars")
+                Label("Create a new app", systemImage: "wand.and.stars")
             }
             .buttonStyle(.borderedProminent)
             .tint(Butter.coral)
@@ -1412,7 +1430,7 @@ struct WishHeader: View {
     private var builderTab: some View {
         let active = model.page == .builder
         return Button {
-            model.openBuilder()
+            model.startNewApp()
         } label: {
             HStack(spacing: 10) {
                 ZStack {
@@ -1527,7 +1545,7 @@ struct WishHomeView: View {
 
     private var builderCard: some View {
         Button {
-            model.openBuilder()
+            model.startNewApp()
         } label: {
             VStack(spacing: 10) {
                 Image(systemName: "wand.and.stars")

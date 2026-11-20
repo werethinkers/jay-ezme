@@ -1,13 +1,11 @@
-# KeyDo 4.20: Numbered templates, required fields and voice in Wish Studio
+# KeyDo 4.21
 
-**Templates are numbered 1, 2, 3, 4 …** Every background is a template. Type `\bday-Rohit-3` to make the card on the third template (a bare number at the end picks the template, unless the app takes numbers as its values; `-temp3` still works too).
+## Wish Studio: straight into the four steps
+- **New app opens directly on step 1.** No more basic-information form first; the heading you type names the app.
+- **Prompt box like Prompt Builder, but cleaner.** It sits right under the header, with **Polish with AI** under it, and no suggestions. It writes itself from your heading, example name, sign-off and logo, asks for transparent PNGs with clear zones, and keeps your own edits. Send to ChatGPT, Gemini, Copy or Design with KeyDo from the same box.
+- **Basic information and logo are fixed in the design.** Heading, sign-off and logo are placed on the card for you, so ChatGPT only has to draw the artwork.
+- **Default template.** In Use, "Make template N the default" (or say "make template 3 default"). Typed and voice commands without a number use the default; the card shows a Default badge.
+- Use shows the picture placements and variable fields for the chosen template.
 
-**Live card: choose the final template.** In step 4 the numbered templates sit under the card. Tap one and the card, download, copy and share use it. Templates are saved with the app, so activating publishes all of them.
-
-**Required fields.** Nothing is required by default. In Design, tick "Required" on a variable, collection or image. The Use step then marks it and asks for it before a card can be saved, copied or shared.
-
-**Step 1 words go straight into the design.** The heading and sign-off are saved as fixed text; the name is saved only as the example. The name box in Use starts empty. In Use you fill only the variables, collections and pictures; image layers have a Choose picture button.
-
-**Voice for every step.** The bottom bar now works in the simple view. Say "design with KeyDo", "send to ChatGPT", "add variable", "make it fixed", "required", "bigger", "background pink", "move up", "next", "shortcut bday", "add voice command make a birthday card", "activate the app", "template 3", "download". Voice phrases that run the app are now set in step 3 and saved when you activate.
-
-**Keyboard safety checked:** nothing in the key tap, popup, voice dictation hotkey or key-swallowing modes was touched. The bottom bar uses the existing Wish microphone only while you press it.
+## Keyboard safety
+Checked: the key tap (`miniJSlashTap`), popup, voice and the key-swallowing modes are untouched. No new key swallowing, watchdog kept, no work added in the callback.
