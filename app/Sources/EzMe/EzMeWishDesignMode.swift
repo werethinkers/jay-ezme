@@ -60,8 +60,18 @@ import AppKit
                 for i in template.slots.indices where template.slots[i].kind == .logo { template.slots[i].colorHex = hex }
                 return "Logo colour changed."
             case .page, .theme:
-                for i in textIndices(template, target: nil, all: true) { template.slots[i].colorHex = hex }
-                return "All text colour changed. To change the whole background, press Design."
+                let result = TemplateBackground.recoloured(template, hex: hex)
+                guard let image = result.image else { return result.message }
+                TemplateStore.shared.setPicture(image, for: template)
+                TemplateBackground.clearCache()
+                let dark = NSColor(templateHex: hex).usingColorSpace(.deviceRGB).map { 0.299 * $0.redComponent + 0.587 * $0.greenComponent + 0.114 * $0.blueComponent < 0.45 } ?? false
+                for i in textIndices(template, target: nil, all: true) {
+                    let text = NSColor(templateHex: template.slots[i].colorHex).usingColorSpace(.deviceRGB)
+                    let level = text.map { 0.299 * $0.redComponent + 0.587 * $0.greenComponent + 0.114 * $0.blueComponent } ?? 0.5
+                    if dark && level < 0.45 { template.slots[i].colorHex = "#FFFFFF" }
+                    if !dark && level > 0.75 { template.slots[i].colorHex = "#1F2A2E" }
+                }
+                return "Background colour changed."
             }
         case .bold(let on):
             for i in textIndices(template, target: target) { template.slots[i].bold = on }
@@ -219,18 +229,22 @@ struct WishChooseBackground: View {
     @ObservedObject var model: WishStudioModel
     @Binding var message: String
     @ObservedObject private var templates = TemplateStore.shared
+    @State private var showIdeas = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Choose a background for \(model.app.name)").font(.system(size: 20, weight: .semibold))
+                    Text("Tip: upload a PNG with a transparent background so you can change the background colour later. A flat photo keeps its own colours.")
+                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(WishTheme.accent)
                     Text("Pick a picture or a template. Then add variables, collections and functions as boxes, drag them where you want them, name the app and launch. You can replace the background any time.")
                         .font(.system(size: 12)).foregroundStyle(WishTheme.muted)
                 }
                 HStack(spacing: 10) {
                     Button { pickPicture() } label: { Label("Pick a picture…", systemImage: "photo.on.rectangle") }
                         .buttonStyle(.borderedProminent).tint(WishTheme.accent)
+                    Button { showIdeas = true } label: { Label("Get backgrounds with ChatGPT", systemImage: "sparkles") }.buttonStyle(.bordered)
                     Button { make(blank: true, landscape: true) } label: { Label("Blank card (wide)", systemImage: "rectangle") }.buttonStyle(.bordered)
                     Button { make(blank: true, landscape: false) } label: { Label("Blank card (tall)", systemImage: "rectangle.portrait") }.buttonStyle(.bordered)
                 }
@@ -257,6 +271,7 @@ struct WishChooseBackground: View {
             }
             .padding(22)
         }
+        .sheet(isPresented: $showIdeas) { BackgroundIdeasSheet(appName: model.app.name) }
     }
 
     private func link(_ design: AppDesign?) {
@@ -268,6 +283,7 @@ struct WishChooseBackground: View {
     private func pickPicture() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
+        panel.message = "Tip: choose a PNG with a transparent background so the background colour can be changed later."
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url) else { return }
         link(AppDesignStore.shared.newFromPicture(image, name: model.app.name))

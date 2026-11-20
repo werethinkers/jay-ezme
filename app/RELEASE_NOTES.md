@@ -1,9 +1,12 @@
-# KeyDo 4.16
+# KeyDo 4.17: Background first, simple steps
 
-## Hover to see it bigger
-- Rest the pointer on a picture, GIF, video or document card for a moment and a larger view appears (GIFs and videos play). It is sized to the picture's own shape, placed over the card, and always kept fully on the screen, never cut off by the window edge or the scroll area.
-- Works in **Collections** (grid cards), **AppBuilder** and **Wish Studio** app covers, **AppDesigner** design cards and the **template library**.
-- Move the pointer away and it closes.
+**Designer and Wish Studio design mode now start with the background.**
+- Step 1 · Background (first thing you see): **Replace background**, **Get background pictures with ChatGPT** (or Gemini), and background colour swatches.
+- Step 2 · Add variables, collections, functions, text and pictures.
+- Step 3 · Place them where you want: drag to move, drag the dots to resize.
+- Step 4 · Name the app, with suggested command words that run it after the backslash.
+- Tip shown when you upload a background: use a **PNG with a transparent background** so the colour can be changed.
 
-## Keyboard safety
-Checked. The key tap, popup key handling, voice and key-swallowing modes were not touched. The hover view ignores the mouse and keyboard.
+**Background colour now works properly.** A transparent PNG, or a flat colour page, changes colour without losing the picture. A flat photo keeps its colours and the app says why. Text turns light or dark automatically so it stays readable. Saying "background pink" in Wish Studio uses the same logic; font size, colours, bold and the other voice changes are unchanged.
+
+**Keyboard safety checked:** nothing in the key tap, popup, voice or key-swallowing modes was touched.

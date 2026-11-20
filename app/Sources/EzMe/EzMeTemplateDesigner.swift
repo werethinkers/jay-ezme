@@ -391,7 +391,8 @@ struct TemplateDesignerView: View {
     var onMakeFile: (([String: String]) -> String)? = nil
     var onRename: ((String) -> (name: String, command: String))? = nil
     enum SideTab: Hashable { case library, box, page }
-    @State private var openSections: Set<String> = ["add", "box"]
+    @State private var openSections: Set<String> = ["background", "add", "box", "name"]
+    @State private var showBackgroundIdeas = false
     @State private var formValues: [String: String] = [:]
     @State private var commandWord = ""
     @State private var appName = ""
@@ -462,6 +463,7 @@ struct TemplateDesignerView: View {
             }
         }
         .onAppear { refresh() }
+        .sheet(isPresented: $showBackgroundIdeas) { BackgroundIdeasSheet(appName: designTitle ?? template.name, width: template.pixelWidth, height: template.pixelHeight) }
         .onChange(of: template) { _, _ in refresh() }
         .onChange(of: mode) { _, _ in refresh() }
         .onChange(of: testTexts) { _, _ in refresh() }
@@ -797,8 +799,18 @@ struct TemplateDesignerView: View {
     @ViewBuilder private var sidebar: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                section("add", "Add a box", "plus.circle.fill") {
+                section("background", "1 \u{00B7} Background", "photo.on.rectangle") { backgroundCard }
+                section("add", "2 \u{00B7} Add variables, collections, functions, text and pictures", "plus.circle.fill") {
                     DesignerAddPanel(taken: { template.slots.map { $0.key } + DesignDataType.names(vars) }, onAdd: { addWizardElements($0) })
+                }
+                section("box", "3 \u{00B7} Place them where you want", "rectangle.dashed") {
+                    if let index = selectedIndex { boxEditor(index) } else {
+                        hint("Click a box on the page, then drag it to move it, drag the dots to resize it, and drag the round arrow to turn it. Font size, colour and style are here once a box is selected.")
+                        boxesCard
+                    }
+                }
+                if onCommandChange != nil {
+                    section("name", "4 \u{00B7} Name the app", "textformat") { nameCard }
                 }
                 if let appTitle = designTitle {
                     section("commands", "Voice and typed commands", "waveform") {
@@ -806,13 +818,7 @@ struct TemplateDesignerView: View {
                         hint("Type  \\\(commandWord.isEmpty ? "app" : commandWord)  or  \\@\(commandWord.isEmpty ? "app" : commandWord)  in any app, then the details in any order, each after a dash: \\\(commandWord.isEmpty ? "app" : commandWord)-rahul-5000. A # before a collection name uses its first item, and a template ends it: -temp2. Anything left out uses its ready value; only a mandatory box is asked for.")
                     }
                 }
-                section("box", "Box", "rectangle.dashed") {
-                    if let index = selectedIndex { boxEditor(index) } else {
-                        hint("Click a box on the page to edit it. Drag it to move, drag the dots to resize, and drag the round arrow to turn it.")
-                        boxesCard
-                    }
-                }
-                section("page", "Page", "doc.richtext") {
+                section("page", "More page tools", "doc.richtext") {
                     if mode == .erase { hint("Pick a shape at the top of the page (rectangle, square, circle, triangle, points or free hand), then draw around what to remove. Only the inside of the shape is erased.") }
                     if onVariablesChange != nil { variablesCard }
                     addCard
@@ -860,6 +866,65 @@ struct TemplateDesignerView: View {
 
     private func hint(_ text: String) -> some View {
         Text(text).font(.system(size: 12)).foregroundStyle(Butter.cocoa.opacity(0.8)).fixedSize(horizontal: false, vertical: true)
+    }
+
+    private let backgroundColours: [(String, String)] = [
+        ("White", "#FFFFFF"), ("Cream", "#FFF4DC"), ("Pink", "#F6D1D5"), ("Rose", "#EC6AA8"), ("Red", "#D63B3B"), ("Orange", "#F28A2E"),
+        ("Yellow", "#F2C230"), ("Green", "#2E9E5B"), ("Mint", "#CFEFD9"), ("Sky", "#8FC8EE"), ("Blue", "#2F6FDB"), ("Navy", "#1B2A5C"),
+        ("Lavender", "#E6DCF7"), ("Purple", "#7B52B8"), ("Black", "#111111")
+    ]
+
+    /// Step 1: the background comes first. Replace it, get one from ChatGPT, change its colour.
+    private var backgroundCard: some View {
+        let recolour = TemplateBackground.canRecolour(template)
+        return VStack(alignment: .leading, spacing: 10) {
+            Button { replacePicture() } label: { Label("Replace background", systemImage: "photo.badge.arrow.down").frame(maxWidth: .infinity) }
+                .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.large)
+            Button { showBackgroundIdeas = true } label: { Label("Get background pictures with ChatGPT", systemImage: "sparkles").frame(maxWidth: .infinity) }
+                .buttonStyle(.bordered).controlSize(.regular)
+            hint("Tip: upload a PNG with a transparent background. Then you can change the background colour here and by voice. A flat photo keeps its own colours.")
+            Text("Background colour").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 28), spacing: 6)], spacing: 6) {
+                ForEach(backgroundColours, id: \.1) { item in
+                    Button { message = perform(.color(item.1, .page)) } label: {
+                        Circle().fill(Color(nsColor: NSColor(templateHex: item.1))).frame(width: 26, height: 26)
+                            .overlay(Circle().stroke(Color.black.opacity(0.25), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain).help(item.0).disabled(!recolour)
+                }
+            }
+            .opacity(recolour ? 1 : 0.35)
+            Text(recolour ? "You can say \u{201C}background pink\u{201D} too." : TemplateBackground.cannot)
+                .font(.system(size: 11)).foregroundStyle(recolour ? Butter.cocoa.opacity(0.8) : Color.orange).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Step 4: name the app and the word that runs it, with a few suggestions.
+    private var nameCard: some View {
+        let name = appName.isEmpty ? (designTitle ?? template.name) : appName
+        let used = WishAppLink.wordsUsed(byOthersThan: designTitle ?? "")
+        let suggestions = DesignNameIdeas.words(for: name).filter { !used.contains($0) }
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("App name").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
+            TextField("Birthday card", text: $appName).textFieldStyle(.roundedBorder).onSubmit { commitAppName() }
+            Text("Word that runs it after the backslash").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa)
+            HStack(spacing: 4) {
+                Text("\\").font(.system(size: 14, weight: .bold, design: .monospaced)).foregroundStyle(Butter.coral)
+                TextField("hbd", text: $commandWord).textFieldStyle(.roundedBorder).frame(width: 110)
+                    .onSubmit { commitAppName(); commandWord = onCommandChange?(commandWord) ?? commandWord }
+            }
+            if !suggestions.isEmpty {
+                Text("Suggestions").font(.system(size: 11)).foregroundStyle(.secondary)
+                HStack(spacing: 6) {
+                    ForEach(suggestions, id: \.self) { word in
+                        Button { commitAppName(); commandWord = onCommandChange?(word) ?? word } label: {
+                            Text("\\" + word).font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        }.buttonStyle(.bordered).controlSize(.small)
+                    }
+                }
+            }
+            hint("Then type \\\(commandWord.isEmpty ? "word" : commandWord)-name in any app to run it.")
+        }
     }
 
     private var pictureCard: some View {
@@ -1279,6 +1344,7 @@ struct TemplateDesignerView: View {
     }
 
     private func applyBase(_ image: NSImage) {
+        TemplateBackground.clearCache()
         base = image
         store.setPicture(image, for: template)
         refresh()
@@ -1299,7 +1365,7 @@ struct TemplateDesignerView: View {
     }
 
     private func replacePicture() {
-        guard let picked = TemplateDialogs.openImage(title: "Choose a new picture for this template") else { return }
+        guard let picked = TemplateDialogs.openImage(title: "Choose a new background (a PNG with a transparent background lets you change its colour)") else { return }
         pushUndo()
         let fitted = TemplateImages.limited(picked, maxSide: 3200)
         let size = TemplateImages.pixelSize(fitted)
@@ -1307,7 +1373,7 @@ struct TemplateDesignerView: View {
         template.pixelHeight = Int(size.height)
         store.setOriginal(fitted, for: template)
         applyBase(fitted)
-        message = "Picture replaced. Your boxes stayed where they were."
+        message = TemplateBackground.canRecolour(template) ? "Background replaced. Your boxes stayed where they were." : "Background replaced. Tip: a PNG with a transparent background lets you change the background colour."
     }
 
     /// Erases exactly inside the shape the person drew. Nothing outside it is touched.
@@ -1734,17 +1800,9 @@ extension TemplateDesignerView {
 
     private func allTextIndices() -> [Int] { template.slots.indices.filter { template.slots[$0].kind == .text } }
 
-    private func setPageColor(_ hex: String) {
-        let size = TemplateImages.pixelSize(base)
-        guard let rep = TemplateImages.bitmap(width: Int(size.width), height: Int(size.height)),
-              let context = NSGraphicsContext(bitmapImageRep: rep) else { return }
-        NSGraphicsContext.saveGraphicsState()
-        NSGraphicsContext.current = context
-        NSColor(templateHex: hex).setFill()
-        NSRect(x: 0, y: 0, width: size.width, height: size.height).fill()
-        NSGraphicsContext.restoreGraphicsState()
-        let image = NSImage(size: NSSize(width: size.width, height: size.height))
-        image.addRepresentation(rep)
+    @discardableResult private func setPageColor(_ hex: String) -> String {
+        let result = TemplateBackground.recoloured(template, hex: hex)
+        guard let image = result.image else { return result.message }
         applyBase(image)
         let dark = luminance(hex) < 0.45
         for index in allTextIndices() {
@@ -1752,6 +1810,7 @@ extension TemplateDesignerView {
             if dark && level < 0.45 { template.slots[index].colorHex = "#FFFFFF" }
             if !dark && level > 0.75 { template.slots[index].colorHex = "#1F2A2E" }
         }
+        return "Background colour changed."
     }
 
     private func applyTheme(_ hex: String) {
@@ -1932,8 +1991,7 @@ extension TemplateDesignerView {
                 }
                 return "Logo colour changed."
             case .page:
-                setPageColor(hex)
-                return "Page colour changed."
+                return setPageColor(hex)
             case .theme:
                 applyTheme(hex)
                 return "Theme changed."
