@@ -1,9 +1,9 @@
 {
-  "version": "4.47",
-  "build": 457,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.47-build457/EzMe-4.47-macOS.zip",
-  "sha256": "ceed8c827687889162420e6634d1cda7cb3e64f5443c0f7f01210fa82eacdf03",
-  "notes": "# KeyDo 4.47\n\n**Browser in its own window**\n- New **Open the browser in its own window** button in the Browser top bar, and **File > New Browser Window** (Shift Command N).\n- Every window has its own tabs, selected tab, split view and web pages, so you can browse different things side by side and swipe between windows. Sign-ins are shared with the main browser.\n- A separate window does not save its tabs: closing it closes them. The main browser keeps saving as before.\n\n**One voice at a time**\n- The mic under the prompt, the other Speak buttons, the Hey KeyDo voice bubble and Fill by voice no longer run together. Starting one stops the others, and the Hey KeyDo listener comes back when the mic is free again.\n\n**Keyboard safety:** checked. The key tap, popup and every mode that swallows keys are untouched. The voice change only starts and stops listeners.",
-  "published": "2026-11-21T19:58:35Z",
+  "version": "4.48",
+  "build": 458,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.48-build458/EzMe-4.48-macOS.zip",
+  "sha256": "8dbbb345c08d4ac0e956fada0d986174d2e3f129a2f5568d0a512474bb71ecfd",
+  "notes": "# KeyDo 4.48\n\n**Prompt Builder voice**\n- Fixes words being typed twice while you speak: the same finished sentence arriving twice is ignored, and words the speech engine repeats at the start of a new round are dropped.\n- **Said twice** fix: in the Check the prompt box, a word or phrase said twice in a row becomes one, live as you type or speak (for example \"send it to him send it to him\"). It follows the Auto-correct switch, and Polish with AI also removes repeats. Shortcuts, names, formulas and attachment labels are never touched.\n- \"Send to ChatGPT\", \"enter ChatGPT\", \"share with Grok\", \"paste in Claude\" and the same for your other sites are steadier: a spoken send waits until you stop speaking (about a second), so it never sends half a prompt, and names heard as separate letters (\"chat gee pee tee\") are understood.\n\n**Keyboard safety:** checked. The key tap, popup and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T20:17:17Z",
   "minimumSystemVersion": "14.0"
 }
