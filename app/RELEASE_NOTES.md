@@ -1,11 +1,15 @@
-# KeyDo 4.43
+# KeyDo 4.44
 
-**Video Editor: Watermark tab**
-- Keep a logo on the whole video, with a see-through level, size, gap and any of nine positions. The logo can come from your Mac, the library or the clipboard, and its plain background can be made transparent.
-- Add pictures or animated GIFs over the video for the seconds you choose, with size, position and see-through level. Each fades in and out and is drawn into the video when you export it, so it looks like part of the film. A GIF keeps playing for its seconds.
-- Preview with a time slider, then save as a shortcut or to the Desktop. Sound is kept.
+**Prompt Builder, simpler**
+- New look and headline. Everything you can add (collections and shortcuts, media, files, people and apps, functions) is now one **+ Add context** button.
+- The step bar is gone and the temporary-link row is tucked into an optional line. While the prompt is empty, three starters appear under **Skip the blank page**: Write something, Make a plan, Brainstorm ideas.
+- Prompt Builder is also on the **Home** page, in a section you can close.
 
-**Wish Studio filters**
-- A **Filter** menu (the same Prism filters as the Video Editor) with a strength slider sits beside Library and Paste in the artwork step. Changing it redraws the app's templates at once and refreshes a published app. It changes the artwork background, so the finished card follows.
+**Hide apps**
+- In AppBuilder, **Hide apps / Show apps** closes the row of app tabs. KeyDo remembers your choice.
+
+**Ask KeyDo tab**
+- A new tab under Create with three parts: Ask (chat that suggests an app and opens it), What each app does, and How to use with pictures.
+- The picture guide loads each screenshot from ezme.ezyourlife.com/guide/images/. Pictures that are not published yet show "coming soon".
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.

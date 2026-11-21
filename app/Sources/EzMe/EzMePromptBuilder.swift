@@ -477,8 +477,7 @@ struct PromptBuilderView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 header
-                tempLinkRow
-                ViewThatFits(in: .horizontal) { stepper; EmptyView() }
+                DisclosureGroup("Send to one particular page (optional)") { tempLinkRow }.font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .top, spacing: 10) {
                         VStack(spacing: 10) { typingBox }.frame(minWidth: 360)
@@ -486,6 +485,7 @@ struct PromptBuilderView: View {
                     }
                     VStack(spacing: 10) { typingBox; liveBox; sendBox }
                 }
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { starters }
                 if !notice.isEmpty {
                     Label(notice, systemImage: "info.circle.fill").font(.callout).foregroundStyle(Butter.cocoa)
                         .padding(.horizontal, 12).padding(.vertical, 8)
@@ -532,7 +532,7 @@ struct PromptBuilderView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
-            BuilderHeader(symbol: "text.bubble.fill", title: "Prompt Builder", subtitle: canSend ? "Ready: say “send to \(quickTarget?.name.lowercased() ?? "chatgpt")” or press Send." : "Write or speak one prompt, add media with # and @, then send it to any AI site.") {
+            BuilderHeader(symbol: "text.bubble.fill", title: "Big ideas. Better prompts.", subtitle: canSend ? "Ready: say “send to \(quickTarget?.name.lowercased() ?? "chatgpt")” or press Send." : "Write or speak one prompt, add media with # and @, then send it to any AI site.") {
                 HStack(spacing: 6) {
                     Button { showVoiceHelp.toggle() } label: { Image(systemName: "waveform") }
                         .buttonStyle(.bordered).controlSize(.small).help("Voice commands")
@@ -553,7 +553,6 @@ struct PromptBuilderView: View {
                     }
                 }
             }
-            tokenGuide
         }
     }
 
@@ -632,8 +631,37 @@ struct PromptBuilderView: View {
 
     // MARK: Typing
 
+    /// "Skip the blank page": three ways to begin, shown only while the prompt is empty.
+    private var starters: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Skip the blank page").font(.system(size: 17, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa)
+            HStack(spacing: 10) {
+                starter("pencil", "Write something", "Draft a message, intro or overview.", "Write a friendly, clear message to  about ")
+                starter("calendar", "Make a plan", "Turn ideas into a clear next step.", "Make a simple step-by-step plan for ")
+                starter("lightbulb", "Brainstorm ideas", "Explore fresh angles and possibilities.", "Give me 10 fresh ideas for ")
+            }
+        }
+    }
+
+    private func starter(_ symbol: String, _ title: String, _ line: String, _ start: String) -> some View {
+        Button { text = start; editorFocused = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: symbol).font(.title3).foregroundStyle(Butter.coral).frame(width: 36, height: 36).background(Butter.honey.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 13, weight: .semibold))
+                    Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Butter.cream, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Butter.coral.opacity(0.15)))
+        }.buttonStyle(.plain)
+    }
+
     private var typingBox: some View {
-        BuilderCard(step: 1, title: "Write your prompt", symbol: "pencil") {
+        BuilderCard(step: nil, title: "Your prompt", symbol: "pencil") {
             typingContent
         }
     }
@@ -656,11 +684,17 @@ struct PromptBuilderView: View {
                 )
                 Spacer(minLength: 4)
                 Text("\(text.split(whereSeparator: { $0.isWhitespace }).count)w").font(.caption2).foregroundStyle(.tertiary).help("Words in the prompt")
-                Menu { collectionsMenu } label: { iconChip("number", "Collections and shortcuts") }
-                Menu { mediaMenu } label: { iconChip("photo", "Media") }
-                Button { chooseFiles() } label: { iconChip("paperclip", "Attach files from your Mac") }.buttonStyle(.plain)
-                Menu { appsMenu } label: { iconChip("at", "Apps and people") }
-                Menu { functionsMenu } label: { iconChip("function", "Functions") }
+                Menu {
+                    Menu("Collections and shortcuts") { collectionsMenu }
+                    Menu("Media") { mediaMenu }
+                    Button("Attach files from your Mac") { chooseFiles() }
+                    Menu("People and apps") { appsMenu }
+                    Menu("Functions") { functionsMenu }
+                } label: {
+                    Label("Add context", systemImage: "plus").font(.system(size: 12, weight: .semibold)).foregroundStyle(Butter.coral)
+                        .padding(.horizontal, 10).padding(.vertical, 5).background(Butter.honey.opacity(0.55), in: Capsule())
+                }
+                .help("Collections, media, files, people, apps and functions: everything that goes along with your prompt")
                 Button { text = ""; notice = ""; heard = ""; voiceHint = ""; dismissed = [] } label: { iconChip("xmark.circle", "Clear the prompt") }.buttonStyle(.plain).disabled(text.isEmpty)
             }
             .menuStyle(.borderlessButton).menuIndicator(.hidden)
@@ -1072,7 +1106,7 @@ struct PromptBuilderView: View {
     // MARK: Live prompt
 
     private var liveBox: some View {
-        BuilderCard(step: 3, title: aiText == nil ? "Check the prompt" : "Polished by AI", symbol: "checkmark.seal", accessory: {
+        BuilderCard(step: nil, title: aiText == nil ? "Check the prompt" : "Polished by AI", symbol: "checkmark.seal", accessory: {
             Toggle("Auto-correct", isOn: $autoCorrect).toggleStyle(.switch).controlSize(.mini)
         }) {
             liveContent
@@ -1168,7 +1202,7 @@ struct PromptBuilderView: View {
     // MARK: Send
 
     private var sendBox: some View {
-        BuilderCard(step: 4, title: "Send to an AI site", symbol: "paperplane", accessory: {
+        BuilderCard(step: nil, title: "Send to an AI site", symbol: "paperplane", accessory: {
             HStack(spacing: 8) {
                 Button { showAddSite = true } label: { BuilderChipLabel(text: "Add site", symbol: "plus") }.buttonStyle(.plain)
                 Button { editingSites.toggle() } label: { BuilderChipLabel(text: editingSites ? "Done" : "Edit links", symbol: editingSites ? "checkmark" : "pencil") }.buttonStyle(.plain)
