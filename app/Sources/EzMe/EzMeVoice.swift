@@ -277,8 +277,8 @@ final class KeyDoVoice: ObservableObject {
     // MARK: Buttons
     /// `yielding` is false for screens that borrow this microphone for their own sentences: they must not stop each other.
     func start(_ context: Context, yielding: Bool = true) {
+        NotificationCenter.default.post(name: .keydoDictationYield, object: self)
         if phase == .off {
-            NotificationCenter.default.post(name: .keydoDictationYield, object: self)
             if yielding { NotificationCenter.default.post(name: .keydoVoicePriority, object: self) }
         }
         errorMessage = ""
