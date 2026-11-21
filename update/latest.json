@@ -1,9 +1,9 @@
 {
-  "version": "4.52",
-  "build": 462,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.52-build462/EzMe-4.52-macOS.zip",
-  "sha256": "a555a09db3e2a313012b8e0f6e5e447326bfa8ab43a2229acd39a1a5cd04b4d7",
-  "notes": "# KeyDo 4.52\n\n**Research capture in the browser**\n- A new **Research capture** button in the browser tools row. Press it and, for 10 minutes, every picture you copy in the browser (right click, Copy Image) is saved to Database Organizer in a new collection called **Research**, with the page it came from in the notes.\n- It shows the time left and how many pictures are saved, and turns itself off after 10 minutes (or press it again to stop).\n- Pictures only: videos are never saved. A copy made anywhere other than the browser is ignored, and the same picture is saved once.\n\n**Prompt Builder on Home**\n- The Home page prompt is now cleared when you close the box or leave Home, so an old prompt never shows up there. The Prompt Builder app in AppBuilder keeps its text as before.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T21:33:55Z",
+  "version": "4.53",
+  "build": 463,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.53-build463/EzMe-4.53-macOS.zip",
+  "sha256": "2c04b880c469555330bfb84c1ad5825ff71cd48db84d44c6271ddbafe04fd332",
+  "notes": "# KeyDo 4.53\n\n**Collections grid: no more overlapping tiles**\n- Sorting, or switching between Video, Image and the other type tabs, now rebuilds the grid cleanly. Every tile has the same fixed size, and video and GIF previews are clipped to their tile, so nothing overlaps.\n\n**Hide or show the categories panel**\n- A new sidebar button at the top left of a collection hides or shows the categories list, so the grid can use the full width. KeyDo remembers your choice.\n\n**A neater Collections view**\n- Roomier header and spacing, Favourites and Sort together in one row, softer card borders and corners, and a single-line tag strip so tiles stay even.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T22:05:48Z",
   "minimumSystemVersion": "14.0"
 }
