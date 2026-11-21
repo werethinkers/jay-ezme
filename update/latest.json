@@ -1,9 +1,9 @@
 {
-  "version": "4.48",
-  "build": 458,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.48-build458/EzMe-4.48-macOS.zip",
-  "sha256": "8dbbb345c08d4ac0e956fada0d986174d2e3f129a2f5568d0a512474bb71ecfd",
-  "notes": "# KeyDo 4.48\n\n**Prompt Builder voice**\n- Fixes words being typed twice while you speak: the same finished sentence arriving twice is ignored, and words the speech engine repeats at the start of a new round are dropped.\n- **Said twice** fix: in the Check the prompt box, a word or phrase said twice in a row becomes one, live as you type or speak (for example \"send it to him send it to him\"). It follows the Auto-correct switch, and Polish with AI also removes repeats. Shortcuts, names, formulas and attachment labels are never touched.\n- \"Send to ChatGPT\", \"enter ChatGPT\", \"share with Grok\", \"paste in Claude\" and the same for your other sites are steadier: a spoken send waits until you stop speaking (about a second), so it never sends half a prompt, and names heard as separate letters (\"chat gee pee tee\") are understood.\n\n**Keyboard safety:** checked. The key tap, popup and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T20:17:17Z",
+  "version": "4.49",
+  "build": 459,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.49-build459/EzMe-4.49-macOS.zip",
+  "sha256": "ba2c4f45d5ca047b42c9bff44d735c7ca22f8baa41cbb144d1e9196ebfb33c03",
+  "notes": "# KeyDo 4.49\n\n**Font Creator, much closer to your picture**\n- Upload a picture of a letter, a word or a whole alphabet, then type which letters it shows (for example HES). KeyDo cuts each letter out of the picture and uses it exactly as it looks, with its own colours and shape. Parts that belong together, such as the dot inside a block, stay with their letter.\n- Letters not in your picture are drawn in the same weight, corners, lean and colours. A capital cut from your picture also serves the small letter when the picture has none.\n- **Small letters a to z** now work in every KeyDo font (they were drawn as capitals before), plus ( ) / + marks.\n- **10 more fonts, 20 in all:** Midnight Inline, Block 3D, Sticker Pop, Gloss Candy, Ink Mono, Heavy Slab, Tall Condensed, Wide Techno, Carnival Dots, Gold Stencil. Four new looks: Inline, 3D block, Sticker and Gloss.\n- Fonts show as \"KeyDo \u00b7 name\" in Wish Studio, Template Designer and AppDesigner, as before.\n- Limits: letters cut from a picture are pictures, so very large text can look a little soft. One picture gives only the letters it shows; the rest are drawn in matching style, not copied.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T20:41:53Z",
   "minimumSystemVersion": "14.0"
 }
