@@ -49,6 +49,13 @@ struct WishCanvas: View {
     @State private var sizeStart: [String: [Double]] = [:]
     private static let corners: [(Double, Double)] = [(-1, -1), (0, -1), (1, -1), (1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0)]
 
+    private func handlePosition(_ slot: TemplateSlot, _ dir: (Double, Double), _ w: CGFloat, _ h: CGFloat) -> CGPoint {
+        let radians = slot.angle * Double.pi / 180
+        let halfW = Double(max(46, w * slot.w)) / 2 * dir.0, halfH = Double(max(28, h * slot.h)) / 2 * dir.1
+        return CGPoint(x: Double(w * slot.cx) + halfW * cos(radians) - halfH * sin(radians),
+                       y: Double(h * slot.cy) + halfW * sin(radians) + halfH * cos(radians))
+    }
+
     var body: some View {
         ZStack {
             WishSimpleTheme.stage
@@ -67,6 +74,7 @@ struct WishCanvas: View {
                                 .background(RoundedRectangle(cornerRadius: 5).fill(slot.id == selected ? Color.white.opacity(0.12) : Color.clear))
                                 .frame(width: boxW, height: boxH)
                                 .contentShape(Rectangle())
+                                .rotationEffect(.degrees(slot.angle))
                                 .position(x: w * slot.cx, y: h * slot.cy)
                                 .gesture(
                                     DragGesture(minimumDistance: 1, coordinateSpace: .named("wishCanvas"))
@@ -85,15 +93,21 @@ struct WishCanvas: View {
                                 let dir = Self.corners[number]
                                 Circle().fill(Color.white).overlay(Circle().strokeBorder(WishSimpleTheme.accent, lineWidth: 2)).frame(width: 12, height: 12)
                                     .contentShape(Rectangle().inset(by: -6))
-                                    .position(x: w * chosen.cx + CGFloat(dir.0) * max(46, w * chosen.w) / 2, y: h * chosen.cy + CGFloat(dir.1) * max(28, h * chosen.h) / 2)
+                                    .position(handlePosition(chosen, dir, w, h))
                                     .gesture(
                                         DragGesture(minimumDistance: 0, coordinateSpace: .named("wishCanvas"))
                                             .onChanged { value in
                                                 let start = sizeStart[chosen.id] ?? [chosen.cx, chosen.cy, max(46 / Double(w), chosen.w), max(28 / Double(h), chosen.h)]
                                                 sizeStart[chosen.id] = start
-                                                let newW = max(0.06, start[2] + dir.0 * Double(value.translation.width / w))
-                                                let newH = max(0.04, start[3] + dir.1 * Double(value.translation.height / h))
-                                                onResize(chosen.id, start[0] + dir.0 * (newW - start[2]) / 2, start[1] + dir.1 * (newH - start[3]) / 2, newW, newH)
+                                                let radians = chosen.angle * Double.pi / 180
+                                                let cosA = cos(radians), sinA = sin(radians)
+                                                let dx = Double(value.translation.width), dy = Double(value.translation.height)
+                                                let localX = dx * cosA + dy * sinA, localY = -dx * sinA + dy * cosA
+                                                let startW = start[2] * Double(w), startH = start[3] * Double(h)
+                                                let newW = max(0.06 * Double(w), startW + dir.0 * localX)
+                                                let newH = max(0.04 * Double(h), startH + dir.1 * localY)
+                                                let shiftX = dir.0 * (newW - startW) / 2, shiftY = dir.1 * (newH - startH) / 2
+                                                onResize(chosen.id, start[0] + (shiftX * cosA - shiftY * sinA) / Double(w), start[1] + (shiftX * sinA + shiftY * cosA) / Double(h), newW / Double(w), newH / Double(h))
                                             }
                                             .onEnded { _ in sizeStart[chosen.id] = nil; onEnd() }
                                     )
@@ -163,6 +177,15 @@ struct WishLayerProperties: View {
                                 Text(name).font(.custom(name, size: 13)).tag(name)
                             }
                         }.labelsHidden()
+                    }
+                    labelled("Angle") {
+                        HStack(spacing: 6) {
+                            Slider(value: Binding(get: { slot.angle }, set: { if let i = index { template.slots[i].angle = (($0 / 5).rounded() * 5) } }), in: -180...180)
+                            Text("\(Int(slot.angle))\u{00B0}").font(.system(size: 12, design: .monospaced)).frame(width: 44, alignment: .trailing)
+                            Button("0\u{00B0}") { if let i = index { template.slots[i].angle = 0 } }.buttonStyle(.bordered).controlSize(.small)
+                            Button("\u{2212}15") { if let i = index { template.slots[i].angle = max(-180, slot.angle - 15) } }.buttonStyle(.bordered).controlSize(.small)
+                            Button("+15") { if let i = index { template.slots[i].angle = min(180, slot.angle + 15) } }.buttonStyle(.bordered).controlSize(.small)
+                        }
                     }
                     labelled("Colour") {
                         HStack(spacing: 6) {

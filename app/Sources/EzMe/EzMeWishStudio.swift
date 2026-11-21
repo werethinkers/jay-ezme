@@ -1615,6 +1615,10 @@ struct WishStudioView: View {
                 if !model.simple, let id = WishAppLink.designID(model), (AppDesignStore.shared.design(id: id)?.version ?? 0) == 0 { model.designMode = true }
             }
         }
+        .onChange(of: model.simple) { simple in
+            // Advanced tools open straight on the design made in the simple view, so nothing has to be done twice.
+            if !simple, WishAppLink.designID(model) != nil { WishDesignSync.sync(model); model.designMode = true }
+        }
         .onReceive(TemplateStore.shared.objectWillChange.receive(on: DispatchQueue.main)) { _ in WishDesignSync.sync(model) }
         .onReceive(AppDesignStore.shared.objectWillChange.receive(on: DispatchQueue.main)) { _ in WishDesignSync.sync(model) }
         .sheet(isPresented: $showNewTemplate) {

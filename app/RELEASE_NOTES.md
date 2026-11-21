@@ -1,11 +1,7 @@
-# KeyDo 4.37
+# KeyDo 4.38
 
-## What's new
-- **Wish Studio, simple view**: a **Font** choice for text layers, and the selection box now has 8 handles on the card, so you can drag its corners and edges to resize it.
-- **Collections**: a **Sort** menu in the collection view: name A-Z or Z-A, newest or oldest first (order added), shortcut, category, type, favourites first.
-- **Collections, editing a shortcut**: the first Edit now opens the shortcut you clicked. Before, the first click could open an empty or wrong editor, and you had to open another item first.
-- **Favourite on the tile**: every tile in the collection grid has its own heart button, so you no longer need to open the media. It is still in the large viewer too.
-- **Database Organizer**: lists and grids show 50 items at a time, with Previous and Next.
+**Wish Studio**
+- Font angle: the simple view now has an Angle control (slider, 0°, −15°, +15°). The text box on the canvas turns with it, and its resize handles follow the angle.
+- Advanced tools now open straight on the design you made in the simple view, so nothing has to be set up twice. Changes made in either view are the same design.
 
-## Keyboard safety
-Checked: the key tap `miniJSlashTap`, the popup, voice, and the modes that swallow keys (`pickerActive`, `imagePromptMode`, `triggerTracking`) were not touched. The heartbeat watchdog is unchanged and no work was added inside the callback.
+**Keyboard safety:** checked. No change to the key tap, popup, voice or any mode that swallows keys; the tap, its release guard and the heartbeat watchdog are untouched.
