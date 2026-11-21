@@ -1,9 +1,9 @@
 {
-  "version": "4.41",
-  "build": 451,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.41-build451/EzMe-4.41-macOS.zip",
-  "sha256": "96f1eddb8f1e8b31de467299853985fd7bf4684426987ac4cbb7811f69d453ce",
-  "notes": "# KeyDo 4.41\n\n**Wish Studio library**\n- The Wish Studio Library now has the same search box and category chips as the AppBuilder apps (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other). Right-click a picture to move it to a category. It is the same shelf, so pictures added in either place appear in both.\n\n**Send to app as template now includes every Wish Studio app**\n- In Photo Collage, Logo on Background and Bollywood 80s, the **Send to app as template** menu lists each of your Wish apps by name. The picture is added to that app as one of its templates.\n- When you open that Wish app, pictures sent to it become templates of its design, and a published app is refreshed so the popup uses them.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T09:55:01Z",
+  "version": "4.42",
+  "build": 452,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.42-build452/EzMe-4.42-macOS.zip",
+  "sha256": "5aee2a21943a28cfb302ec91f99c2d9e5f1dc12bc8257f12b0f73fd60e46520d",
+  "notes": "# KeyDo 4.42\n\n**Recent Files (Database Organizer)**\n- Tick files, then Rename: one file, or many with a prefix, suffix, find and replace, numbering and letter case, with a preview. There is a pencil on each file too.\n- Select all shown, and add a tag to every selected file at once.\n- Only the latest 10 tags show; **More** opens the rest.\n- **Manage tags**: rename or delete a tag and it changes everywhere tags are kept (Recent Files and Database Organizer records). Shortcut tags are not included yet.\n\n**Ask KeyDo (Home)**\n- Type what you want to do; KeyDo shows which app or section helps and an Open button that goes straight there. It works on this Mac from KeyDo's own feature list, with no AI key.\n\n**Paste a picture**\n- Photo apps and Wish Studio artwork have a Paste button that uses the picture you copied. It is a button, not a hidden shortcut, so it never clashes with other upload choices.\n\n**Platform guide**\n- A KeyDo platform guide is published at ezme.ezyourlife.com/guide/ and is updated with every release.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T10:28:20Z",
   "minimumSystemVersion": "14.0"
 }
