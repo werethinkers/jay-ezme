@@ -428,6 +428,8 @@ struct PromptBuilderView: View {
     let records: [CollectionRecord]
     var builderApps: [String] = []
     var dataDirectory: URL? = nil
+    /// On the Home page: the prompt is cleared when the box is closed or the page is left, so an old prompt never greets you.
+    var clearsWhenOff = false
 
     @AppStorage("keydoPromptBuilderText") private var text = ""
     @AppStorage("keydoPromptAutoCorrect") private var autoCorrect = true
@@ -510,7 +512,8 @@ struct PromptBuilderView: View {
             .frame(maxWidth: 1240, alignment: .leading)
             .padding(12)
         }
-        .onAppear { recompute(); lastText = text }
+        .onAppear { if clearsWhenOff { text = ""; programmatic = nil }; recompute(); lastText = text }
+        .onDisappear { if clearsWhenOff { text = "" } }
         .task(id: clips.count + records.count + builderApps.count) {
             vocabulary = PromptComposer.vocabulary(clips: clips, records: records)
             let catalog = await MainActor.run { PromptAppCatalog.load(builderApps: builderApps, wishDirectory: dataDirectory) }

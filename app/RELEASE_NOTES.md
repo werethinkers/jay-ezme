@@ -1,8 +1,11 @@
-# KeyDo 4.51
+# KeyDo 4.52
 
-**Font Creator**
-- **Crop:** a Crop button under your picture opens a drag-to-select window. "Use this part as my picture" crops the sample. "Add these letters" cuts the letters you type out of just that part and adds them to your letters, so you can crop one letter at a time (H, then E, then S).
-- **Closer to the exact letter:** KeyDo now guesses the letters in your picture (you can correct them), tries several strictness levels, and joins extra pieces of one letter (the dot of an i, a block with a bite) until the count matches what you typed. A single letter is always one piece.
-- **Make the rest with AI:** press Create with AI to draw the other letters, capitals and numbers, and small letters, in the style of your picture. Each sheet uses one AI picture of your credits (refunded if it fails). The sheet is cut into letters only when the count matches exactly; your own letters are never replaced.
+**Research capture in the browser**
+- A new **Research capture** button in the browser tools row. Press it and, for 10 minutes, every picture you copy in the browser (right click, Copy Image) is saved to Database Organizer in a new collection called **Research**, with the page it came from in the notes.
+- It shows the time left and how many pictures are saved, and turns itself off after 10 minutes (or press it again to stop).
+- Pictures only: videos are never saved. A copy made anywhere other than the browser is ignored, and the same picture is saved once.
+
+**Prompt Builder on Home**
+- The Home page prompt is now cleared when you close the box or leave Home, so an old prompt never shows up there. The Prompt Builder app in AppBuilder keeps its text as before.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.
