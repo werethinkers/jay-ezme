@@ -32,8 +32,10 @@ struct BuilderCard<Content: View, Accessory: View>: View {
     var title: String
     var symbol: String
     var hint: String = ""
+    var collapsible: Bool = false
     @ViewBuilder var accessory: () -> Accessory
     @ViewBuilder var content: () -> Content
+    @State private var open = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -49,9 +51,15 @@ struct BuilderCard<Content: View, Accessory: View>: View {
                     if !hint.isEmpty { Text(hint).font(.system(size: 11.5)).foregroundStyle(.secondary) }
                 }
                 Spacer(minLength: 8)
-                accessory()
+                if open || !collapsible { accessory() }
+                if collapsible {
+                    Image(systemName: "chevron.down").font(.system(size: 12, weight: .bold)).foregroundStyle(Butter.cocoa.opacity(0.6))
+                        .rotationEffect(.degrees(open ? 0 : -90))
+                }
             }
-            content()
+            .contentShape(Rectangle())
+            .onTapGesture { if collapsible { withAnimation(.easeInOut(duration: 0.18)) { open.toggle() } } }
+            if open || !collapsible { content() }
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -62,8 +70,8 @@ struct BuilderCard<Content: View, Accessory: View>: View {
 }
 
 extension BuilderCard where Accessory == EmptyView {
-    init(step: Int? = nil, title: String, symbol: String, hint: String = "", @ViewBuilder content: @escaping () -> Content) {
-        self.init(step: step, title: title, symbol: symbol, hint: hint, accessory: { EmptyView() }, content: content)
+    init(step: Int? = nil, title: String, symbol: String, hint: String = "", collapsible: Bool = false, @ViewBuilder content: @escaping () -> Content) {
+        self.init(step: step, title: title, symbol: symbol, hint: hint, collapsible: collapsible, accessory: { EmptyView() }, content: content)
     }
 }
 

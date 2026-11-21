@@ -452,6 +452,7 @@ struct PromptBuilderView: View {
     @FocusState private var editorFocused: Bool
     @State private var voiceHint = ""
     @State private var showVoiceHelp = false
+    @State private var showAsk = false
     @State private var showAddSite = false
     @State private var editingSites = false
     @State private var siteBeingEdited: PromptTarget?
@@ -466,7 +467,7 @@ struct PromptBuilderView: View {
     @State private var newSiteURL = ""
 
     private var finalPrompt: String { aiText ?? composition.text }
-    private var canSend: Bool { !finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !composition.attachments.isEmpty || !manualFiles.isEmpty }
+    private var canSend: Bool { !finalPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !composition.attachments.isEmpty || !manualFiles.isEmpty }
 
     private var suggestions: [PromptSuggestion] {
         guard let token = PromptSuggestions.lastToken(in: text) else { return [] }
@@ -476,6 +477,8 @@ struct PromptBuilderView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
+                askTab
+                if showAsk { KeyDoAskCard() }
                 header
                 DisclosureGroup("Send to one particular page (optional)") { tempLinkRow }.font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                 ViewThatFits(in: .horizontal) {
@@ -553,6 +556,20 @@ struct PromptBuilderView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// A small tab in the top left corner that opens the Ask KeyDo chat.
+    private var askTab: some View {
+        HStack {
+            Button { withAnimation(.easeInOut(duration: 0.18)) { showAsk.toggle() } } label: {
+                Label("Ask KeyDo", systemImage: "bubble.left.and.text.bubble.right")
+                    .font(.system(size: 12, weight: .semibold)).foregroundStyle(showAsk ? Color.white : Butter.cocoa)
+                    .padding(.horizontal, 11).padding(.vertical, 5)
+                    .background(showAsk ? Butter.coral : Butter.honey.opacity(0.5), in: Capsule())
+            }
+            .buttonStyle(.plain).help("Ask which KeyDo app can help, and open it")
+            Spacer()
         }
     }
 
@@ -661,7 +678,7 @@ struct PromptBuilderView: View {
     }
 
     private var typingBox: some View {
-        BuilderCard(step: nil, title: "Your prompt", symbol: "pencil") {
+        BuilderCard(step: nil, title: "Your prompt", symbol: "pencil", collapsible: true) {
             typingContent
         }
     }
@@ -729,7 +746,7 @@ struct PromptBuilderView: View {
     }
 
     private var contextBox: some View {
-        BuilderCard(step: 2, title: "Add context", symbol: "paperclip", hint: "Collections, media and files go along with your prompt. You can also drop files here.") {
+        BuilderCard(step: 2, title: "Add context", symbol: "paperclip", hint: "Collections, media and files go along with your prompt. You can also drop files here.", collapsible: true) {
             VStack(alignment: .leading, spacing: 10) {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], alignment: .leading, spacing: 8) {
                     Menu { collectionsMenu } label: { BuilderChipLabel(text: "Collections", symbol: "number") }
@@ -1106,7 +1123,7 @@ struct PromptBuilderView: View {
     // MARK: Live prompt
 
     private var liveBox: some View {
-        BuilderCard(step: nil, title: aiText == nil ? "Check the prompt" : "Polished by AI", symbol: "checkmark.seal", accessory: {
+        BuilderCard(step: nil, title: aiText == nil ? "Check the prompt" : "Polished by AI", symbol: "checkmark.seal", collapsible: true, accessory: {
             Toggle("Auto-correct", isOn: $autoCorrect).toggleStyle(.switch).controlSize(.mini)
         }) {
             liveContent
@@ -1202,7 +1219,7 @@ struct PromptBuilderView: View {
     // MARK: Send
 
     private var sendBox: some View {
-        BuilderCard(step: nil, title: "Send to an AI site", symbol: "paperplane", accessory: {
+        BuilderCard(step: nil, title: "Send to an AI site", symbol: "paperplane", collapsible: true, accessory: {
             HStack(spacing: 8) {
                 Button { showAddSite = true } label: { BuilderChipLabel(text: "Add site", symbol: "plus") }.buttonStyle(.plain)
                 Button { editingSites.toggle() } label: { BuilderChipLabel(text: editingSites ? "Done" : "Edit links", symbol: editingSites ? "checkmark" : "pencil") }.buttonStyle(.plain)
@@ -1296,7 +1313,8 @@ struct PromptBuilderView: View {
         // Work out the prompt and the media fresh from the text, so nothing is stale or missed.
         let source = raw ?? text
         let fresh = PromptComposer.compose(source, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
-        let prompt = (raw == nil ? aiText : nil) ?? fresh.text
+        var prompt = (raw == nil ? aiText : nil) ?? fresh.text
+        if prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { prompt = plainPrompt(source, fresh.attachments) }
         let files = fresh.attachments.flatMap { $0.paths } + manualFiles.flatMap { $0.paths }
         NotificationCenter.default.post(name: .keydoSendPrompt, object: PromptDispatchRequest(target: target, prompt: prompt, files: files))
         let attached = fresh.attachments.count + manualFiles.count
@@ -1314,7 +1332,8 @@ struct PromptBuilderView: View {
     private func sendHere() {
         let fresh = PromptComposer.compose(text, clips: clips, records: records, apps: apps, vocabulary: vocabulary, autocorrect: autoCorrect)
         // The media goes in as real attachments, so the "[image: name]" markers are taken out of the words.
-        let prompt = plainPrompt(aiText ?? fresh.text, fresh.attachments)
+        var prompt = plainPrompt(aiText ?? fresh.text, fresh.attachments)
+        if prompt.isEmpty { prompt = plainPrompt(text, fresh.attachments) }
         let files = fresh.attachments.flatMap { $0.paths } + manualFiles.flatMap { $0.paths }
         let placeholder = PromptTarget(name: "Open page", url: "", editor: [], send: [])
         let request = PromptDispatchRequest(target: placeholder, prompt: prompt, files: files)
