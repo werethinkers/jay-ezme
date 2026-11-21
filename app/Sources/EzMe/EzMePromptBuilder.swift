@@ -689,6 +689,9 @@ struct PromptBuilderView: View {
         }.buttonStyle(.plain)
     }
 
+    /// Both prompt boxes, the one you write in and the checked one, are exactly this tall.
+    private static let paneHeight: CGFloat = 188
+
     private var typingBox: some View {
         BuilderCard(step: nil, title: "Your prompt", symbol: "pencil", collapsible: true) {
             typingContent
@@ -699,7 +702,7 @@ struct PromptBuilderView: View {
         VStack(alignment: .leading, spacing: 10) {
             TextEditor(text: $text)
                 .font(.system(size: 15))
-                .frame(height: 92)
+                .frame(height: Self.paneHeight)
                 .padding(6)
                 .scrollContentBackground(.hidden)
                 .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
@@ -1179,7 +1182,7 @@ struct PromptBuilderView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
             }
-            .frame(minHeight: 200, maxHeight: 260)
+            .frame(height: Self.paneHeight + 12)
             .background(.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Butter.coral.opacity(0.2)))
             if aiText == nil && !composition.fixes.isEmpty {

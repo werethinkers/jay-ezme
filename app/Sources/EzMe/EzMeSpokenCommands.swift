@@ -19,7 +19,11 @@ enum SpokenCommands {
 
     /// "send to chatgpt" and its variants: the site name, when the words are a send command.
     static func sendTarget(in normalized: String) -> String? {
-        for lead in ["send this to ", "send it to ", "send prompt to ", "send to ", "share with ", "share to ", "paste in ", "paste into ", "post to ", "submit to "] {
+        for lead in ["enter ", "inter ", "entre "] where normalized.hasPrefix(lead) {
+            let rest = String(normalized.dropFirst(lead.count)).trimmingCharacters(in: .whitespaces)
+            if !rest.isEmpty, rest.split(separator: " ").count <= 3 { return rest }
+        }
+        for lead in ["send this to ", "send it to ", "send prompt to ", "send to ", "share with ", "share to ", "paste this in ", "paste it in ", "paste in ", "paste into ", "share this with ", "share it with ", "post to ", "submit to "] {
             if normalized.hasPrefix(lead) { return String(normalized.dropFirst(lead.count)).trimmingCharacters(in: .whitespaces) }
         }
         return nil
