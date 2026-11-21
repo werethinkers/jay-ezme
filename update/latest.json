@@ -1,9 +1,9 @@
 {
-  "version": "4.38",
-  "build": 448,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.38-build448/EzMe-4.38-macOS.zip",
-  "sha256": "6f40876ea78051cda348b94f2ec2e73b93f92c7143cef6201ca477b7a309262a",
-  "notes": "# KeyDo 4.38\n\n**Wish Studio**\n- Font angle: the simple view now has an Angle control (slider, 0\u00b0, \u221215\u00b0, +15\u00b0). The text box on the canvas turns with it, and its resize handles follow the angle.\n- Advanced tools now open straight on the design you made in the simple view, so nothing has to be set up twice. Changes made in either view are the same design.\n\n**Keyboard safety:** checked. No change to the key tap, popup, voice or any mode that swallows keys; the tap, its release guard and the heartbeat watchdog are untouched.",
-  "published": "2026-11-21T04:12:57Z",
+  "version": "4.39",
+  "build": 449,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.39-build449/EzMe-4.39-macOS.zip",
+  "sha256": "fc3e009a3013a4dd4621c6cf0f12b6516998247eca11a30727f8d1e664204aaf",
+  "notes": "# KeyDo 4.39\n\n**Fixes**\n- Tabs no longer squeeze into each other: Database Organizer tabs and the AppBuilder and Wish Studio app tabs keep their full width and scroll.\n- Location is no longer asked when KeyDo opens. macOS asks only when you run a shortcut or card that needs a place (city, weather and so on).\n- Collections in Database Organizer can be renamed: pick a collection and press Rename. Everything inside moves to the new name.\n- Recent Files is now the second Organizer tab, with a banner on the Organizer page. It also picks up files that arrived in Downloads, even if never opened.\n\n**New AppBuilder apps (10 credits for each picture made; the preview is free)**\n- Photo Collage: up to four views (front, back, top, left, right and more) on one sheet.\n- Logo on Background: turns a logo into a transparent PNG and places it on any picture.\n- Bollywood 80s: a warm, grainy 80s film look with an optional film title.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched; the heartbeat watchdog and release guard are unchanged.",
+  "published": "2026-11-21T04:49:01Z",
   "minimumSystemVersion": "14.0"
 }
