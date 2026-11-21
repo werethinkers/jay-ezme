@@ -1,9 +1,9 @@
 {
-  "version": "4.46",
-  "build": 456,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.46-build456/EzMe-4.46-macOS.zip",
-  "sha256": "755a4dda852fa93b45751d8e60496a9e137a50d89520995181ab587870dbffab",
-  "notes": "# KeyDo 4.46\n\n**Prompt Builder**\n- Every section (Your prompt, Add context, Check the prompt, Send to an AI site) now opens and closes with an arrow on its title.\n- **Ask KeyDo** is now a small tab in the top left corner of Prompt Builder. It opens the chat that suggests which app can help and opens it. The big Ask KeyDo card on Home is gone.\n- Send to ChatGPT (and every other site), Send here and the voice \"send to\" commands now work from what you typed even when Auto-correct is off.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T11:52:20Z",
+  "version": "4.47",
+  "build": 457,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.47-build457/EzMe-4.47-macOS.zip",
+  "sha256": "ceed8c827687889162420e6634d1cda7cb3e64f5443c0f7f01210fa82eacdf03",
+  "notes": "# KeyDo 4.47\n\n**Browser in its own window**\n- New **Open the browser in its own window** button in the Browser top bar, and **File > New Browser Window** (Shift Command N).\n- Every window has its own tabs, selected tab, split view and web pages, so you can browse different things side by side and swipe between windows. Sign-ins are shared with the main browser.\n- A separate window does not save its tabs: closing it closes them. The main browser keeps saving as before.\n\n**One voice at a time**\n- The mic under the prompt, the other Speak buttons, the Hey KeyDo voice bubble and Fill by voice no longer run together. Starting one stops the others, and the Hey KeyDo listener comes back when the mic is free again.\n\n**Keyboard safety:** checked. The key tap, popup and every mode that swallows keys are untouched. The voice change only starts and stops listeners.",
+  "published": "2026-11-21T19:58:35Z",
   "minimumSystemVersion": "14.0"
 }
