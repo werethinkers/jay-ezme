@@ -181,10 +181,18 @@ struct LibraryGridView: View {
         viewer = LibraryGalleryStart(items: items, index: start)
     }
 
+    /// Changes whenever the order or the set of tiles changes, so the grid is rebuilt and no tile keeps an old position.
+    private var orderSignature: String {
+        let ids = clips.prefix(shown)
+        var h = Hasher()
+        for c in ids { h.combine(c.id) }
+        return "\(clips.count)-\(h.finalize())"
+    }
+
     var body: some View {
         ScrollView {
           LazyVStack(spacing: 0) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 320), spacing: 14, alignment: .top)], spacing: 14) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
                 ForEach(clips.prefix(shown)) { clip in
                     LibraryGridCard(
                         clip: clip,
@@ -197,9 +205,11 @@ struct LibraryGridView: View {
                         onEnlarge: { openViewer(clip, path: clip.files.first { FileManager.default.fileExists(atPath: $0) }) },
                         onFavorite: { on in setFavorite(clip, on) }
                     )
+                    .id(clip.id)
                 }
             }
-            .padding(2)
+            .id(orderSignature)
+            .padding(4)
             if shown < clips.count {
                 ProgressView().controlSize(.small).padding(14)
                     .onAppear { shown = min(clips.count, shown + LibraryGridView.nextBatch) }
@@ -254,16 +264,18 @@ struct LibraryGridCard: View {
                     .foregroundStyle(Butter.coral).lineLimit(1)
                 Text(clip.name.isEmpty ? "Untitled" : clip.name)
                     .font(.system(size: 14, weight: .bold, design: .rounded)).lineLimit(1)
-                TagStrip(tags: clip.tags ?? [])
+                TagStrip(tags: clip.tags ?? []).lineLimit(1)
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, minHeight: 74, maxHeight: 74, alignment: .topLeading)
+            .clipped()
         }
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSelected ? Butter.coral : Color.secondary.opacity(0.22), lineWidth: isSelected ? 2 : 1))
-        .shadow(color: .black.opacity(hovering ? 0.14 : 0.05), radius: hovering ? 8 : 3, y: 2)
-        .contentShape(RoundedRectangle(cornerRadius: 14))
+        .frame(height: 160 + 74)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? Butter.coral : Color.secondary.opacity(hovering ? 0.34 : 0.16), lineWidth: isSelected ? 2 : 1))
+        .shadow(color: .black.opacity(hovering ? 0.12 : 0.04), radius: hovering ? 7 : 2, y: 2)
+        .contentShape(RoundedRectangle(cornerRadius: 12))
         .onHover { hovering = $0 }
         .onAppear { visible = true }
         .onDisappear { visible = false }
@@ -419,6 +431,7 @@ final class LoopingVideoNSView: NSView {
         self.limit = limit
         super.init(frame: .zero)
         wantsLayer = true
+        layer?.masksToBounds = true
         player.isMuted = true
         playerLayer.player = player
         playerLayer.videoGravity = .resizeAspectFill
