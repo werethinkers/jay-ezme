@@ -1,15 +1,9 @@
-# KeyDo 4.44
+# KeyDo 4.45
 
-**Prompt Builder, simpler**
-- New look and headline. Everything you can add (collections and shortcuts, media, files, people and apps, functions) is now one **+ Add context** button.
-- The step bar is gone and the temporary-link row is tucked into an optional line. While the prompt is empty, three starters appear under **Skip the blank page**: Write something, Make a plan, Brainstorm ideas.
-- Prompt Builder is also on the **Home** page, in a section you can close.
-
-**Hide apps**
-- In AppBuilder, **Hide apps / Show apps** closes the row of app tabs. KeyDo remembers your choice.
-
-**Ask KeyDo tab**
-- A new tab under Create with three parts: Ask (chat that suggests an app and opens it), What each app does, and How to use with pictures.
-- The picture guide loads each screenshot from ezme.ezyourlife.com/guide/images/. Pictures that are not published yet show "coming soon".
+**Font Creator (new app in AppBuilder)**
+- Upload a picture of any one letter. KeyDo reads its thickness, corners, lean and colours and builds a whole A to Z, 0 to 9 and common marks in that look. Fine tune it, type a name to preview, save the alphabet as a picture, and save the font.
+- **10 ready fonts** come with KeyDo: Summit Block (tri-colour blocks), Marquee Neon, Rangoli Dots, Stencil Army, Royal Outline, Retro Shadow, Bollywood Italic, Candy Round, Deco Line and Pixel Grid.
+- Every font shows in the Font list as **KeyDo · name** in Wish Studio text layers, Template Designer and AppDesigner, and draws in the final picture.
+- Limits: these are KeyDo fonts, not installed on your Mac. Word and web page output use a normal font. One letter gives a matching style, not an exact copy of every other letter.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.

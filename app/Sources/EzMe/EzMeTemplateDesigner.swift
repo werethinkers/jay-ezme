@@ -39,7 +39,8 @@ enum TemplateDialogs {
 }
 
 enum TemplateFonts {
-    static let all: [String] = {
+    static var all: [String] { installed + KeyDoFonts.allNames }
+    private static let installed: [String] = {
         let wanted = ["Helvetica Neue", "Arial", "Georgia", "Times New Roman", "Courier New", "Avenir Next", "Futura", "Gill Sans",
                       "Palatino", "Verdana", "Trebuchet MS", "Optima", "Baskerville", "Didot", "Rockwell", "American Typewriter",
                       "Marker Felt", "Noteworthy", "Snell Roundhand", "Bradley Hand", "Kohinoor Devanagari", "Devanagari Sangam MN"]

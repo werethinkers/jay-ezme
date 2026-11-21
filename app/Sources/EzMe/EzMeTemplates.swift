@@ -609,6 +609,11 @@ enum TemplateRenderer {
 
     private static func drawText(_ text: String, slot: TemplateSlot, in box: CGRect, pictureHeight: CGFloat) {
         guard box.width > 2, box.height > 2 else { return }
+        if let keydo = KeyDoFonts.style(named: slot.fontName) {
+            let cap = slot.fontSize > 0 ? slot.fontSize * pictureHeight : box.height
+            KeyDoFonts.draw(text, style: keydo, in: box, maxHeight: cap, color: NSColor(templateHex: slot.colorHex), align: slot.align)
+            return
+        }
         let size = fittingSize(text, slot: slot, in: box, pictureHeight: pictureHeight)
         let attrs = attributes(slot, size: size)
         let bounds = (text as NSString).boundingRect(with: CGSize(width: box.width, height: .greatestFiniteMagnitude),
