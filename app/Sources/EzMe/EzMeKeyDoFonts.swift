@@ -5,6 +5,19 @@
 import SwiftUI
 import AppKit
 
+/// One letter cut out of a picture.
+struct KeyDoGlyph: Codable, Equatable {
+    var png: Data
+    /// Width divided by height.
+    var aspect: Double
+    /// Height compared with the tallest letter in the picture.
+    var ratio: Double
+    /// How far below the writing line it sits, in tallest-letter heights (for g, j, p, q, y).
+    var drop: Double
+    /// False when the picture is one dark colour: the letter then takes the colour of the text box.
+    var colored: Bool
+}
+
 struct KeyDoFontStyle: Codable, Identifiable, Equatable {
     var id: String
     var name: String
@@ -22,9 +35,11 @@ struct KeyDoFontStyle: Codable, Identifiable, Equatable {
     /// Colours used letter by letter. Empty means the colour of the text box.
     var palette: [String] = []
     var builtIn: Bool = false
+    /// Letters cut straight out of the picture, by character. They are drawn exactly as they look in the picture.
+    var glyphs: [String: KeyDoGlyph]? = nil
 
     var fontName: String { "KeyDo \u{00B7} " + name }
-    static let modes = ["Solid", "Outline", "Dots", "Stencil", "Neon glow", "Shadow"]
+    static let modes = ["Solid", "Outline", "Dots", "Stencil", "Neon glow", "Shadow", "Inline", "3D block", "Sticker", "Gloss"]
 }
 
 enum KeyDoFonts {
@@ -42,7 +57,17 @@ enum KeyDoFonts {
         KeyDoFontStyle(id: "bollywood-italic", name: "Bollywood Italic", weight: 0.13, cap: 2, join: 0, slant: 14, width: 0.95, spacing: 0.05, mode: 5, palette: ["#C0262D", "#D9A521"], builtIn: true),
         KeyDoFontStyle(id: "candy-round", name: "Candy Round", weight: 0.19, cap: 1, join: 1, width: 0.9, spacing: 0.05, mode: 0, palette: ["#FF8FB1", "#6FD6B2", "#7FB5FF"], builtIn: true),
         KeyDoFontStyle(id: "deco-line", name: "Deco Line", weight: 0.045, cap: 0, join: 0, width: 1.15, spacing: 0.14, mode: 0, builtIn: true),
-        KeyDoFontStyle(id: "pixel-grid", name: "Pixel Grid", weight: 0.1, cap: 2, join: 0, width: 0.95, spacing: 0.07, mode: 2, palette: ["#2E8B57", "#1F2A44"], builtIn: true)
+        KeyDoFontStyle(id: "pixel-grid", name: "Pixel Grid", weight: 0.1, cap: 2, join: 0, width: 0.95, spacing: 0.07, mode: 2, palette: ["#2E8B57", "#1F2A44"], builtIn: true),
+        KeyDoFontStyle(id: "midnight-inline", name: "Midnight Inline", weight: 0.2, cap: 1, join: 1, spacing: 0.07, mode: 6, palette: ["#1F2A44"], builtIn: true),
+        KeyDoFontStyle(id: "block-3d", name: "Block 3D", weight: 0.15, cap: 2, join: 0, width: 0.95, spacing: 0.08, mode: 7, palette: ["#E8484B"], builtIn: true),
+        KeyDoFontStyle(id: "sticker-pop", name: "Sticker Pop", weight: 0.15, cap: 1, join: 1, spacing: 0.1, mode: 8, palette: ["#FF6F91", "#FFC75F", "#3DBE9B"], builtIn: true),
+        KeyDoFontStyle(id: "gloss-candy", name: "Gloss Candy", weight: 0.17, cap: 1, join: 1, spacing: 0.06, mode: 9, palette: ["#7B61FF", "#FF5C8D"], builtIn: true),
+        KeyDoFontStyle(id: "ink-mono", name: "Ink Mono", weight: 0.06, cap: 1, join: 1, spacing: 0.07, mode: 0, builtIn: true),
+        KeyDoFontStyle(id: "heavy-slab", name: "Heavy Slab", weight: 0.3, cap: 2, join: 0, width: 0.9, spacing: 0.03, mode: 0, palette: ["#0B3D91"], builtIn: true),
+        KeyDoFontStyle(id: "tall-condensed", name: "Tall Condensed", weight: 0.12, cap: 0, join: 0, width: 0.72, spacing: 0.05, mode: 0, builtIn: true),
+        KeyDoFontStyle(id: "wide-techno", name: "Wide Techno", weight: 0.1, cap: 2, join: 0, width: 1.3, spacing: 0.09, mode: 0, palette: ["#00A99D"], builtIn: true),
+        KeyDoFontStyle(id: "carnival-dots", name: "Carnival Dots", weight: 0.15, cap: 1, join: 1, spacing: 0.09, mode: 2, palette: ["#FF006E", "#FFBE0B", "#3A86FF", "#06D6A0"], builtIn: true),
+        KeyDoFontStyle(id: "gold-stencil", name: "Gold Stencil", weight: 0.17, cap: 0, join: 0, spacing: 0.05, mode: 3, palette: ["#B8860B"], builtIn: true)
     ]
 
     // MARK: Your own styles
@@ -133,6 +158,37 @@ enum KeyDoFonts {
         s["?"] = [arc(0.5, 0.74, 0.45, 0.26, 160, -60, 12) + [p(0.5, 0.35), p(0.5, 0.28)], [p(0.5, 0), p(0.5, 0.001)]]
         s["'"] = [[p(0.5, 1), p(0.5, 0.74)]]
         s[":"] = [[p(0.5, 0.7), p(0.5, 0.701)], [p(0.5, 0.05), p(0.5, 0.051)]]
+        let xh = 0.62
+        s["a"] = [arc(0.45, 0.31, 0.45, 0.31, 0, 360, 24), [p(0.9, xh), p(0.9, 0)]]
+        s["b"] = [[p(0, 1), p(0, 0)], arc(0.5, 0.31, 0.5, 0.31, 0, 360, 24)]
+        s["c"] = [arc(0.5, 0.31, 0.5, 0.31, 40, 320, 18)]
+        s["d"] = [[p(1, 1), p(1, 0)], arc(0.5, 0.31, 0.5, 0.31, 0, 360, 24)]
+        s["e"] = [[p(0, 0.31), p(1, 0.31)] + arc(0.5, 0.31, 0.5, 0.31, 0, 320, 22)]
+        s["f"] = [[p(0.35, 0), p(0.35, 0.85)] + arc(0.65, 0.85, 0.3, 0.15, 180, 60, 8), [p(0.02, xh), p(0.75, xh)]]
+        s["g"] = [arc(0.5, 0.31, 0.5, 0.31, 0, 360, 24), [p(1, xh), p(1, -0.05)] + arc(0.5, -0.05, 0.5, 0.25, 0, -180, 12)]
+        s["h"] = [[p(0, 1), p(0, 0)], [p(0, 0.35)] + arc(0.5, 0.35, 0.5, 0.27, 180, 0, 12) + [p(1, 0)]]
+        s["i"] = [[p(0.5, xh), p(0.5, 0)], [p(0.5, 0.88), p(0.5, 0.881)]]
+        s["j"] = [[p(0.6, xh), p(0.6, -0.05)] + arc(0.3, -0.05, 0.3, 0.22, 0, -180, 10), [p(0.6, 0.88), p(0.6, 0.881)]]
+        s["k"] = [[p(0, 1), p(0, 0)], [p(0.9, xh), p(0, 0.25)], [p(0.3, 0.38), p(1, 0)]]
+        s["l"] = [[p(0.5, 1), p(0.5, 0)]]
+        s["m"] = [[p(0, xh), p(0, 0)], [p(0, 0.3)] + arc(0.25, 0.3, 0.25, 0.32, 180, 0, 10) + [p(0.5, 0)], [p(0.5, 0.3)] + arc(0.75, 0.3, 0.25, 0.32, 180, 0, 10) + [p(1, 0)]]
+        s["n"] = [[p(0, xh), p(0, 0)], [p(0, 0.3)] + arc(0.5, 0.3, 0.5, 0.32, 180, 0, 12) + [p(1, 0)]]
+        s["o"] = [arc(0.5, 0.31, 0.5, 0.31, 0, 360, 26)]
+        s["p"] = [[p(0, xh), p(0, -0.3)], arc(0.5, 0.31, 0.5, 0.31, 0, 360, 24)]
+        s["q"] = [[p(1, xh), p(1, -0.3)], arc(0.5, 0.31, 0.5, 0.31, 0, 360, 24)]
+        s["r"] = [[p(0, xh), p(0, 0)], [p(0, 0.3)] + arc(0.5, 0.3, 0.5, 0.32, 180, 60, 8)]
+        s["s"] = [arc(0.5, 0.465, 0.45, 0.155, 30, 270, 10) + arc(0.5, 0.155, 0.5, 0.155, 90, -150, 10)]
+        s["t"] = [[p(0.4, 0.95), p(0.4, 0.1)] + arc(0.7, 0.1, 0.3, 0.1, 180, 270, 6), [p(0.05, xh), p(0.8, xh)]]
+        s["u"] = [[p(0, xh), p(0, 0.3)] + arc(0.5, 0.3, 0.5, 0.3, 180, 360, 12), [p(1, xh), p(1, 0)]]
+        s["v"] = [[p(0, xh), p(0.5, 0), p(1, xh)]]
+        s["w"] = [[p(0, xh), p(0.25, 0), p(0.5, 0.4), p(0.75, 0), p(1, xh)]]
+        s["x"] = [[p(0, xh), p(1, 0)], [p(0, 0), p(1, xh)]]
+        s["y"] = [[p(0, xh), p(0.5, 0)], [p(1, xh), p(0.3, -0.3)]]
+        s["z"] = [[p(0, xh), p(1, xh), p(0, 0), p(1, 0)]]
+        s["("] = [arc(0.9, 0.5, 0.6, 0.7, 120, 240, 10)]
+        s[")"] = [arc(0.1, 0.5, 0.6, 0.7, 60, -60, 10)]
+        s["/"] = [[p(0, 0), p(1, 1)]]
+        s["+"] = [[p(0.1, 0.5), p(0.9, 0.5)], [p(0.5, 0.15), p(0.5, 0.85)]]
         s["&"] = [[p(1, 0), p(0.1, 0.7), p(0.3, 1), p(0.6, 0.8), p(0.0, 0.2), p(0.3, 0), p(0.75, 0.2), p(1, 0.5)]]
         return s
     }()
@@ -145,15 +201,67 @@ enum KeyDoFonts {
         case "M", "W": return 0.92
         case "J", "L", "1", "7": return 0.55
         case "0"..."9": return 0.58
+        case "i", "l": return 0.02
+        case "j": return 0.3
+        case "m", "w": return 0.85
+        case "f", "t", "r": return 0.45
+        case "a"..."z": return 0.56
+        case "(", ")": return 0.25
+        case "/": return 0.5
+        case "+": return 0.6
         case " ": return 0.45
         default: return 0.7
         }
+    }
+
+    // MARK: Letters cut from a picture
+
+    private static let glyphLock = NSLock()
+    private static var glyphImages: [String: NSImage] = [:]
+
+    /// The letter's own cut-out. A capital's cut-out also serves its small letter when the picture has no small one.
+    static func glyph(_ style: KeyDoFontStyle, _ ch: Character) -> KeyDoGlyph? {
+        guard let all = style.glyphs, !all.isEmpty else { return nil }
+        if let exact = all[String(ch)] { return exact }
+        let upper = String(ch).uppercased()
+        if upper != String(ch), let capital = all[upper] { return capital }
+        return nil
+    }
+
+    private static func glyphImage(_ style: KeyDoFontStyle, _ ch: Character, _ cut: KeyDoGlyph, tint: NSColor) -> NSImage? {
+        let name = glyphKey(style, ch)
+        let cacheKey = style.id + "|" + name + "|" + (cut.colored ? "" : tint.templateHex)
+        glyphLock.lock()
+        if let hit = glyphImages[cacheKey] { glyphLock.unlock(); return hit }
+        glyphLock.unlock()
+        guard let base = NSImage(data: cut.png) else { return nil }
+        var result = base
+        if !cut.colored {
+            let size = PhotoCanvas.pixelSize(base)
+            if let rep = PhotoCanvas.bitmap(width: Int(size.width), height: Int(size.height), draw: { canvas in
+                let rect = NSRect(origin: .zero, size: canvas)
+                base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+                tint.setFill()
+                rect.fill(using: .sourceIn)
+            }), let tinted = PhotoCanvas.image(rep) { result = tinted }
+        }
+        glyphLock.lock()
+        if glyphImages.count > 500 { glyphImages.removeAll() }
+        glyphImages[cacheKey] = result
+        glyphLock.unlock()
+        return result
+    }
+
+    private static func glyphKey(_ style: KeyDoFontStyle, _ ch: Character) -> String {
+        if let all = style.glyphs, all[String(ch)] != nil { return String(ch) }
+        return String(ch).uppercased()
     }
 
     // MARK: Measuring and drawing
 
     private static func advance(_ ch: Character, _ style: KeyDoFontStyle, _ height: CGFloat) -> CGFloat {
         if ch == " " { return boxWidth(ch) * CGFloat(style.width) * height }
+        if let cut = glyph(style, ch) { return CGFloat(cut.aspect * cut.ratio) * height + CGFloat(style.spacing) * height }
         return boxWidth(ch) * CGFloat(style.width) * height + CGFloat(style.weight) * height * 0.95 + CGFloat(style.spacing) * height
     }
 
@@ -200,7 +308,7 @@ enum KeyDoFonts {
     static func draw(_ text: String, style: KeyDoFontStyle, in box: CGRect, maxHeight: CGFloat, color base: NSColor, align: String) {
         guard let context = NSGraphicsContext.current?.cgContext, box.width > 2, box.height > 2 else { return }
         let flipped = NSGraphicsContext.current?.isFlipped ?? false
-        let upper = text.uppercased()
+        let upper = text
         let height = fit(upper, style, in: box, maxHeight: maxHeight)
         let wrapped: [String] = lines(upper, style, height, box.width) ?? [upper]
         let step = lineStep(style, height)
@@ -220,6 +328,18 @@ enum KeyDoFonts {
             let fromTop = (box.height - blockHeight) / 2 + CGFloat(row) * step
             for ch in line {
                 defer { x += advance(ch, style, height) }
+                if let cut = glyph(style, ch) {
+                    let cutHeight = height * CGFloat(cut.ratio)
+                    let cutWidth = cutHeight * CGFloat(cut.aspect)
+                    let baseline = flipped ? box.minY + fromTop + height : box.maxY - fromTop - height
+                    let lower = height * CGFloat(cut.drop)
+                    let originY = flipped ? baseline + lower - cutHeight : baseline - lower
+                    if let picture = glyphImage(style, ch, cut, tint: base) {
+                        picture.draw(in: CGRect(x: x, y: originY, width: cutWidth, height: cutHeight), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+                    }
+                    counter += 1
+                    continue
+                }
                 guard let strokes = shapes[ch] else { continue }
                 let boxW = boxWidth(ch) * CGFloat(style.width) * height
                 func device(_ point: CGPoint) -> CGPoint {
@@ -277,6 +397,25 @@ enum KeyDoFonts {
         case 5:
             stroke(weight, NSColor.black.withAlphaComponent(0.35), offset: CGSize(width: weight * 0.35, height: -weight * 0.35))
             stroke(weight, tint)
+        case 6:
+            stroke(weight, tint)
+            stroke(weight * 0.3, NSColor.white.withAlphaComponent(0.9))
+        case 7:
+            let dark = tint.blended(withFraction: 0.45, of: NSColor.black) ?? tint
+            let depth = weight * 0.55
+            for step in stride(from: 10, through: 1, by: -1) {
+                let shift = depth * CGFloat(step) / 10
+                stroke(weight, dark, offset: CGSize(width: shift, height: -shift))
+            }
+            stroke(weight, tint)
+        case 8:
+            stroke(weight + height * 0.07, NSColor.black.withAlphaComponent(0.25), offset: CGSize(width: weight * 0.12, height: -weight * 0.18))
+            stroke(weight + height * 0.07, NSColor.white)
+            stroke(weight, tint)
+        case 9:
+            let light = tint.blended(withFraction: 0.55, of: NSColor.white) ?? tint
+            stroke(weight, tint)
+            stroke(weight * 0.4, light, offset: CGSize(width: -weight * 0.12, height: weight * 0.12))
         default:
             stroke(weight, tint)
         }
@@ -389,5 +528,170 @@ enum KeyDoFontAnalyzer {
         let dark = found.count == 1 && (found[0] == "#000000" || NSColor(templateHex: found[0]).brightnessComponent < 0.2)
         style.palette = dark ? [] : found
         return style
+    }
+}
+
+// MARK: - Cutting the letters out of a picture
+
+extension KeyDoFontAnalyzer {
+    struct Capture {
+        var glyphs: [String: KeyDoGlyph] = [:]
+        var palette: [String] = []
+        var found = 0
+        var expected = 0
+    }
+
+    /// Cuts every letter out of the picture (left to right, row by row) and names them from `letters`, for example "HES".
+    /// Parts that belong to one letter, such as the dot inside a block or the dot of an i, stay with it.
+    static func capture(_ source: NSImage, letters: String) -> Capture {
+        let names = letters.filter { !$0.isWhitespace }.map { String($0) }
+        var result = Capture()
+        result.expected = names.count
+        guard !names.isEmpty else { return result }
+        let size = PhotoCanvas.scaled(PhotoCanvas.pixelSize(source), maxSide: 640)
+        guard let rep = PhotoCanvas.bitmap(width: Int(size.width), height: Int(size.height), draw: { canvas in
+            NSColor.white.setFill()
+            NSBezierPath(rect: NSRect(origin: .zero, size: canvas)).fill()
+            source.draw(in: NSRect(origin: .zero, size: canvas), from: .zero, operation: .sourceOver, fraction: 1)
+        }), let data = rep.bitmapData else { return result }
+        let width = rep.pixelsWide, height = rep.pixelsHigh, stride = rep.bytesPerRow
+        func channel(_ x: Int, _ y: Int, _ c: Int) -> Int { Int(data[y * stride + x * 4 + c]) }
+
+        var bg = [0, 0, 0]
+        for (x, y) in [(0, 0), (width - 1, 0), (0, height - 1), (width - 1, height - 1)] { for c in 0..<3 { bg[c] += channel(x, y, c) } }
+        bg = bg.map { $0 / 4 }
+        var dist = [Int](repeating: 0, count: width * height)
+        var ink = [Bool](repeating: false, count: width * height)
+        var totalInk = 0
+        for y in 0..<height { for x in 0..<width {
+            let dr = channel(x, y, 0) - bg[0], dg = channel(x, y, 1) - bg[1], db = channel(x, y, 2) - bg[2]
+            let d = Int(Double(dr * dr + dg * dg + db * db).squareRoot())
+            dist[y * width + x] = d
+            if d > 70 { ink[y * width + x] = true; totalInk += 1 }
+        } }
+        guard totalInk > 30 else { return result }
+
+        // Pieces: groups of touching ink pixels.
+        var label = [Int32](repeating: -1, count: width * height)
+        var boxes: [(minX: Int, maxX: Int, minY: Int, maxY: Int, area: Int)] = []
+        var pending: [Int] = []
+        for start in 0..<(width * height) where label[start] == -1 && ink[start] {
+            let id = Int32(boxes.count)
+            var box = (minX: width, maxX: 0, minY: height, maxY: 0, area: 0)
+            label[start] = id
+            pending.append(start)
+            while let current = pending.popLast() {
+                let x = current % width, y = current / width
+                box.area += 1
+                box.minX = min(box.minX, x); box.maxX = max(box.maxX, x)
+                box.minY = min(box.minY, y); box.maxY = max(box.maxY, y)
+                if x + 1 < width, label[current + 1] == -1, ink[current + 1] { label[current + 1] = id; pending.append(current + 1) }
+                if x > 0, label[current - 1] == -1, ink[current - 1] { label[current - 1] = id; pending.append(current - 1) }
+                if y + 1 < height, label[current + width] == -1, ink[current + width] { label[current + width] = id; pending.append(current + width) }
+                if y > 0, label[current - width] == -1, ink[current - width] { label[current - width] = id; pending.append(current - width) }
+            }
+            boxes.append(box)
+            if boxes.count > 600 { break }
+        }
+
+        // Join the parts of one letter: pieces inside another piece, and dots sitting above a stem.
+        var parent = Array(0..<boxes.count)
+        func root(_ index: Int) -> Int { var i = index; while parent[i] != i { i = parent[i] }; return i }
+        let bySize = boxes.indices.sorted { boxes[$0].area > boxes[$1].area }
+        for j in bySize {
+            let small = boxes[j]
+            for i in bySize where i != j && boxes[i].area > small.area {
+                let big = boxes[i]
+                let inside = small.minX >= big.minX - 3 && small.maxX <= big.maxX + 3 && small.minY >= big.minY - 3 && small.maxY <= big.maxY + 3
+                let overlap = min(small.maxX, big.maxX) - max(small.minX, big.minX) + 1
+                let gap = max(small.minY - big.maxY, big.minY - small.maxY)
+                let dot = overlap > 0 && Double(overlap) >= 0.6 * Double(small.maxX - small.minX + 1)
+                    && Double(small.area) < 0.2 * Double(big.area) && gap < (big.maxY - big.minY + 1) / 2
+                if inside || dot { parent[root(j)] = root(i); break }
+            }
+        }
+        var groups: [Int: (minX: Int, maxX: Int, minY: Int, maxY: Int, area: Int)] = [:]
+        for index in boxes.indices {
+            let key = root(index)
+            let b = boxes[index]
+            if var g = groups[key] {
+                g.minX = min(g.minX, b.minX); g.maxX = max(g.maxX, b.maxX); g.minY = min(g.minY, b.minY); g.maxY = max(g.maxY, b.maxY); g.area += b.area
+                groups[key] = g
+            } else { groups[key] = b }
+        }
+        var kept = groups.filter { Double($0.value.area) >= Double(totalInk) * 0.004 }.map { (root: $0.key, box: $0.value) }
+        if kept.count > names.count { kept = Array(kept.sorted { $0.box.area > $1.box.area }.prefix(names.count)) }
+        guard !kept.isEmpty else { return result }
+
+        // Reading order: rows from the top, then left to right.
+        let heights = kept.map { $0.box.maxY - $0.box.minY + 1 }.sorted()
+        let median = Double(heights[heights.count / 2])
+        var rows: [[(root: Int, box: (minX: Int, maxX: Int, minY: Int, maxY: Int, area: Int))]] = []
+        for piece in kept.sorted(by: { ($0.box.minY + $0.box.maxY) < ($1.box.minY + $1.box.maxY) }) {
+            let centre = Double(piece.box.minY + piece.box.maxY) / 2
+            if let last = rows.last, let first = last.first, abs(centre - Double(first.box.minY + first.box.maxY) / 2) < 0.6 * median { rows[rows.count - 1].append(piece) }
+            else { rows.append([piece]) }
+        }
+        var ordered: [(root: Int, box: (minX: Int, maxX: Int, minY: Int, maxY: Int, area: Int), row: Int)] = []
+        for (rowIndex, row) in rows.enumerated() { for piece in row.sorted(by: { $0.box.minX < $1.box.minX }) { ordered.append((piece.root, piece.box, rowIndex)) } }
+        let used = Array(ordered.prefix(names.count))
+        let tallest = Double(used.map { $0.box.maxY - $0.box.minY + 3 }.max() ?? 1)
+
+        // Where each row's writing line is: the bottom of its letters that have no tail.
+        var baseline: [Int: Int] = [:]
+        for rowIndex in Set(used.map { $0.row }) {
+            var bottoms: [Int] = []
+            for (k, piece) in used.enumerated() where piece.row == rowIndex && !"gjpqyQ,;".contains(names[k]) { bottoms.append(piece.box.maxY + 1) }
+            if bottoms.isEmpty { bottoms = used.filter { $0.row == rowIndex }.map { $0.box.maxY + 1 } }
+            bottoms.sort()
+            baseline[rowIndex] = bottoms[bottoms.count / 2]
+        }
+
+        var colours: [String] = []
+        var anyLight = false
+        for (k, piece) in used.enumerated() {
+            let x0 = max(0, piece.box.minX - 1), x1 = min(width - 1, piece.box.maxX + 1)
+            let y0 = max(0, piece.box.minY - 1), y1 = min(height - 1, piece.box.maxY + 1)
+            let w = x1 - x0 + 1, h = y1 - y0 + 1
+            guard w > 1, h > 1, let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: w, pixelsHigh: h, bitsPerSample: 8, samplesPerPixel: 4,
+                                                           hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+                  let target = out.bitmapData else { continue }
+            let outStride = out.bytesPerRow
+            var sums = [0, 0, 0], count = 0
+            for y in 0..<h { for x in 0..<w {
+                let sx = x0 + x, sy = y0 + y
+                let index = sy * width + sx
+                let own = label[index] < 0 || root(Int(label[index])) == piece.root
+                let d = dist[index]
+                let alpha = own ? min(1.0, max(0.0, Double(d - 25) / 50.0)) : 0
+                var rgb = [0, 0, 0]
+                if alpha > 0 {
+                    for c in 0..<3 {
+                        let value = Double(channel(sx, sy, c))
+                        let plain = alpha >= 0.999 ? value : (value - Double(bg[c]) * (1 - alpha)) / alpha
+                        rgb[c] = Int(min(255, max(0, plain)))
+                    }
+                    if alpha >= 0.999 { for c in 0..<3 { sums[c] += rgb[c] }; count += 1 }
+                }
+                let o = y * outStride + x * 4
+                target[o] = UInt8(Double(rgb[0]) * alpha)
+                target[o + 1] = UInt8(Double(rgb[1]) * alpha)
+                target[o + 2] = UInt8(Double(rgb[2]) * alpha)
+                target[o + 3] = UInt8(alpha * 255)
+            } }
+            guard let png = out.representation(using: .png, properties: [:]) else { continue }
+            let drop = max(0, Double(piece.box.maxY + 1 - (baseline[piece.row] ?? (piece.box.maxY + 1)))) / tallest
+            let average = count > 0 ? (sums[0] / count, sums[1] / count, sums[2] / count) : (0, 0, 0)
+            let hex = String(format: "#%02X%02X%02X", average.0, average.1, average.2)
+            let tint = NSColor(templateHex: hex)
+            if tint.brightnessComponent > 0.3 || tint.saturationComponent > 0.25 { anyLight = true }
+            if !colours.contains(hex) { colours.append(hex) }
+            result.glyphs[names[k]] = KeyDoGlyph(png: png, aspect: Double(w) / Double(h), ratio: Double(h) / tallest, drop: drop, colored: true)
+        }
+        // A picture in one dark colour takes the colour of the text box instead.
+        if !anyLight { for key in result.glyphs.keys { result.glyphs[key]?.colored = false } }
+        result.palette = anyLight ? Array(colours.prefix(6)) : []
+        result.found = result.glyphs.count
+        return result
     }
 }

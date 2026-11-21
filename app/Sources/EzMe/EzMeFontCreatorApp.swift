@@ -9,6 +9,7 @@ struct FontCreatorApp: View {
     @State private var sample = "Happy Birthday"
     @State private var letter: NSImage?
     @State private var letterName = ""
+    @State private var lettersText = ""
     @State private var draft: KeyDoFontStyle?
     @State private var fontName = ""
     @State private var chosenID = "summit-block"
@@ -27,13 +28,13 @@ struct FontCreatorApp: View {
                     Image(systemName: "textformat.abc").font(.system(size: 26, weight: .bold)).foregroundStyle(Butter.coral)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Font Creator").font(.system(size: 22, weight: .heavy, design: .rounded)).foregroundStyle(Butter.cocoa)
-                        Text("Upload a picture of one letter and get a whole alphabet in that look. Use it in Wish Studio and every design.")
+                        Text("Upload a picture of a letter, a word or a whole alphabet. Your letters are copied exactly, and the rest of A to Z, a to z and 0 to 9 is drawn in the same look.")
                             .font(.callout).foregroundStyle(.secondary)
                     }
                 }
                 Picker("", selection: $tab) {
                     Text("Make from a letter").tag(0)
-                    Text("10 KeyDo fonts").tag(1)
+                    Text("20 KeyDo fonts").tag(1)
                     Text("My fonts (\(saved.count))").tag(2)
                 }.labelsHidden().pickerStyle(.segmented)
 
@@ -57,7 +58,17 @@ struct FontCreatorApp: View {
                 letter = image; letterName = label
                 draft = KeyDoFontAnalyzer.analyze(image)
                 fontName = "My font"
-                notice = "Read the letter. Adjust the look below, then save."
+                notice = "Read the picture. Type which letters it shows below, then adjust the look and save."
+                recapture()
+            }
+            if let letter {
+                HStack(alignment: .top, spacing: 10) {
+                    Image(nsImage: letter).resizable().scaledToFit().frame(height: 70).background(Color.white, in: RoundedRectangle(cornerRadius: 8))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Which letters are in the picture, left to right? For example HES").font(.caption).foregroundStyle(.secondary)
+                        TextField("Letters in the picture", text: $lettersText).textFieldStyle(.roundedBorder).onChange(of: lettersText) { _ in recapture() }
+                    }
+                }
             }
             if let draft {
                 Text("2. Fine tune").font(.system(size: 13, weight: .bold, design: .rounded))
@@ -115,6 +126,18 @@ struct FontCreatorApp: View {
                 Text("In Wish Studio, Template Designer and AppDesigner, pick \u{201C}\(style.fontName)\u{201D} in the Font list.").font(.caption).foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// Cuts the typed letters out of the picture so they are drawn exactly as they look there.
+    private func recapture() {
+        guard let letter, draft != nil else { return }
+        let cleaned = lettersText.filter { !$0.isWhitespace }
+        if cleaned.isEmpty { draft?.glyphs = nil; return }
+        let result = KeyDoFontAnalyzer.capture(letter, letters: lettersText)
+        draft?.glyphs = result.glyphs.isEmpty ? nil : result.glyphs
+        if !result.palette.isEmpty { draft?.palette = result.palette }
+        notice = result.found == result.expected ? "Copied \(result.found) letter\(result.found == 1 ? "" : "s") exactly from your picture. The other letters follow the same look."
+            : "Found \(result.found) separate letters but you typed \(result.expected). Check the letters, or use a clearer picture."
     }
 
     private func saveDraft() {
