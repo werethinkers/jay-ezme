@@ -381,6 +381,11 @@ struct PhotoAppShell<Controls: View>: View {
                         if let result {
                             Button { save(result) } label: { Label("Save PNG", systemImage: "square.and.arrow.down") }.buttonStyle(.bordered)
                             Button { copy(result) } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(.bordered)
+                            Menu {
+                                ForEach(PhotoApps.names, id: \.self) { app in Button(app) { send(result, to: app) } }
+                                Button("Wish Studio backgrounds") { send(result, to: "Wish Studio") }
+                            } label: { Label("Send to app as template", systemImage: "square.and.arrow.up.on.square") }
+                                .menuStyle(.borderlessButton).fixedSize()
                             Button { self.result = nil; message = "" } label: { Text("Back to preview") }.buttonStyle(.borderless)
                         }
                     }
@@ -409,6 +414,13 @@ struct PhotoAppShell<Controls: View>: View {
         do { try data.write(to: url, options: .atomic); message = "Saved to \(url.lastPathComponent)." } catch { message = "Could not save the file." }
     }
 
+    private func send(_ image: NSImage, to app: String) {
+        let stamp = DateFormatter()
+        stamp.dateFormat = "yyyyMMdd-HHmm"
+        let ok = CommonLibrary.send(image, name: title + " " + stamp.string(from: Date()), toApp: app)
+        message = ok ? "Sent. It is now in \(app)'s templates and in the common library." : "Could not send it."
+    }
+
     private func copy(_ image: NSImage) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.writeObjects([image])
@@ -416,15 +428,24 @@ struct PhotoAppShell<Controls: View>: View {
     }
 }
 
+/// Every picture slot in every photo app uses this, so each one can pick from the Mac or from the common library.
 private struct PhotoChooser: View {
+    var app: String
     var title: String
     var name: String
-    var action: () -> Void
+    var pick: (NSImage, String) -> Void
+    @State private var showLibrary = false
     var body: some View {
-        HStack(spacing: 8) {
-            Button(action: action) { Label(name.isEmpty ? title : "Change", systemImage: "photo.badge.plus") }.buttonStyle(.bordered)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Button { if let picked = PhotoCanvas.choose(title) { pick(picked.image, picked.name) } } label: {
+                    Label(name.isEmpty ? "From this Mac" : "Change", systemImage: "photo.badge.plus")
+                }.buttonStyle(.bordered)
+                Button { showLibrary = true } label: { Label("Library", systemImage: "photo.stack") }.buttonStyle(.bordered)
+            }
             Text(name.isEmpty ? "No picture yet" : name).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
         }
+        .sheet(isPresented: $showLibrary) { CommonLibrarySheet(app: app) { image, label in pick(image, label) } }
     }
 }
 
@@ -472,8 +493,8 @@ struct PhotoCollageApp: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Picker("", selection: $slot.label) { ForEach(CollageMaker.labels, id: \.self) { Text($0).tag($0) } }
                             .labelsHidden().frame(width: 130)
-                        PhotoChooser(title: "Choose picture", name: slot.name) {
-                            if let picked = PhotoCanvas.choose("Choose the \(slot.label.lowercased()) view") { slot.image = picked.image; slot.name = picked.name }
+                        PhotoChooser(app: "Photo Collage", title: "Choose the \(slot.label.lowercased()) view", name: slot.name) { image, label in
+                            slot.image = image; slot.name = label
                         }
                     }
                 }
@@ -516,8 +537,8 @@ struct LogoOnBackgroundApp: View {
                       preview: composed(maxSide: 700), ready: background != nil && (cutLogo ?? logo) != nil, suggestedName: "logo-on-picture",
                       make: { composed(maxSide: 3000) }) {
             PhotoStep(number: 1, title: "Your logo") {
-                PhotoChooser(title: "Choose logo", name: logoName) {
-                    if let picked = PhotoCanvas.choose("Choose your logo") { logo = picked.image; logoName = picked.name; refreshCut() }
+                PhotoChooser(app: "Logo on Background", title: "Choose your logo", name: logoName) { image, label in
+                    logo = image; logoName = label; refreshCut()
                 }
                 Toggle("Make the plain background transparent", isOn: $removeBackground).onChange(of: removeBackground) { _ in refreshCut() }
                 if removeBackground {
@@ -525,8 +546,8 @@ struct LogoOnBackgroundApp: View {
                 }
             }
             PhotoStep(number: 2, title: "The picture to put it on") {
-                PhotoChooser(title: "Choose picture", name: backgroundName) {
-                    if let picked = PhotoCanvas.choose("Choose the background picture") { background = picked.image; backgroundName = picked.name }
+                PhotoChooser(app: "Logo on Background", title: "Choose the background picture", name: backgroundName) { image, label in
+                    background = image; backgroundName = label
                 }
             }
             PhotoStep(number: 3, title: "Where it goes") {
@@ -563,8 +584,8 @@ struct BollywoodRetroApp: View {
                       ready: photo != nil, suggestedName: "bollywood-80s",
                       make: { photo.flatMap { RetroMaker.make($0, look: look, title: title, frame: frame, maxSide: 2400) } }) {
             PhotoStep(number: 1, title: "Your picture") {
-                PhotoChooser(title: "Choose picture", name: photoName) {
-                    if let picked = PhotoCanvas.choose("Choose a picture") { photo = picked.image; photoName = picked.name }
+                PhotoChooser(app: "Bollywood 80s", title: "Choose a picture", name: photoName) { image, label in
+                    photo = image; photoName = label
                 }
             }
             PhotoStep(number: 2, title: "Pick the look") {

@@ -1,14 +1,11 @@
-# KeyDo 4.39
+# KeyDo 4.40
 
-**Fixes**
-- Tabs no longer squeeze into each other: Database Organizer tabs and the AppBuilder and Wish Studio app tabs keep their full width and scroll.
-- Location is no longer asked when KeyDo opens. macOS asks only when you run a shortcut or card that needs a place (city, weather and so on).
-- Collections in Database Organizer can be renamed: pick a collection and press Rename. Everything inside moves to the new name.
-- Recent Files is now the second Organizer tab, with a banner on the Organizer page. It also picks up files that arrived in Downloads, even if never opened.
+**Common library for every AppBuilder app**
+- Every picture slot in Photo Collage, Logo on Background and Bollywood 80s now has a **Library** button next to "From this Mac". Any app built on the same picture chooser gets it too.
+- The library has search and categories (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other, and any you add). Right-click a picture to move it to another category or remove it.
+- It is the same shelf as the Wish Studio background library, so pictures added in either place appear in both.
 
-**New AppBuilder apps (10 credits for each picture made; the preview is free)**
-- Photo Collage: up to four views (front, back, top, left, right and more) on one sheet.
-- Logo on Background: turns a logo into a transparent PNG and places it on any picture.
-- Bollywood 80s: a warm, grainy 80s film look with an optional film title.
+**Send to app as template**
+- After you make a picture in a photo app, **Send to app as template** puts it into another app's templates (or Wish Studio backgrounds). It shows first in that app's library, under "This app's templates", and also in the common library.
 
-**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched; the heartbeat watchdog and release guard are unchanged.
+**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.
