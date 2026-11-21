@@ -1,9 +1,9 @@
 {
-  "version": "4.40",
-  "build": 450,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.40-build450/EzMe-4.40-macOS.zip",
-  "sha256": "8d858d0679399988dfef683aaa2e212b488b042878d1a3ccb553088a5b31d24f",
-  "notes": "# KeyDo 4.40\n\n**Common library for every AppBuilder app**\n- Every picture slot in Photo Collage, Logo on Background and Bollywood 80s now has a **Library** button next to \"From this Mac\". Any app built on the same picture chooser gets it too.\n- The library has search and categories (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other, and any you add). Right-click a picture to move it to another category or remove it.\n- It is the same shelf as the Wish Studio background library, so pictures added in either place appear in both.\n\n**Send to app as template**\n- After you make a picture in a photo app, **Send to app as template** puts it into another app's templates (or Wish Studio backgrounds). It shows first in that app's library, under \"This app's templates\", and also in the common library.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T08:17:19Z",
+  "version": "4.41",
+  "build": 451,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.41-build451/EzMe-4.41-macOS.zip",
+  "sha256": "96f1eddb8f1e8b31de467299853985fd7bf4684426987ac4cbb7811f69d453ce",
+  "notes": "# KeyDo 4.41\n\n**Wish Studio library**\n- The Wish Studio Library now has the same search box and category chips as the AppBuilder apps (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other). Right-click a picture to move it to a category. It is the same shelf, so pictures added in either place appear in both.\n\n**Send to app as template now includes every Wish Studio app**\n- In Photo Collage, Logo on Background and Bollywood 80s, the **Send to app as template** menu lists each of your Wish apps by name. The picture is added to that app as one of its templates.\n- When you open that Wish app, pictures sent to it become templates of its design, and a published app is refreshed so the popup uses them.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T09:55:01Z",
   "minimumSystemVersion": "14.0"
 }
