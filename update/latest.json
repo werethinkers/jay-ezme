@@ -1,9 +1,9 @@
 {
-  "version": "4.51",
-  "build": 461,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.51-build461/EzMe-4.51-macOS.zip",
-  "sha256": "f1611ec7d8b6a3db1617f891fbff4d4079cd6c12d59fcc881def4e0c25e086e2",
-  "notes": "# KeyDo 4.51\n\n**Font Creator**\n- **Crop:** a Crop button under your picture opens a drag-to-select window. \"Use this part as my picture\" crops the sample. \"Add these letters\" cuts the letters you type out of just that part and adds them to your letters, so you can crop one letter at a time (H, then E, then S).\n- **Closer to the exact letter:** KeyDo now guesses the letters in your picture (you can correct them), tries several strictness levels, and joins extra pieces of one letter (the dot of an i, a block with a bite) until the count matches what you typed. A single letter is always one piece.\n- **Make the rest with AI:** press Create with AI to draw the other letters, capitals and numbers, and small letters, in the style of your picture. Each sheet uses one AI picture of your credits (refunded if it fails). The sheet is cut into letters only when the count matches exactly; your own letters are never replaced.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T21:17:37Z",
+  "version": "4.52",
+  "build": 462,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.52-build462/EzMe-4.52-macOS.zip",
+  "sha256": "a555a09db3e2a313012b8e0f6e5e447326bfa8ab43a2229acd39a1a5cd04b4d7",
+  "notes": "# KeyDo 4.52\n\n**Research capture in the browser**\n- A new **Research capture** button in the browser tools row. Press it and, for 10 minutes, every picture you copy in the browser (right click, Copy Image) is saved to Database Organizer in a new collection called **Research**, with the page it came from in the notes.\n- It shows the time left and how many pictures are saved, and turns itself off after 10 minutes (or press it again to stop).\n- Pictures only: videos are never saved. A copy made anywhere other than the browser is ignored, and the same picture is saved once.\n\n**Prompt Builder on Home**\n- The Home page prompt is now cleared when you close the box or leave Home, so an old prompt never shows up there. The Prompt Builder app in AppBuilder keeps its text as before.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T21:33:55Z",
   "minimumSystemVersion": "14.0"
 }
