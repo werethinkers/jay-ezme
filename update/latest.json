@@ -1,9 +1,9 @@
 {
-  "version": "4.50",
-  "build": 460,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.50-build460/EzMe-4.50-macOS.zip",
-  "sha256": "fd57680cef28d9e9a59e81308e145e7a3104cb14032ee1e21552e9750c5d3689",
-  "notes": "# KeyDo 4.50\n\n**Prompt Builder**\n- **Spoken send now works from the voice bubble too.** Say \"send to ChatGPT\", \"enter ChatGPT\", \"share with Grok\" or \"paste in Claude\" (also \"send it to\", \"paste it in\") and, if Prompt Builder is already on screen, your prompt is sent right there, without jumping to another page and losing your place.\n- The two prompt boxes, the one you write in and the checked one, are now exactly the same height, so the page reads as a tidy pair.\n- Only one voice listens at a time (the mic under the prompt, the bubble, form filling): starting one switches the others off.\n\n**Keyboard safety:** checked. The key tap, popup and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T21:03:58Z",
+  "version": "4.51",
+  "build": 461,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.51-build461/EzMe-4.51-macOS.zip",
+  "sha256": "f1611ec7d8b6a3db1617f891fbff4d4079cd6c12d59fcc881def4e0c25e086e2",
+  "notes": "# KeyDo 4.51\n\n**Font Creator**\n- **Crop:** a Crop button under your picture opens a drag-to-select window. \"Use this part as my picture\" crops the sample. \"Add these letters\" cuts the letters you type out of just that part and adds them to your letters, so you can crop one letter at a time (H, then E, then S).\n- **Closer to the exact letter:** KeyDo now guesses the letters in your picture (you can correct them), tries several strictness levels, and joins extra pieces of one letter (the dot of an i, a block with a bite) until the count matches what you typed. A single letter is always one piece.\n- **Make the rest with AI:** press Create with AI to draw the other letters, capitals and numbers, and small letters, in the style of your picture. Each sheet uses one AI picture of your credits (refunded if it fails). The sheet is cut into letters only when the count matches exactly; your own letters are never replaced.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T21:17:37Z",
   "minimumSystemVersion": "14.0"
 }
