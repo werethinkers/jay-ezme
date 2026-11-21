@@ -445,7 +445,7 @@ struct PhotoAppShell<Controls: View>: View {
 }
 
 /// Every picture slot in every photo app uses this, so each one can pick from the Mac or from the common library.
-private struct PhotoChooser: View {
+struct PhotoChooser: View {
     var app: String
     var title: String
     var name: String

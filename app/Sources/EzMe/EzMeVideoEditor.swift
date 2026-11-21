@@ -67,13 +67,16 @@ private func editorExport(_ session: AVAssetExportSession, to url: URL) async th
                     Text("Cut").tag("Cut")
                     Text("Join clips").tag("Join clips")
                     Text("Filters").tag("Filters")
+                    Text("Watermark").tag("Watermark")
                 }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 320)
+                .pickerStyle(.segmented).labelsHidden().frame(width: 420)
                 Spacer()
             }
             switch mode {
             case "Join clips":
                 VideoJoinView(clips: clips, attachmentDirectory: attachmentDirectory, onSave: onSave, onExport: onExport)
+            case "Watermark":
+                VideoOverlayView(clips: clips, attachmentDirectory: attachmentDirectory, onSave: onSave, onExport: onExport)
             case "Filters":
                 VideoFilterView(clips: clips, attachmentDirectory: attachmentDirectory, onSave: onSave, onExport: onExport)
             default:

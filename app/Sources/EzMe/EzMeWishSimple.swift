@@ -108,6 +108,8 @@ struct WishSimpleStudio: View {
                             switch step {
                             case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note, showPrompt: $showPrompt,
                                                onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) }, onSkip: { go(1) }, onLibrary: { showLibrary = true }, onPaste: { pastePicture() },
+                                               filterName: WishFilterStore.selection(appID)?.filter.name ?? "", filterRange: WishFilterStore.selection(appID)?.filter.range ?? 0...1,
+                                               filterAmount: WishFilterStore.selection(appID)?.amount ?? 0, onFilter: { setFilter($0) }, onAmount: { setFilterAmount($0) },
                                                onImport: { importPNGs() }, onGreeting: { applyGreeting() })
                             case 1: designStep
                             case 2: activateStep
@@ -256,6 +258,23 @@ struct WishSimpleStudio: View {
         note = "Pasted picture added as a template."
     }
 
+    private func setFilter(_ id: String?) {
+        WishFilterStore.set(id, appID: appID)
+        refilter()
+    }
+
+    private func setFilterAmount(_ value: Double) {
+        WishFilterStore.setAmount(value, appID: appID)
+        refilter()
+    }
+
+    /// Redraws every template with the chosen filter, so the preview and the published app change at once.
+    private func refilter() {
+        afterLooksChanged(select: nil)
+        refreshPreview()
+        note = WishFilterStore.selection(appID).map { "Filter: \($0.filter.name). The templates were redrawn." } ?? "Filter removed. The templates were redrawn."
+    }
+
     private func importPNGs() {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.png]
@@ -312,7 +331,8 @@ struct WishSimpleStudio: View {
         if let page = draft, page.id == mainID { main = page }
         var variants = current.variants ?? []
         for (offset, file) in lookFiles.enumerated() {
-            guard let art = WishLookStore.image(file) else { continue }
+            guard let original = WishLookStore.image(file) else { continue }
+            let art = WishFilterStore.apply(original, appID: appID)
             let fitted = TemplateImages.limited(art, maxSide: 3200)
             let size = TemplateImages.pixelSize(fitted)
             let base = TemplateBackground.composite(fitted, hex: backgroundHex) ?? fitted
@@ -1011,6 +1031,12 @@ private struct PromptStep: View {
     var onSkip: () -> Void
     var onLibrary: () -> Void
     var onPaste: () -> Void = {}
+    var filterName: String = ""
+    var filterRange: ClosedRange<Double> = 0...1
+    var filterAmount: Double = 0
+    var onFilter: (String?) -> Void = { _ in }
+    var onAmount: (Double) -> Void = { _ in }
+    @State private var amountDraft: Double?
     var onImport: () -> Void
     var onGreeting: () -> Void
     @State private var example = ""
@@ -1061,6 +1087,17 @@ private struct PromptStep: View {
                         Text("4 transparent PNGs \u{00B7} 2160 \u{00D7} 2160").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
                         Spacer()
                         Button { onLibrary() } label: { Label("Library", systemImage: "photo.stack") }.buttonStyle(SimpleQuietButton())
+                        Menu {
+                            Button("No filter") { onFilter(nil) }
+                            Divider()
+                            ForEach(PrismFilter.all) { item in Button(item.name) { onFilter(item.id) } }
+                        } label: { Label(filterName.isEmpty ? "Filter" : "Filter: " + filterName, systemImage: "camera.filters") }
+                            .menuStyle(.borderlessButton).fixedSize()
+                        if !filterName.isEmpty {
+                            Slider(value: Binding(get: { amountDraft ?? filterAmount }, set: { amountDraft = $0 }), in: filterRange,
+                                   onEditingChanged: { editing in if !editing, let value = amountDraft { onAmount(value); amountDraft = nil } })
+                                .frame(width: 90)
+                        }
                         Button { onPaste() } label: { Label("Paste picture", systemImage: "doc.on.clipboard") }.buttonStyle(SimpleQuietButton())
                         Button { onImport() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
                     }

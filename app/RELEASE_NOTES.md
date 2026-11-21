@@ -1,18 +1,11 @@
-# KeyDo 4.42
+# KeyDo 4.43
 
-**Recent Files (Database Organizer)**
-- Tick files, then Rename: one file, or many with a prefix, suffix, find and replace, numbering and letter case, with a preview. There is a pencil on each file too.
-- Select all shown, and add a tag to every selected file at once.
-- Only the latest 10 tags show; **More** opens the rest.
-- **Manage tags**: rename or delete a tag and it changes everywhere tags are kept (Recent Files and Database Organizer records). Shortcut tags are not included yet.
+**Video Editor: Watermark tab**
+- Keep a logo on the whole video, with a see-through level, size, gap and any of nine positions. The logo can come from your Mac, the library or the clipboard, and its plain background can be made transparent.
+- Add pictures or animated GIFs over the video for the seconds you choose, with size, position and see-through level. Each fades in and out and is drawn into the video when you export it, so it looks like part of the film. A GIF keeps playing for its seconds.
+- Preview with a time slider, then save as a shortcut or to the Desktop. Sound is kept.
 
-**Ask KeyDo (Home)**
-- Type what you want to do; KeyDo shows which app or section helps and an Open button that goes straight there. It works on this Mac from KeyDo's own feature list, with no AI key.
-
-**Paste a picture**
-- Photo apps and Wish Studio artwork have a Paste button that uses the picture you copied. It is a button, not a hidden shortcut, so it never clashes with other upload choices.
-
-**Platform guide**
-- A KeyDo platform guide is published at ezme.ezyourlife.com/guide/ and is updated with every release.
+**Wish Studio filters**
+- A **Filter** menu (the same Prism filters as the Video Editor) with a strength slider sits beside Library and Paste in the artwork step. Changing it redraws the app's templates at once and refreshes a published app. It changes the artwork background, so the finished card follows.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.
