@@ -1,9 +1,9 @@
 {
-  "version": "4.39",
-  "build": 449,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.39-build449/EzMe-4.39-macOS.zip",
-  "sha256": "fc3e009a3013a4dd4621c6cf0f12b6516998247eca11a30727f8d1e664204aaf",
-  "notes": "# KeyDo 4.39\n\n**Fixes**\n- Tabs no longer squeeze into each other: Database Organizer tabs and the AppBuilder and Wish Studio app tabs keep their full width and scroll.\n- Location is no longer asked when KeyDo opens. macOS asks only when you run a shortcut or card that needs a place (city, weather and so on).\n- Collections in Database Organizer can be renamed: pick a collection and press Rename. Everything inside moves to the new name.\n- Recent Files is now the second Organizer tab, with a banner on the Organizer page. It also picks up files that arrived in Downloads, even if never opened.\n\n**New AppBuilder apps (10 credits for each picture made; the preview is free)**\n- Photo Collage: up to four views (front, back, top, left, right and more) on one sheet.\n- Logo on Background: turns a logo into a transparent PNG and places it on any picture.\n- Bollywood 80s: a warm, grainy 80s film look with an optional film title.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched; the heartbeat watchdog and release guard are unchanged.",
-  "published": "2026-11-21T04:49:01Z",
+  "version": "4.40",
+  "build": 450,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.40-build450/EzMe-4.40-macOS.zip",
+  "sha256": "8d858d0679399988dfef683aaa2e212b488b042878d1a3ccb553088a5b31d24f",
+  "notes": "# KeyDo 4.40\n\n**Common library for every AppBuilder app**\n- Every picture slot in Photo Collage, Logo on Background and Bollywood 80s now has a **Library** button next to \"From this Mac\". Any app built on the same picture chooser gets it too.\n- The library has search and categories (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other, and any you add). Right-click a picture to move it to another category or remove it.\n- It is the same shelf as the Wish Studio background library, so pictures added in either place appear in both.\n\n**Send to app as template**\n- After you make a picture in a photo app, **Send to app as template** puts it into another app's templates (or Wish Studio backgrounds). It shows first in that app's library, under \"This app's templates\", and also in the common library.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T08:17:19Z",
   "minimumSystemVersion": "14.0"
 }
