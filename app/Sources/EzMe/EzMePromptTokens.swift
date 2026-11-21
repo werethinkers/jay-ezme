@@ -546,6 +546,8 @@ enum PromptVoice {
     static func bestTarget(_ spoken: String, _ targets: [PromptTarget]) -> PromptTarget? {
         guard spoken.count >= 3 else { return nil }
         if let exact = targets.first(where: { allAliases($0).contains(spoken) }) { return exact }
+        let folded = PromptDedupe.foldSpelledLetters(spoken)
+        if folded != spoken, let exact = targets.first(where: { allAliases($0).contains(folded) }) { return exact }
         var best: (PromptTarget, Int)?
         var tie = false
         for target in targets {
@@ -562,7 +564,7 @@ enum PromptVoice {
     }
 
     private static func matchTarget(_ keys: [String], from start: Int, _ targets: [PromptTarget]) -> (PromptTarget, Int)? {
-        var length = min(3, keys.count - start)
+        var length = min(5, keys.count - start)
         while length >= 1 {
             let spoken = keys[start..<(start + length)].joined()
             if let target = bestTarget(spoken, targets) { return (target, length) }

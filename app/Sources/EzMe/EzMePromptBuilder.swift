@@ -355,7 +355,15 @@ enum PromptComposer {
             output += lead + word + trail
             startOfSentence = endsSentence
         }
-        return PromptComposition(text: output.trimmingCharacters(in: .whitespacesAndNewlines), attachments: attachments, fixes: Array(fixes.prefix(12)))
+        var finished = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        if autocorrect {
+            let collapsed = PromptDedupe.collapse(finished)
+            if !collapsed.removed.isEmpty {
+                finished = collapsed.text
+                for phrase in collapsed.removed.prefix(3) { fixes.append("said twice: \(phrase)") }
+            }
+        }
+        return PromptComposition(text: finished, attachments: attachments, fixes: Array(fixes.prefix(12)))
     }
 
     private static func matchClip(_ name: String, _ clips: [Clip]) -> Clip? {
@@ -453,6 +461,10 @@ struct PromptBuilderView: View {
     @State private var voiceHint = ""
     @State private var showVoiceHelp = false
     @State private var showAsk = false
+    @State private var pendingSend: Task<Void, Never>?
+    @State private var lastSpeechAt = Date()
+    @State private var lastFinalKey = ""
+    @State private var lastFinalAt = Date.distantPast
     @State private var showAddSite = false
     @State private var editingSites = false
     @State private var siteBeingEdited: PromptTarget?
@@ -849,7 +861,18 @@ struct PromptBuilderView: View {
 
     // MARK: Voice
 
-    private func heardSpeech(_ spoken: String, final: Bool) {
+    private func heardSpeech(_ rawSpoken: String, final: Bool) {
+        lastSpeechAt = Date()
+        if final { pendingSend?.cancel() }
+        // The same finished sentence arriving twice is one sentence.
+        if final {
+            let sentenceKey = PromptDedupe.key(rawSpoken)
+            if !sentenceKey.isEmpty, sentenceKey == lastFinalKey, Date().timeIntervalSince(lastFinalAt) < 3 { heard = ""; return }
+            lastFinalKey = sentenceKey
+            lastFinalAt = Date()
+        }
+        // A new round of listening sometimes repeats the last words of the one before.
+        let spoken = PromptDedupe.dropEcho(base: voiceBase, spoken: rawSpoken)
         heard = spoken
         // Partial results arrive many times a second. Show them in the status line and write to the prompt a few times a second at most,
         // so the box does not flicker; the final result always lands.
@@ -865,8 +888,24 @@ struct PromptBuilderView: View {
         text = marked
         if !result.notice.isEmpty { voiceHint = result.notice }
         if result.sends.count > voiceSent, let target = result.sends.last {
-            voiceSent = result.sends.count
-            sendByVoice(target)
+            let wanted = result.sends.count
+            if final {
+                voiceSent = wanted
+                pendingSend?.cancel()
+                sendByVoice(target)
+            } else {
+                // Sent once you stop speaking, so a word the engine is still changing cannot send half a prompt.
+                pendingSend?.cancel()
+                pendingSend = Task { @MainActor in
+                    while Date().timeIntervalSince(lastSpeechAt) < 0.8 {
+                        try? await Task.sleep(nanoseconds: 200_000_000)
+                        if Task.isCancelled { return }
+                    }
+                    if Task.isCancelled || voiceSent >= wanted { return }
+                    voiceSent = wanted
+                    sendByVoice(target)
+                }
+            }
         }
         if final {
             voiceBase = marked
@@ -1205,7 +1244,7 @@ struct PromptBuilderView: View {
         notice = ""
         Task { @MainActor in
             do {
-                let instruction = "Rewrite the text below as one clear, well-structured prompt for an AI assistant. Keep every name, number, date and bracketed attachment label such as [Image: Name] exactly as written. Do not add facts or ask questions. Return only the prompt.\n\n" + source
+                let instruction = "Rewrite the text below as one clear, well-structured prompt for an AI assistant. Keep every name, number, date and bracketed attachment label such as [Image: Name] exactly as written. Remove any word, phrase or sentence that is said twice. Do not add facts or ask questions. Return only the prompt.\n\n" + source
                 let result = try await SharedAIClient.generate(profile: profile, key: key, prompt: instruction, maxTokens: 2000)
                 let clean = result.trimmingCharacters(in: .whitespacesAndNewlines)
                 if clean.isEmpty { notice = "The AI returned nothing. Your own words are kept." } else if snapshot != text { notice = "You changed the prompt while the AI was working, so its version was not used." } else { aiText = clean }
