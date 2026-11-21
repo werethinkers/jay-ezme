@@ -1,10 +1,18 @@
-# KeyDo 4.41
+# KeyDo 4.42
 
-**Wish Studio library**
-- The Wish Studio Library now has the same search box and category chips as the AppBuilder apps (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other). Right-click a picture to move it to a category. It is the same shelf, so pictures added in either place appear in both.
+**Recent Files (Database Organizer)**
+- Tick files, then Rename: one file, or many with a prefix, suffix, find and replace, numbering and letter case, with a preview. There is a pencil on each file too.
+- Select all shown, and add a tag to every selected file at once.
+- Only the latest 10 tags show; **More** opens the rest.
+- **Manage tags**: rename or delete a tag and it changes everywhere tags are kept (Recent Files and Database Organizer records). Shortcut tags are not included yet.
 
-**Send to app as template now includes every Wish Studio app**
-- In Photo Collage, Logo on Background and Bollywood 80s, the **Send to app as template** menu lists each of your Wish apps by name. The picture is added to that app as one of its templates.
-- When you open that Wish app, pictures sent to it become templates of its design, and a published app is refreshed so the popup uses them.
+**Ask KeyDo (Home)**
+- Type what you want to do; KeyDo shows which app or section helps and an Open button that goes straight there. It works on this Mac from KeyDo's own feature list, with no AI key.
+
+**Paste a picture**
+- Photo apps and Wish Studio artwork have a Paste button that uses the picture you copied. It is a button, not a hidden shortcut, so it never clashes with other upload choices.
+
+**Platform guide**
+- A KeyDo platform guide is published at ezme.ezyourlife.com/guide/ and is updated with every release.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.

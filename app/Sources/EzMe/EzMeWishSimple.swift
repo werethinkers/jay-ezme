@@ -107,7 +107,7 @@ struct WishSimpleStudio: View {
                         Group {
                             switch step {
                             case 0: PromptStep(model: model, heading: headingBinding, lookFiles: $lookFiles, note: $note, showPrompt: $showPrompt,
-                                               onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) }, onSkip: { go(1) }, onLibrary: { showLibrary = true },
+                                               onPick: { file, _ in pickLook(file) }, onDesign: { generate() }, onNext: { go(1) }, onSkip: { go(1) }, onLibrary: { showLibrary = true }, onPaste: { pastePicture() },
                                                onImport: { importPNGs() }, onGreeting: { applyGreeting() })
                             case 1: designStep
                             case 2: activateStep
@@ -247,6 +247,13 @@ struct WishSimpleStudio: View {
         lookFiles = WishLookStore.files(appID)
         afterLooksChanged(select: last)
         note = images.isEmpty ? "" : "Added \(images.count) from the library. They are templates \(max(1, lookFiles.count - images.count + 1)) to \(lookFiles.count)."
+    }
+
+    /// The picture on the clipboard becomes one of this app's artwork options.
+    private func pastePicture() {
+        guard let image = PhotoCanvas.pasted() else { note = "There is no picture on the clipboard. Copy one first."; return }
+        useFromLibrary([image])
+        note = "Pasted picture added as a template."
     }
 
     private func importPNGs() {
@@ -1003,6 +1010,7 @@ private struct PromptStep: View {
     var onNext: () -> Void
     var onSkip: () -> Void
     var onLibrary: () -> Void
+    var onPaste: () -> Void = {}
     var onImport: () -> Void
     var onGreeting: () -> Void
     @State private var example = ""
@@ -1053,6 +1061,7 @@ private struct PromptStep: View {
                         Text("4 transparent PNGs \u{00B7} 2160 \u{00D7} 2160").font(.system(size: 11)).foregroundStyle(WishSimpleTheme.muted)
                         Spacer()
                         Button { onLibrary() } label: { Label("Library", systemImage: "photo.stack") }.buttonStyle(SimpleQuietButton())
+                        Button { onPaste() } label: { Label("Paste picture", systemImage: "doc.on.clipboard") }.buttonStyle(SimpleQuietButton())
                         Button { onImport() } label: { Label("Import PNGs", systemImage: "square.and.arrow.up") }.buttonStyle(SimpleQuietButton())
                     }
                     .padding(.horizontal, 16).padding(.vertical, 10)

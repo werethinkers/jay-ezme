@@ -61,6 +61,14 @@ enum PhotoCanvas {
         return NSRect(x: rect.midX - w / 2, y: rect.midY - h / 2, width: w, height: h)
     }
 
+    /// A picture copied anywhere (a screenshot, an image from a web page or a file in Finder), if there is one on the clipboard.
+    static func pasted() -> NSImage? {
+        let board = NSPasteboard.general
+        if let urls = board.readObjects(forClasses: [NSURL.self], options: [.urlReadingContentsConformToTypes: [UTType.image.identifier]]) as? [URL],
+           let first = urls.first, let loaded = NSImage(contentsOf: first) { return loaded }
+        return (board.readObjects(forClasses: [NSImage.self], options: nil) as? [NSImage])?.first
+    }
+
     static func choose(_ prompt: String) -> (image: NSImage, name: String)? {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
@@ -443,6 +451,7 @@ private struct PhotoChooser: View {
     var name: String
     var pick: (NSImage, String) -> Void
     @State private var showLibrary = false
+    @State private var notice = ""
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
@@ -450,7 +459,11 @@ private struct PhotoChooser: View {
                     Label(name.isEmpty ? "From this Mac" : "Change", systemImage: "photo.badge.plus")
                 }.buttonStyle(.bordered)
                 Button { showLibrary = true } label: { Label("Library", systemImage: "photo.stack") }.buttonStyle(.bordered)
+                Button { if let image = PhotoCanvas.pasted() { pick(image, "Pasted picture") } else { notice = "There is no picture on the clipboard. Copy one first." } } label: {
+                    Label("Paste", systemImage: "doc.on.clipboard")
+                }.buttonStyle(.bordered).help("Use the picture you copied")
             }
+            if !notice.isEmpty { Text(notice).font(.caption).foregroundStyle(.orange) }
             Text(name.isEmpty ? "No picture yet" : name).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
         }
         .sheet(isPresented: $showLibrary) { CommonLibrarySheet(app: app) { image, label in pick(image, label) } }

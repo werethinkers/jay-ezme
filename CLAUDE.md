@@ -27,6 +27,7 @@ The key tap in `miniJSlashTap` sees every key typed in every app. A bug there le
 ## Checklist for every change
 
 1. Make the change on `main`.
+2a. App change: update the platform guide `guide/index.html` for every feature added or changed (text, plus a screenshot in `guide/images/` when one is available) so it goes live with the push at ezme.ezyourlife.com/guide/. Screenshots cannot be taken from the workspace: use ones the user sends, and mark the rest as to be added.
 2. App change: write `app/RELEASE_NOTES.md` for this change (it is shown in the update window and on the Release). Bump `app/VERSION` only for a real new version; the build number is automatic.
 3. Database change: `query_database` first, then add `backend/000N_<name>.sql` with the same SQL. Check the result with a SELECT.
 4. Push to `main`.

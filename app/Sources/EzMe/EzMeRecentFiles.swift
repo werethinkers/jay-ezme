@@ -167,6 +167,33 @@ struct RecentFile: Codable, Identifiable, Equatable {
 
     func remove(_ id: String) { items.removeAll { $0.id == id }; save() }
 
+    func didRename(_ id: String, to path: String) {
+        guard let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].location = path
+        items[index].title = (path as NSString).lastPathComponent
+        save()
+    }
+
+    /// Renames a tag on every file, or removes it when `new` is nil.
+    func renameTag(_ old: String, to new: String?) {
+        for index in items.indices where items[index].tags.contains(where: { $0.caseInsensitiveCompare(old) == .orderedSame }) {
+            var updated = items[index].tags.filter { $0.caseInsensitiveCompare(old) != .orderedSame }
+            if let new, !updated.contains(where: { $0.caseInsensitiveCompare(new) == .orderedSame }) { updated.append(new) }
+            items[index].tags = updated
+        }
+        save()
+    }
+
+    /// The tags of the files used most recently, newest first.
+    func recentTags(limit: Int) -> [String] {
+        var seen: [String] = []
+        for item in items.sorted(by: { $0.lastOpened > $1.lastOpened }) {
+            for tag in item.tags where !seen.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) { seen.append(tag) }
+            if seen.count >= limit { break }
+        }
+        return Array(seen.prefix(limit))
+    }
+
     private static let keywordTags: [(String, [String])] = [
         ("Finance", ["invoice", "bill", "gst", "tax", "receipt", "payment", "bank", "statement", "budget", "salary"]),
         ("Legal", ["contract", "agreement", "nda", "terms", "policy", "legal"]),
@@ -208,6 +235,11 @@ struct RecentFilesView: View {
     @State private var days = 7
     @State private var editing: String?
     @State private var newTag = ""
+    @State private var selection: Set<String> = []
+    @State private var renameTarget: [RecentFile] = []
+    @State private var showRename = false
+    @State private var showMoreTags = false
+    @State private var showManager = false
 
     private static let dayKey: DateFormatter = { let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f }()
     private static let dayTitle: DateFormatter = { let f = DateFormatter(); f.dateStyle = .full; return f }()
@@ -249,17 +281,51 @@ struct RecentFilesView: View {
                     .buttonStyle(.borderedProminent).tint(Butter.coral).disabled(store.scanning)
                 Button { store.autoTag() } label: { Label("Auto-tag", systemImage: "tag") }.buttonStyle(.bordered)
             }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(["All", "Untagged"] + store.allTags, id: \.self) { tag in
-                        Button { tagFilter = tag } label: {
-                            Text(tag).font(.system(size: 12, weight: .semibold)).padding(.horizontal, 10).padding(.vertical, 5)
-                                .background(tagFilter == tag ? Butter.coral.opacity(0.25) : Color.secondary.opacity(0.12), in: Capsule())
-                        }.buttonStyle(.plain)
-                    }
+            HStack(spacing: 6) {
+                ForEach(["All", "Untagged"] + store.recentTags(limit: 10), id: \.self) { tag in
+                    Button { tagFilter = tag } label: {
+                        Text(tag).font(.system(size: 12, weight: .semibold)).lineLimit(1).fixedSize().padding(.horizontal, 10).padding(.vertical, 5)
+                            .background(tagFilter == tag ? Butter.coral.opacity(0.25) : Color.secondary.opacity(0.12), in: Capsule())
+                    }.buttonStyle(.plain)
                 }
+                if store.allTags.count > 10 {
+                    Button { showMoreTags = true } label: { Text("More (\(store.allTags.count - 10))").font(.system(size: 12, weight: .semibold)).fixedSize() }
+                        .buttonStyle(.bordered).controlSize(.small)
+                        .popover(isPresented: $showMoreTags, arrowEdge: .bottom) {
+                            ScrollView {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 6)], spacing: 6) {
+                                    ForEach(store.allTags, id: \.self) { tag in
+                                        Button { tagFilter = tag; showMoreTags = false } label: {
+                                            Text(tag).font(.system(size: 12, weight: .semibold)).lineLimit(1).padding(.horizontal, 8).padding(.vertical, 4)
+                                                .background(tagFilter == tag ? Butter.coral.opacity(0.25) : Color.secondary.opacity(0.12), in: Capsule())
+                                        }.buttonStyle(.plain)
+                                    }
+                                }.padding(12)
+                            }.frame(width: 340, height: 240)
+                        }
+                }
+                Spacer(minLength: 0)
+                Button { showManager = true } label: { Label("Manage tags", systemImage: "tag.circle") }.buttonStyle(.bordered).controlSize(.small)
+            }
+            if !selection.isEmpty {
+                HStack(spacing: 8) {
+                    Text("\(selection.count) selected").font(.system(size: 12, weight: .semibold))
+                    Button { renameTarget = shown.filter { selection.contains($0.id) && $0.kind == "mac" }; if !renameTarget.isEmpty { showRename = true } } label: { Label("Rename", systemImage: "pencil") }
+                        .buttonStyle(.borderedProminent).tint(Butter.coral).controlSize(.small)
+                    Menu {
+                        ForEach(Array(Set(store.recentTags(limit: 10) + KeyDoTags.known)).sorted(), id: \.self) { tag in
+                            Button(tag) { for id in selection { if let file = store.items.first(where: { $0.id == id }), !file.tags.contains(tag) { store.setTags(id, file.tags + [tag]) } } }
+                        }
+                    } label: { Label("Add tag", systemImage: "tag") }.menuStyle(.borderlessButton).fixedSize()
+                    Button("Clear") { selection = [] }.buttonStyle(.bordered).controlSize(.small)
+                }
+            } else if !shown.isEmpty {
+                Button("Select all \(shown.count) shown") { selection = Set(shown.map { $0.id }) }.buttonStyle(.link).font(.caption)
             }
             if !store.message.isEmpty { Text(store.message).font(.caption).foregroundStyle(.secondary) }
+            Color.clear.frame(height: 0)
+                .sheet(isPresented: $showRename) { RecentRenameSheet(files: renameTarget) { store.message = $0; selection = [] } }
+                .sheet(isPresented: $showManager) { TagManagerSheet() }
             if grouped.isEmpty {
                 ContentUnavailableView("No files yet", systemImage: "clock.arrow.circlepath",
                                        description: Text("Press \u{201C}Find files from this Mac\u{201D}. Google Sheets, Docs, Slides and Word or Excel online that you open in the KeyDo browser appear here by themselves."))
@@ -300,6 +366,9 @@ struct RecentFilesView: View {
     private func row(_ file: RecentFile) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
+                Button { if selection.contains(file.id) { selection.remove(file.id) } else { selection.insert(file.id) } } label: {
+                    Image(systemName: selection.contains(file.id) ? "checkmark.square.fill" : "square").foregroundStyle(Butter.coral)
+                }.buttonStyle(.plain)
                 Image(systemName: file.kind == "web" ? "globe" : "doc").foregroundStyle(Butter.coral)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(file.title).font(.system(size: 13, weight: .semibold)).lineLimit(1).truncationMode(.middle)
@@ -307,6 +376,7 @@ struct RecentFilesView: View {
                 }
                 Spacer()
                 Button("Open") { open(file) }.buttonStyle(.bordered).controlSize(.small)
+                if file.kind == "mac" { Button { renameTarget = [file]; showRename = true } label: { Image(systemName: "pencil") }.buttonStyle(.bordered).controlSize(.small).help("Rename this file") }
                 Button { editing = editing == file.id ? nil : file.id } label: { Image(systemName: "tag") }.buttonStyle(.bordered).controlSize(.small)
                 Button { store.remove(file.id) } label: { Image(systemName: "xmark") }.buttonStyle(.bordered).controlSize(.small).help("Remove from this list")
             }

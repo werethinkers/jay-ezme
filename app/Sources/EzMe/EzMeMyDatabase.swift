@@ -104,6 +104,18 @@ struct DBTable: Identifiable, Codable, Hashable {
         save()
     }
 
+    /// Renames a tag on every record, or removes it when `new` is nil.
+    func renameTag(_ old: String, to new: String?) {
+        for index in records.indices {
+            let list = KeyDoTags.parse(records[index].tags)
+            guard list.contains(where: { $0.caseInsensitiveCompare(old) == .orderedSame }) else { continue }
+            var updated = list.filter { $0.caseInsensitiveCompare(old) != .orderedSame }
+            if let new, !updated.contains(where: { $0.caseInsensitiveCompare(new) == .orderedSame }) { updated.append(new) }
+            records[index].tags = KeyDoTags.join(updated)
+        }
+        save()
+    }
+
     func move(ids: Set<String>, to collection: String) {
         for index in records.indices where ids.contains(records[index].id) { records[index].collection = collection }
         save()
