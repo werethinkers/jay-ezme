@@ -431,6 +431,7 @@ struct AppDesignRunView: View {
             message = "Please fill " + missingRequired.map { $0.label }.joined(separator: ", ") + ". The app's maker marked it mandatory."
             return
         }
+        LiveData.userNeedsPlace()
         let priced = pricing
         guard let chargeID = credits.charge(priced.service, cost: priced.cost, detail: design.name) else { message = credits.lastMessage; return }
         busy = true

@@ -15,6 +15,12 @@ enum LiveData {
     private static func set(_ key: String, _ value: String) { if !value.isEmpty { store.set(value, forKey: "ezmeLive." + key) } }
     private static var stamp: Date { Date(timeIntervalSince1970: store.double(forKey: "ezmeLive.stamp")) }
 
+    /// Called when the person really runs something that needs a place (a shortcut or card). Only then may macOS ask for location.
+    static func userNeedsPlace() {
+        if !store.bool(forKey: "ezmeLive.asked") { store.set(true, forKey: "ezmeLive.asked"); store.set(0, forKey: "ezmeLive.stamp") }
+        Task.detached { await refresh(force: true) }
+    }
+
     /// Starts a background refresh when the last one is older than ten minutes. Safe to call as often as you like.
     static func prefetch() {
         guard Date().timeIntervalSince(stamp) > 600 else { return }
@@ -116,7 +122,7 @@ enum LiveData {
 
         // Where you are: this Mac's own location (street level) when you allow it, otherwise your internet address (city level).
         var latitude: Double?, longitude: Double?
-        let allowPrompt = store.bool(forKey: "ezmeLive.used")
+        let allowPrompt = store.bool(forKey: "ezmeLive.asked")
         if let here = await DeviceLocator.shared.locate(allowPrompt: allowPrompt) {
             latitude = here.coordinate.latitude
             longitude = here.coordinate.longitude

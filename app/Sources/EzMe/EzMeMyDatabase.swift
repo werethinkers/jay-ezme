@@ -97,6 +97,13 @@ struct DBTable: Identifiable, Codable, Hashable {
         save()
     }
 
+    /// Renames a collection everywhere it is used (records and tables). A name that already exists merges into it.
+    func renameCollection(from old: String, to new: String) {
+        for index in records.indices where records[index].collection == old { records[index].collection = new }
+        for index in tables.indices where tables[index].collection == old { tables[index].collection = new }
+        save()
+    }
+
     func move(ids: Set<String>, to collection: String) {
         for index in records.indices where ids.contains(records[index].id) { records[index].collection = collection }
         save()
@@ -257,6 +264,8 @@ struct MyDatabaseView: View {
     @State private var shortcutSearch = ""
     @State private var newCollectionName = ""
     @State private var showNewCollection = false
+    @State private var showRenameCollection = false
+    @State private var renamedCollection = ""
     @State private var makeSource: DBMakeSource?
     @State private var renameItems: [DBRecord] = []
     @State private var showBulkRename = false
@@ -264,8 +273,8 @@ struct MyDatabaseView: View {
     @AppStorage("ezmeDatabaseGrid") private var gridView = false
 
     private let tabs: [(String, String)] = [
-        ("Organizer", "externaldrive.badge.checkmark"), ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
-        ("Recent Files", "clock.arrow.circlepath"), ("Tables", "tablecells"), ("Shortcuts", "bolt.fill"), ("File Renamer", "doc.badge.gearshape")
+        ("Organizer", "externaldrive.badge.checkmark"), ("Recent Files", "clock.arrow.circlepath"), ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
+        ("Tables", "tablecells"), ("Shortcuts", "bolt.fill"), ("File Renamer", "doc.badge.gearshape")
     ]
 
     private var kind: String { tab == "Contacts" ? "contact" : tab == "Links" ? "link" : tab == "Media" ? "media" : "file" }
@@ -291,7 +300,7 @@ struct MyDatabaseView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     tabBar
-                    if tab == "Organizer" { DatabaseOrganizerView(records: store.records, onOpenViewer: { viewerURL = $0 }, onEdit: { editing = $0 }) }
+                    if tab == "Organizer" { recentFilesBanner; DatabaseOrganizerView(records: store.records, onOpenViewer: { viewerURL = $0 }, onEdit: { editing = $0 }) }
                     else if isRecordTab { toolbar; recordList }
                     else if tab == "Recent Files" { RecentFilesView() }
                     else if tab == "Tables" { tablesView }
@@ -323,6 +332,14 @@ struct MyDatabaseView: View {
         .sheet(isPresented: $showBulkRename) {
             DBBulkRenameSheet(records: renameItems) { names, onDisk in applyRename(names, onDisk: onDisk) }
         }
+        .alert("Rename collection", isPresented: $showRenameCollection) {
+            TextField("Collection name", text: $renamedCollection)
+            Button("Cancel", role: .cancel) {}
+            Button("Rename") {
+                let name = renamedCollection.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !name.isEmpty, name != collectionFilter { store.renameCollection(from: collectionFilter, to: name); collectionFilter = name }
+            }
+        } message: { Text("Everything inside moves to the new name.") }
         .alert("New collection", isPresented: $showNewCollection) {
             TextField("Collection name", text: $newCollectionName)
             Button("Cancel", role: .cancel) {}
@@ -384,6 +401,22 @@ struct MyDatabaseView: View {
         .padding(18)
     }
 
+    /// Recent Files used to hide in the tab row, so the Organizer says where it is.
+    private var recentFilesBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "clock.arrow.circlepath").font(.title2).foregroundStyle(Butter.coral)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Files you opened or downloaded lately").font(.system(size: 14, weight: .semibold))
+                Text("See them in one list, add tags and tick them off as a daily task.").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("Open Recent Files") { tab = "Recent Files"; selection = []; search = ""; openTableID = nil; page = 0 }
+                .buttonStyle(.borderedProminent).tint(Butter.coral)
+        }
+        .padding(12)
+        .background(Butter.coral.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+    }
+
     private var tabBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -393,6 +426,7 @@ struct MyDatabaseView: View {
                     } label: {
                         Label(item.0, systemImage: item.1)
                             .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1).fixedSize()
                             .padding(.horizontal, 12).padding(.vertical, 8)
                             .foregroundStyle(tab == item.0 ? Butter.cream : Butter.cocoa)
                             .background(tab == item.0 ? Butter.cocoa : Butter.cream, in: Capsule())
@@ -419,6 +453,10 @@ struct MyDatabaseView: View {
                     ForEach(store.collections, id: \.self) { Text($0).tag($0) }
                 }
                 .labelsHidden().frame(width: 190)
+                if collectionFilter != "All collections", collectionFilter != "General" {
+                    Button { renamedCollection = collectionFilter; showRenameCollection = true } label: { Label("Rename", systemImage: "pencil") }
+                        .help("Rename this collection")
+                }
                 Picker("", selection: $gridView) {
                     Image(systemName: "list.bullet").tag(false)
                     Image(systemName: "square.grid.2x2").tag(true)

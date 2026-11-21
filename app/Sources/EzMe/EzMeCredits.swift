@@ -22,6 +22,7 @@ enum CreditService: String, CaseIterable, Codable, Identifiable {
     case aiImage = "ai.image"
     case aiVideo = "ai.video"
     case wishCard = "wish.card"
+    case photoApp = "app.photo"
 
     var id: String { rawValue }
 
@@ -34,6 +35,7 @@ enum CreditService: String, CaseIterable, Codable, Identifiable {
         case .aiImage: return "Picture with AI"
         case .aiVideo: return "Video with AI"
         case .wishCard: return "Wish Studio card"
+        case .photoApp: return "Photo apps"
         }
     }
 
@@ -46,6 +48,7 @@ enum CreditService: String, CaseIterable, Codable, Identifiable {
         case .aiImage: return "A new picture made by an AI model."
         case .aiVideo: return "A short video made by an AI model."
         case .wishCard: return "Each card made from a Wish Studio app: download, copy, share or web page."
+        case .photoApp: return "Each picture made by Photo Collage, Logo on Background or Bollywood 80s."
         }
     }
 
@@ -58,6 +61,7 @@ enum CreditService: String, CaseIterable, Codable, Identifiable {
         case .aiImage: return "photo.badge.plus"
         case .aiVideo: return "video.badge.plus"
         case .wishCard: return "sparkles"
+        case .photoApp: return "photo.on.rectangle.angled"
         }
     }
 
@@ -71,6 +75,7 @@ enum CreditService: String, CaseIterable, Codable, Identifiable {
         case .aiImage: return 25
         case .aiVideo: return 30
         case .wishCard: return 10
+        case .photoApp: return 10
         }
     }
 }

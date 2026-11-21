@@ -100,13 +100,19 @@ struct RecentFile: Codable, Identifiable, Equatable {
         message = "Looking for files you opened in the last \(days) day\(days == 1 ? "" : "s")\u{2026}"
         let home = NSHomeDirectory()
         Task.detached(priority: .utility) {
+            var found: [(String, Date)] = []
+            // Files opened lately anywhere in the home folder, and files that arrived in Downloads (even if never opened).
+            let searches: [[String]] = [
+                ["-onlyin", home, "kMDItemLastUsedDate >= $time.today(-\(days))"],
+                ["-onlyin", home + "/Downloads", "kMDItemDateAdded >= $time.today(-\(days))"]
+            ]
+            for arguments in searches {
             let process = Process()
             process.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
-            process.arguments = ["-onlyin", home, "kMDItemLastUsedDate >= $time.today(-\(days))"]
+            process.arguments = arguments
             let pipe = Pipe()
             process.standardOutput = pipe
             process.standardError = Pipe()
-            var found: [(String, Date)] = []
             if (try? process.run()) != nil {
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 process.waitUntilExit()
@@ -119,6 +125,7 @@ struct RecentFile: Codable, Identifiable, Equatable {
                     found.append((path, values?.contentAccessDate ?? values?.contentModificationDate ?? Date()))
                     if found.count >= 400 { break }
                 }
+            }
             }
             let result = found
             await MainActor.run { RecentFileStore.shared.merge(result) }
