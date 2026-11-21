@@ -1,9 +1,9 @@
 {
-  "version": "4.49",
-  "build": 459,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.49-build459/EzMe-4.49-macOS.zip",
-  "sha256": "ba2c4f45d5ca047b42c9bff44d735c7ca22f8baa41cbb144d1e9196ebfb33c03",
-  "notes": "# KeyDo 4.49\n\n**Font Creator, much closer to your picture**\n- Upload a picture of a letter, a word or a whole alphabet, then type which letters it shows (for example HES). KeyDo cuts each letter out of the picture and uses it exactly as it looks, with its own colours and shape. Parts that belong together, such as the dot inside a block, stay with their letter.\n- Letters not in your picture are drawn in the same weight, corners, lean and colours. A capital cut from your picture also serves the small letter when the picture has none.\n- **Small letters a to z** now work in every KeyDo font (they were drawn as capitals before), plus ( ) / + marks.\n- **10 more fonts, 20 in all:** Midnight Inline, Block 3D, Sticker Pop, Gloss Candy, Ink Mono, Heavy Slab, Tall Condensed, Wide Techno, Carnival Dots, Gold Stencil. Four new looks: Inline, 3D block, Sticker and Gloss.\n- Fonts show as \"KeyDo \u00b7 name\" in Wish Studio, Template Designer and AppDesigner, as before.\n- Limits: letters cut from a picture are pictures, so very large text can look a little soft. One picture gives only the letters it shows; the rest are drawn in matching style, not copied.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T20:41:53Z",
+  "version": "4.50",
+  "build": 460,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.50-build460/EzMe-4.50-macOS.zip",
+  "sha256": "fd57680cef28d9e9a59e81308e145e7a3104cb14032ee1e21552e9750c5d3689",
+  "notes": "# KeyDo 4.50\n\n**Prompt Builder**\n- **Spoken send now works from the voice bubble too.** Say \"send to ChatGPT\", \"enter ChatGPT\", \"share with Grok\" or \"paste in Claude\" (also \"send it to\", \"paste it in\") and, if Prompt Builder is already on screen, your prompt is sent right there, without jumping to another page and losing your place.\n- The two prompt boxes, the one you write in and the checked one, are now exactly the same height, so the page reads as a tidy pair.\n- Only one voice listens at a time (the mic under the prompt, the bubble, form filling): starting one switches the others off.\n\n**Keyboard safety:** checked. The key tap, popup and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T21:03:58Z",
   "minimumSystemVersion": "14.0"
 }
