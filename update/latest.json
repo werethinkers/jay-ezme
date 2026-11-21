@@ -1,9 +1,9 @@
 {
-  "version": "4.45",
-  "build": 455,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.45-build455/EzMe-4.45-macOS.zip",
-  "sha256": "14f8c70991993dd24a46c4e9cd48553767cc624d3f4af0ac0ce90a4c17d43fe9",
-  "notes": "# KeyDo 4.45\n\n**Font Creator (new app in AppBuilder)**\n- Upload a picture of any one letter. KeyDo reads its thickness, corners, lean and colours and builds a whole A to Z, 0 to 9 and common marks in that look. Fine tune it, type a name to preview, save the alphabet as a picture, and save the font.\n- **10 ready fonts** come with KeyDo: Summit Block (tri-colour blocks), Marquee Neon, Rangoli Dots, Stencil Army, Royal Outline, Retro Shadow, Bollywood Italic, Candy Round, Deco Line and Pixel Grid.\n- Every font shows in the Font list as **KeyDo \u00b7 name** in Wish Studio text layers, Template Designer and AppDesigner, and draws in the final picture.\n- Limits: these are KeyDo fonts, not installed on your Mac. Word and web page output use a normal font. One letter gives a matching style, not an exact copy of every other letter.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T11:30:22Z",
+  "version": "4.46",
+  "build": 456,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.46-build456/EzMe-4.46-macOS.zip",
+  "sha256": "755a4dda852fa93b45751d8e60496a9e137a50d89520995181ab587870dbffab",
+  "notes": "# KeyDo 4.46\n\n**Prompt Builder**\n- Every section (Your prompt, Add context, Check the prompt, Send to an AI site) now opens and closes with an arrow on its title.\n- **Ask KeyDo** is now a small tab in the top left corner of Prompt Builder. It opens the chat that suggests which app can help and opens it. The big Ask KeyDo card on Home is gone.\n- Send to ChatGPT (and every other site), Send here and the voice \"send to\" commands now work from what you typed even when Auto-correct is off.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T11:52:20Z",
   "minimumSystemVersion": "14.0"
 }
