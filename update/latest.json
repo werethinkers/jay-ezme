@@ -1,9 +1,9 @@
 {
-  "version": "4.44",
-  "build": 454,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.44-build454/EzMe-4.44-macOS.zip",
-  "sha256": "5fee68f12a562458e3dfd60ab2e75b980c3653e618c52edd6e4af7474c829149",
-  "notes": "# KeyDo 4.44\n\n**Prompt Builder, simpler**\n- New look and headline. Everything you can add (collections and shortcuts, media, files, people and apps, functions) is now one **+ Add context** button.\n- The step bar is gone and the temporary-link row is tucked into an optional line. While the prompt is empty, three starters appear under **Skip the blank page**: Write something, Make a plan, Brainstorm ideas.\n- Prompt Builder is also on the **Home** page, in a section you can close.\n\n**Hide apps**\n- In AppBuilder, **Hide apps / Show apps** closes the row of app tabs. KeyDo remembers your choice.\n\n**Ask KeyDo tab**\n- A new tab under Create with three parts: Ask (chat that suggests an app and opens it), What each app does, and How to use with pictures.\n- The picture guide loads each screenshot from ezme.ezyourlife.com/guide/images/. Pictures that are not published yet show \"coming soon\".\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T11:00:44Z",
+  "version": "4.45",
+  "build": 455,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.45-build455/EzMe-4.45-macOS.zip",
+  "sha256": "14f8c70991993dd24a46c4e9cd48553767cc624d3f4af0ac0ce90a4c17d43fe9",
+  "notes": "# KeyDo 4.45\n\n**Font Creator (new app in AppBuilder)**\n- Upload a picture of any one letter. KeyDo reads its thickness, corners, lean and colours and builds a whole A to Z, 0 to 9 and common marks in that look. Fine tune it, type a name to preview, save the alphabet as a picture, and save the font.\n- **10 ready fonts** come with KeyDo: Summit Block (tri-colour blocks), Marquee Neon, Rangoli Dots, Stencil Army, Royal Outline, Retro Shadow, Bollywood Italic, Candy Round, Deco Line and Pixel Grid.\n- Every font shows in the Font list as **KeyDo \u00b7 name** in Wish Studio text layers, Template Designer and AppDesigner, and draws in the final picture.\n- Limits: these are KeyDo fonts, not installed on your Mac. Word and web page output use a normal font. One letter gives a matching style, not an exact copy of every other letter.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-21T11:30:22Z",
   "minimumSystemVersion": "14.0"
 }
