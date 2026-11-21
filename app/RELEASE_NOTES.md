@@ -1,8 +1,8 @@
-# KeyDo 4.50
+# KeyDo 4.51
 
-**Prompt Builder**
-- **Spoken send now works from the voice bubble too.** Say "send to ChatGPT", "enter ChatGPT", "share with Grok" or "paste in Claude" (also "send it to", "paste it in") and, if Prompt Builder is already on screen, your prompt is sent right there, without jumping to another page and losing your place.
-- The two prompt boxes, the one you write in and the checked one, are now exactly the same height, so the page reads as a tidy pair.
-- Only one voice listens at a time (the mic under the prompt, the bubble, form filling): starting one switches the others off.
+**Font Creator**
+- **Crop:** a Crop button under your picture opens a drag-to-select window. "Use this part as my picture" crops the sample. "Add these letters" cuts the letters you type out of just that part and adds them to your letters, so you can crop one letter at a time (H, then E, then S).
+- **Closer to the exact letter:** KeyDo now guesses the letters in your picture (you can correct them), tries several strictness levels, and joins extra pieces of one letter (the dot of an i, a block with a bite) until the count matches what you typed. A single letter is always one piece.
+- **Make the rest with AI:** press Create with AI to draw the other letters, capitals and numbers, and small letters, in the style of your picture. Each sheet uses one AI picture of your credits (refunded if it fails). The sheet is cut into letters only when the count matches exactly; your own letters are never replaced.
 
-**Keyboard safety:** checked. The key tap, popup and every mode that swallows keys are untouched.
+**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.

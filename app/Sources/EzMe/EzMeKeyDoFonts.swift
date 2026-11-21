@@ -545,9 +545,21 @@ extension KeyDoFontAnalyzer {
     /// Parts that belong to one letter, such as the dot inside a block or the dot of an i, stay with it.
     static func capture(_ source: NSImage, letters: String) -> Capture {
         let names = letters.filter { !$0.isWhitespace }.map { String($0) }
+        var best = Capture()
+        best.expected = names.count
+        guard !names.isEmpty else { return best }
+        // Try a few strictness levels, so pale, shadowed or photographed letters are still found.
+        for threshold in [70, 45, 110, 30] {
+            let attempt = captureOnce(source, names: names, threshold: threshold)
+            if attempt.found == names.count { return attempt }
+            if attempt.found > best.found { best = attempt }
+        }
+        return best
+    }
+
+    private static func captureOnce(_ source: NSImage, names: [String], threshold: Int) -> Capture {
         var result = Capture()
         result.expected = names.count
-        guard !names.isEmpty else { return result }
         let size = PhotoCanvas.scaled(PhotoCanvas.pixelSize(source), maxSide: 640)
         guard let rep = PhotoCanvas.bitmap(width: Int(size.width), height: Int(size.height), draw: { canvas in
             NSColor.white.setFill()
@@ -567,7 +579,7 @@ extension KeyDoFontAnalyzer {
             let dr = channel(x, y, 0) - bg[0], dg = channel(x, y, 1) - bg[1], db = channel(x, y, 2) - bg[2]
             let d = Int(Double(dr * dr + dg * dg + db * db).squareRoot())
             dist[y * width + x] = d
-            if d > 70 { ink[y * width + x] = true; totalInk += 1 }
+            if d > threshold { ink[y * width + x] = true; totalInk += 1 }
         } }
         guard totalInk > 30 else { return result }
 
@@ -606,7 +618,7 @@ extension KeyDoFontAnalyzer {
                 let overlap = min(small.maxX, big.maxX) - max(small.minX, big.minX) + 1
                 let gap = max(small.minY - big.maxY, big.minY - small.maxY)
                 let dot = overlap > 0 && Double(overlap) >= 0.6 * Double(small.maxX - small.minX + 1)
-                    && Double(small.area) < 0.2 * Double(big.area) && gap < (big.maxY - big.minY + 1) / 2
+                    && Double(small.area) < 0.8 * Double(big.area) && (small.maxY - small.minY) * 10 < (big.maxY - big.minY) * 6 && gap < (big.maxY - big.minY + 1) / 2
                 if inside || dot { parent[root(j)] = root(i); break }
             }
         }
@@ -620,7 +632,24 @@ extension KeyDoFontAnalyzer {
             } else { groups[key] = b }
         }
         var kept = groups.filter { Double($0.value.area) >= Double(totalInk) * 0.004 }.map { (root: $0.key, box: $0.value) }
-        if kept.count > names.count { kept = Array(kept.sorted { $0.box.area > $1.box.area }.prefix(names.count)) }
+        // More pieces than letters: join the pieces that are closest together until the count matches.
+        while kept.count > names.count && kept.count > 1 {
+            var pair = (0, 1)
+            var nearest = Double.greatestFiniteMagnitude
+            for a in 0..<kept.count { for b in (a + 1)..<kept.count {
+                let ba = kept[a].box, bb = kept[b].box
+                let dx = Double(max(0, max(bb.minX - ba.maxX, ba.minX - bb.maxX)))
+                let dy = Double(max(0, max(bb.minY - ba.maxY, ba.minY - bb.maxY)))
+                let gap = (dx * dx + dy * dy).squareRoot()
+                if gap < nearest { nearest = gap; pair = (a, b) }
+            } }
+            let first = kept[pair.0], second = kept[pair.1]
+            parent[root(second.root)] = root(first.root)
+            let joined = (minX: min(first.box.minX, second.box.minX), maxX: max(first.box.maxX, second.box.maxX),
+                          minY: min(first.box.minY, second.box.minY), maxY: max(first.box.maxY, second.box.maxY), area: first.box.area + second.box.area)
+            kept[pair.0] = (root: root(first.root), box: joined)
+            kept.remove(at: pair.1)
+        }
         guard !kept.isEmpty else { return result }
 
         // Reading order: rows from the top, then left to right.
