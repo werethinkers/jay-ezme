@@ -1,11 +1,10 @@
-# KeyDo 4.40
+# KeyDo 4.41
 
-**Common library for every AppBuilder app**
-- Every picture slot in Photo Collage, Logo on Background and Bollywood 80s now has a **Library** button next to "From this Mac". Any app built on the same picture chooser gets it too.
-- The library has search and categories (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other, and any you add). Right-click a picture to move it to another category or remove it.
-- It is the same shelf as the Wish Studio background library, so pictures added in either place appear in both.
+**Wish Studio library**
+- The Wish Studio Library now has the same search box and category chips as the AppBuilder apps (Backgrounds, Logos, Birthday, Anniversary, Festival, Templates, Other). Right-click a picture to move it to a category. It is the same shelf, so pictures added in either place appear in both.
 
-**Send to app as template**
-- After you make a picture in a photo app, **Send to app as template** puts it into another app's templates (or Wish Studio backgrounds). It shows first in that app's library, under "This app's templates", and also in the common library.
+**Send to app as template now includes every Wish Studio app**
+- In Photo Collage, Logo on Background and Bollywood 80s, the **Send to app as template** menu lists each of your Wish apps by name. The picture is added to that app as one of its templates.
+- When you open that Wish app, pictures sent to it become templates of its design, and a published app is refreshed so the popup uses them.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.

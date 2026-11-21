@@ -383,7 +383,9 @@ struct PhotoAppShell<Controls: View>: View {
                             Button { copy(result) } label: { Label("Copy", systemImage: "doc.on.doc") }.buttonStyle(.bordered)
                             Menu {
                                 ForEach(PhotoApps.names, id: \.self) { app in Button(app) { send(result, to: app) } }
-                                Button("Wish Studio backgrounds") { send(result, to: "Wish Studio") }
+                                Button("Wish Studio backgrounds (library)") { send(result, to: "Wish Studio") }
+                                Divider()
+                                ForEach(WishAppIndex.read(), id: \.id) { entry in Button("Wish app: " + entry.name) { sendToWish(result, entry) } }
                             } label: { Label("Send to app as template", systemImage: "square.and.arrow.up.on.square") }
                                 .menuStyle(.borderlessButton).fixedSize()
                             Button { self.result = nil; message = "" } label: { Text("Back to preview") }.buttonStyle(.borderless)
@@ -419,6 +421,12 @@ struct PhotoAppShell<Controls: View>: View {
         stamp.dateFormat = "yyyyMMdd-HHmm"
         let ok = CommonLibrary.send(image, name: title + " " + stamp.string(from: Date()), toApp: app)
         message = ok ? "Sent. It is now in \(app)'s templates and in the common library." : "Could not send it."
+    }
+
+    private func sendToWish(_ image: NSImage, _ entry: WishAppIndex.Entry) {
+        if WishLookStore.add(image, appID: entry.id) != nil {
+            message = "Added to the Wish app \(entry.name) as a template. Open it in Wish Studio to use it."
+        } else { message = "Could not send it." }
     }
 
     private func copy(_ image: NSImage) {

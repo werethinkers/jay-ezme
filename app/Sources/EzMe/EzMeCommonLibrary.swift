@@ -49,6 +49,20 @@ import AppKit
     }
 }
 
+/// A short list of the Wish Studio apps (id and name) kept in UserDefaults, so other apps can offer them as places to send a picture.
+enum WishAppIndex {
+    private static let key = "wishAppIndex.v1"
+    struct Entry: Codable, Hashable { var id: String; var name: String }
+    static func write(_ apps: [WishApp]) {
+        let list = apps.map { Entry(id: $0.id, name: $0.name) }
+        if let data = try? JSONEncoder().encode(list) { UserDefaults.standard.set(data, forKey: key) }
+    }
+    static func read() -> [Entry] {
+        guard let data = UserDefaults.standard.data(forKey: key), let list = try? JSONDecoder().decode([Entry].self, from: data) else { return [] }
+        return list
+    }
+}
+
 struct CommonLibrarySheet: View {
     var app: String
     var onPick: (NSImage, String) -> Void

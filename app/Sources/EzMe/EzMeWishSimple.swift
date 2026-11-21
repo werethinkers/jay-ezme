@@ -134,6 +134,8 @@ struct WishSimpleStudio: View {
             shortcut = design?.command ?? WishAppLink.currentWord(model.app.name)
             phrases = UserDefaults.standard.string(forKey: "wishPhrases." + appID) ?? BuilderPhrases.suggested(for: model.app.name).joined(separator: "\n")
             if designID != nil && !lookFiles.isEmpty { step = 1 }
+            // Pictures sent here from other apps become templates of this app's design.
+            if designID != nil, lookFiles.count - 1 > (design?.variants?.count ?? 0) { syncTemplates(); republishIfActive() }
             refreshPreview()
         }
         .onDisappear { model.simpleVoice = nil; republishIfActive() }

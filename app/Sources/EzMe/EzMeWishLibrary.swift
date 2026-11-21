@@ -114,6 +114,25 @@ struct WishLibrarySheet: View {
     @State private var files: [URL] = WishBackgroundLibrary.files()
     @State private var chosen: Set<URL> = []
     @State private var message = ""
+    @State private var query = ""
+    @State private var category = "All"
+    @State private var map: [String: String] = CommonLibrary.loadMap()
+
+    private var chips: [String] {
+        var list = ["All"] + CommonLibrary.defaultCategories
+        for value in Set(map.values).sorted() where !value.hasPrefix("Templates") && !list.contains(value) { list.append(value) }
+        return list
+    }
+
+    private var visible: [URL] {
+        let text = query.trimmingCharacters(in: .whitespaces)
+        return files.filter { url in
+            let value = CommonLibrary.category(of: url, map: map)
+            if category == "Templates" { if !value.hasPrefix("Templates") { return false } }
+            else if category != "All", value != category { return false }
+            return text.isEmpty || url.deletingPathExtension().lastPathComponent.localizedCaseInsensitiveContains(text) || value.localizedCaseInsensitiveContains(text)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -124,6 +143,20 @@ struct WishLibrarySheet: View {
             }
             Text("Keep your transparent PNG backgrounds here. Import a library someone shared, or download yours as a zip to publish or send.")
                 .font(.callout).foregroundStyle(.secondary)
+            MerlinBar(text: $query, placeholder: "Search the library\u{2026}", showsBadge: false)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(chips, id: \.self) { chip in
+                        Button { category = chip } label: {
+                            Text(chip).font(.caption.weight(.semibold)).lineLimit(1).fixedSize()
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .foregroundStyle(category == chip ? Color.white : Butter.cocoa)
+                                .background(category == chip ? Butter.coral : Butter.cream, in: Capsule())
+                        }.buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
             HStack(spacing: 8) {
                 Button { importFromDisk() } label: { Label("Import PNGs, folder or zip", systemImage: "square.and.arrow.down") }
                 Button { addFromApp() } label: { Label("Add this app's backgrounds", systemImage: "plus.square.on.square") }
@@ -136,7 +169,7 @@ struct WishLibrarySheet: View {
             } else {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 12)], spacing: 12) {
-                        ForEach(files, id: \.self) { url in
+                        ForEach(visible, id: \.self) { url in
                             Button { if chosen.contains(url) { chosen.remove(url) } else { chosen.insert(url) } } label: {
                                 VStack(spacing: 4) {
                                     ZStack {
@@ -149,7 +182,12 @@ struct WishLibrarySheet: View {
                                 }
                             }
                             .buttonStyle(.plain)
-                            .contextMenu { Button("Remove from library", role: .destructive) { remove(url) } }
+                            .contextMenu {
+                                Menu("Move to category") {
+                                    ForEach(CommonLibrary.defaultCategories, id: \.self) { name in Button(name) { CommonLibrary.setCategory(url, name); map = CommonLibrary.loadMap() } }
+                                }
+                                Button("Remove from library", role: .destructive) { remove(url) }
+                            }
                         }
                     }
                     .padding(2)

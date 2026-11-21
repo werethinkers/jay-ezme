@@ -412,7 +412,7 @@ enum WishStoreReader {
 
 @MainActor
 final class WishStore: ObservableObject {
-    @Published var apps: [WishApp] = [] { didSet { scheduleSave() } }
+    @Published var apps: [WishApp] = [] { didSet { scheduleSave(); WishAppIndex.write(apps) } }
     @Published var functions: [WishFunction] = [] { didSet { scheduleSave() } }
     @Published var cards: [String: WishCard] = [:] { didSet { scheduleSave() } }
     @Published var lastAppID: String = "" { didSet { scheduleSave() } }
