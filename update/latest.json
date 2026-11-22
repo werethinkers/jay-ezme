@@ -1,9 +1,9 @@
 {
-  "version": "4.56",
-  "build": 466,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.56-build466/EzMe-4.56-macOS.zip",
-  "sha256": "47833ba5a2be9183ff663fde4e15f28f9d3f3572af0391f063c7f29d5e173d32",
-  "notes": "# KeyDo 4.56\n\n**Research capture now downloads the real picture**\n- When you copy a picture in the browser and the browser puts only its web address on the clipboard, KeyDo now downloads the picture file from that address. Before, nothing but a link was left.\n- The file is saved in Pictures > KeyDo Research, so you can see and use it like any download, and it is listed in My Files (Media tab, collection Research) with the page address in its notes. The picture's own address is kept in the notes too.\n- Only real pictures are saved. Links to pages, videos and other files are ignored, and a picture you already saved is not saved twice.\n- Research capture never creates a shortcut.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-22T08:36:04Z",
+  "version": "4.57",
+  "build": 467,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.57-build467/EzMe-4.57-macOS.zip",
+  "sha256": "f548cf44f4f0d92566c4494d8fc6418e2b6073a31b5ba2ea3a22de268c0058c3",
+  "notes": "# KeyDo 4.57\n\n**My Files Finder: big, friendly and easy to use**\n- Big icons with real previews of pictures, videos, PDFs and documents. A slider makes them smaller or bigger, and KeyDo remembers your size.\n- Point at a file and buttons appear: Quick Look and Rename. The file lifts slightly so you can see which one you are on.\n- Rename right on the name: double-click the name, press Return, use the pencil, or New folder (it opens ready to name). Return saves, Escape cancels.\n- Select one file by clicking, a range with Shift-click, add or remove with Command-click, drag a box on empty space to select everything inside it, or press Command-A. Drag any selected files to a folder to move them all (Option copies). Space opens Quick Look.\n- The list view has the same selection, rename and hover buttons.\n\n**Separate buttons on the top menu**\n- My Files, Collection Builder and Ez Tools each have their own button now. The top row scrolls sideways on a small window.\n\n**Ez Studio is now Ez Tools**\n- Cleaner page with a row of tool tabs like WishStudio: Image Studio, Image Edit, Resize and Crop, Video Editor, Photo Collage, Logo on Background, Bollywood 80s and Font Creator.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched. The new Return, Space and Escape keys in Finder only work while a Finder file area is focused inside KeyDo.",
+  "published": "2026-11-22T09:34:07Z",
   "minimumSystemVersion": "14.0"
 }
