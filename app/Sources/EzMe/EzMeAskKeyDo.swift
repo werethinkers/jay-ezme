@@ -26,7 +26,7 @@ enum KeyDoTopics {
         KeyDoTopic(title: "AppBuilder", line: "Make your own mini app: say what it does and get a PDF or a picture. Also holds the built-in apps.", keywords: ["app", "build", "mini app", "make an app", "builder", "automate", "tool"], section: "AppBuilder"),
         KeyDoTopic(title: "Collection Builder", line: "Research a topic and build up to 100 editable shortcuts with AI.", keywords: ["build a collection", "generate shortcuts", "research", "100 shortcuts", "collection builder", "ai shortcuts"], section: "AppBuilder", app: "Collection Builder"),
         KeyDoTopic(title: "Prompt Builder", line: "Write a prompt by typing or speaking, add collections and media, then send it to ChatGPT, Grok, Claude or Gemini.", keywords: ["prompt", "chatgpt", "claude", "gemini", "grok", "ask ai", "write a message", "email draft"], section: "AppBuilder", app: "Prompt Builder"),
-        KeyDoTopic(title: "Database Organizer", line: "Organize files, contacts, links and tables. Search inside documents, tag them, rename in bulk, and see recent files.", keywords: ["organize", "organizer", "files", "contacts", "database", "documents", "recent files", "tag", "tags", "rename", "bulk rename", "downloaded", "opened", "daily task", "pdf", "word"], section: "AppBuilder", app: "MyDatabase"),
+        KeyDoTopic(title: "My Files", line: "Browse any folder like Finder (drag, copy, move, rename), then organize files, contacts, links and tables. Search inside documents, tag them, rename in bulk, and see recent files.", keywords: ["organize", "organizer", "files", "contacts", "database", "documents", "recent files", "tag", "tags", "rename", "bulk rename", "downloaded", "opened", "daily task", "pdf", "word"], section: "AppBuilder", app: "MyDatabase"),
         KeyDoTopic(title: "Photo Collage", line: "Put the front, back, top, left or right views of one thing on one sheet.", keywords: ["collage", "views", "front", "back", "four photos", "product photos", "sheet"], section: "AppBuilder", app: "Photo Collage"),
         KeyDoTopic(title: "Logo on Background", line: "Turn a logo into a transparent PNG and place it on any picture.", keywords: ["logo", "watermark", "transparent", "png", "brand", "stamp"], section: "AppBuilder", app: "Logo on Background"),
         KeyDoTopic(title: "Font Creator", line: "Upload a picture of a letter and get a whole A to Z font. 20 ready fonts included, usable in Wish Studio and every design.", keywords: ["font", "fonts", "letters", "alphabet", "typeface", "lettering", "name style", "font creator"], section: "AppBuilder", app: "Font Creator"),
@@ -122,7 +122,7 @@ struct KeyDoAskCard: View {
         } else {
             answer = "These can help, best match first:"
         }
-        let list = found.isEmpty ? Array(KeyDoTopics.all.filter { ["WishStudio", "AppBuilder", "Database Organizer"].contains($0.title) }) : found
+        let list = found.isEmpty ? Array(KeyDoTopics.all.filter { ["WishStudio", "AppBuilder", "My Files"].contains($0.title) }) : found
         turns.append(Turn(question: question, answer: answer, topics: list))
         text = ""
     }
@@ -142,7 +142,7 @@ enum KeyDoHowTo {
         "Shortcuts": ["Press Add shortcut and give it a short word and the long text.", "In any app type a backslash, then the short word.", "Pick the result, or finish the word and press Space."],
         "Collections": ["Open Collections and pick a folder of shortcuts.", "Use the search, sort and the heart on a tile to find and favourite.", "Press Rename or Share on a collection when you need to."],
         "Prompt Builder": ["Type or speak your prompt, or press a starter under Skip the blank page.", "Press + Add context to bring in collections, media, files, people, apps or functions.", "Check the prompt on the right, then press Send to ChatGPT, Grok, Claude or Gemini."],
-        "Database Organizer": ["Open Database Organizer and scan a folder in the Organizer tab.", "Use Recent Files to see what you opened or downloaded; tick files to rename or tag them.", "Use Manage tags to rename or delete a tag everywhere."],
+        "My Files": ["Open My Files and scan a folder in the Organizer tab.", "Use Recent Files to see what you opened or downloaded; tick files to rename or tag them.", "Use Manage tags to rename or delete a tag everywhere."],
         "Photo Collage": ["Pick up to four pictures from your Mac, the library or the clipboard.", "Choose the sheet shape and colour.", "Press Make picture, then Save PNG or Send to app as template."],
         "Logo on Background": ["Choose your logo and tick Make the plain background transparent.", "Choose the picture to put it on and pick a corner.", "Set size and see-through level, then Make picture."],
         "Font Creator": ["Open Make from a letter and choose a picture of one letter.", "Fine tune thickness, width, lean and style, then press Save font.", "In Wish Studio or any design, pick KeyDo \u{00B7} and your font name in the Font list."],

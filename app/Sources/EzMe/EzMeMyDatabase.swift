@@ -249,7 +249,7 @@ struct MyDatabaseView: View {
     var onMakeShortcuts: ([Clip], String) -> Void = { _, _ in }
     var attachmentDirectory: URL? = nil
     @ObservedObject private var store = MyDatabaseStore.shared
-    @State private var tab = "Organizer"
+    @State private var tab = "Finder"
     @State private var viewerURL: URL?
     @State private var search = ""
     @State private var collectionFilter = "All collections"
@@ -285,7 +285,7 @@ struct MyDatabaseView: View {
     @AppStorage("ezmeDatabaseGrid") private var gridView = false
 
     private let tabs: [(String, String)] = [
-        ("Organizer", "externaldrive.badge.checkmark"), ("Recent Files", "clock.arrow.circlepath"), ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
+        ("Finder", "folder"), ("Organizer", "externaldrive.badge.checkmark"), ("Recent Files", "clock.arrow.circlepath"), ("Contacts", "person.crop.circle"), ("Links", "link"), ("Files", "doc.on.doc"), ("Media", "photo.on.rectangle"),
         ("Tables", "tablecells"), ("Shortcuts", "bolt.fill"), ("File Renamer", "doc.badge.gearshape")
     ]
 
@@ -308,6 +308,12 @@ struct MyDatabaseView: View {
             Divider()
             if let viewerURL {
                 DocumentViewerView(url: viewerURL, onClose: { self.viewerURL = nil }).id(viewerURL)
+            } else if tab == "Finder" {
+                VStack(alignment: .leading, spacing: 10) {
+                    tabBar
+                    FinderView().clipShape(RoundedRectangle(cornerRadius: 12)).overlay(RoundedRectangle(cornerRadius: 12).stroke(Butter.honey, lineWidth: 1))
+                }
+                .padding(18)
             } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -403,8 +409,8 @@ struct MyDatabaseView: View {
                 .font(.system(size: 24)).foregroundStyle(.white).frame(width: 48, height: 48)
                 .background(LinearGradient(colors: [Butter.cocoa, Butter.coral], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 14))
             VStack(alignment: .leading, spacing: 3) {
-                Text("Database Organizer").font(.system(size: 23, weight: .bold, design: .rounded))
-                Text("Organize, search and analyze your files, contacts, links and tables. Open PDF and Word documents with notes, highlights and tags.")
+                Text("My Files").font(.system(size: 23, weight: .bold, design: .rounded))
+                Text("Browse and manage every folder on your Mac like Finder, and organize, search and analyze your files, contacts, links and tables. Open PDF and Word documents with notes, highlights and tags.")
                     .font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer()

@@ -54,7 +54,6 @@ struct ButterTopBar: View {
     var onToggleBrowser: () -> Void
     var onOpen: (String) -> Void
     /// The row of sub-menus and the tip row under the top bar can each be hidden to give the page more room. Remembered across launches.
-    @AppStorage("keydoHideMenuRow") private var hideMenuRow = false
     @AppStorage("keydoHideTipRow") private var hideTipRow = false
     /// Width of the bar. Below about 1,000 points the logo is shown as its icon only, to leave room for the tabs.
     @State private var barWidth: CGFloat = 1400
@@ -72,6 +71,103 @@ struct ButterTopBar: View {
         }
     }
 
+    @State private var openArea: String?
+
+    /// One round icon per page, so the drop-down menus read at a glance.
+    static func symbol(for id: String) -> String {
+        switch id {
+        case "Dashboard": return "house.fill"
+        case "My shortcuts": return "bolt.fill"
+        case "Collections": return "square.stack.3d.up.fill"
+        case "Sound & media": return "photo.on.rectangle.angled"
+        case "Live & dynamic": return "clock.badge.checkmark.fill"
+        case "AppDesigner": return "paintpalette.fill"
+        case "AppBuilder": return "wand.and.stars"
+        case "WishStudio": return "party.popper.fill"
+        case "Ez Studio": return "sparkles.rectangle.stack.fill"
+        case "Ask KeyDo": return "bubble.left.and.text.bubble.right.fill"
+        case "Shortcut ideas": return "lightbulb.fill"
+        case "Marketplace": return "storefront.fill"
+        case "Ezyourlife apps": return "sparkles"
+        case "Apps & links": return "link"
+        case "Desktop apps": return "macwindow"
+        case "Browser": return "globe"
+        case "API configuration": return "key.fill"
+        case "KeyDo credits": return "bolt.circle.fill"
+        case "Ezyourlife credits": return "leaf.fill"
+        case "Settings": return "gearshape.fill"
+        case "User guide": return "book.fill"
+        default: return "circle.fill"
+        }
+    }
+
+    private static let pillGradient = LinearGradient(colors: [Color(red: 0.98, green: 0.45, blue: 0.35), Color(red: 0.92, green: 0.30, blue: 0.55)], startPoint: .topLeading, endPoint: .bottomTrailing)
+
+    private func areaPill(_ area: ButterArea, current: ButterArea) -> some View {
+        let active = area.id == current.id
+        let here = ButterNav.item(for: section)
+        return Button {
+            if area.items.count <= 1 {
+                if let first = area.items.first { openArea = nil; onOpen(first.id) }
+            } else {
+                openArea = openArea == area.id ? nil : area.id
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: area.icon).font(.system(size: 12, weight: .bold))
+                Text(area.title).font(.system(size: 13, weight: .bold, design: .rounded))
+                if active, area.items.count > 1, let here, here.title != area.title {
+                    Text(here.title).font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(Color.white.opacity(0.22), in: Capsule())
+                }
+                if area.items.count > 1 {
+                    Image(systemName: "chevron.down").font(.system(size: 8, weight: .heavy)).opacity(0.7)
+                }
+            }
+            .padding(.horizontal, 13).padding(.vertical, 8)
+            .foregroundStyle(active ? Color.white : Butter.cocoa)
+            .background(active ? AnyShapeStyle(ButterTopBar.pillGradient) : AnyShapeStyle(Color.white.opacity(0.55)), in: Capsule())
+            .overlay(Capsule().stroke(active ? Color.clear : Butter.honey.opacity(0.8), lineWidth: 1))
+            .shadow(color: active ? Color(red: 0.92, green: 0.30, blue: 0.45).opacity(0.28) : .clear, radius: 6, y: 3)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: Binding(get: { openArea == area.id }, set: { on in if !on && openArea == area.id { openArea = nil } }), arrowEdge: .bottom) {
+            areaMenu(area)
+        }
+    }
+
+    private func areaMenu(_ area: ButterArea) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(area.items) { item in
+                Button {
+                    openArea = nil
+                    onOpen(item.id)
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: ButterTopBar.symbol(for: item.id)).font(.system(size: 13, weight: .bold)).foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(section == item.id ? AnyShapeStyle(ButterTopBar.pillGradient) : AnyShapeStyle(Butter.coral.opacity(0.75)), in: RoundedRectangle(cornerRadius: 9))
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(item.title).font(.system(size: 13, weight: .bold, design: .rounded)).foregroundStyle(Butter.cocoa)
+                            Text(item.hint).font(.system(size: 10)).foregroundStyle(Butter.cocoa.opacity(0.62)).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        if section == item.id { Image(systemName: "checkmark").font(.system(size: 11, weight: .bold)).foregroundStyle(Butter.coral) }
+                    }
+                    .padding(.horizontal, 8).padding(.vertical, 5)
+                    .frame(width: 300, alignment: .leading)
+                    .background(section == item.id ? Butter.honey.opacity(0.35) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(10)
+        .background(Butter.cream)
+    }
+
     var body: some View {
         let current = ButterNav.area(containing: section)
         VStack(spacing: 0) {
@@ -79,50 +175,14 @@ struct ButterTopBar: View {
                 topBarLogo
                     .padding(.trailing, 10)
                 ForEach(ButterNav.areas) { area in
-                    Button {
-                        if let first = area.items.first { onOpen(first.id) }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: area.icon)
-                            Text(area.title)
-                        }
-                        .font(.system(size: 13, weight: .semibold))
-                        .padding(.horizontal, 12).padding(.vertical, 7)
-                        .foregroundStyle(area.id == current.id ? Butter.cream : Butter.cocoa)
-                        .background(area.id == current.id ? Butter.cocoa : Color.clear, in: Capsule())
-                        .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .help(area.items.map { $0.title }.joined(separator: ", "))
-                }
-                if hideMenuRow, current.items.count > 1, let here = ButterNav.item(for: section) {
-                    Button { hideMenuRow = false } label: {
-                        HStack(spacing: 4) {
-                            Text(here.title)
-                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
-                        }
-                        .font(.system(size: 12, weight: .semibold))
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .foregroundStyle(Butter.cocoa)
-                        .background(Butter.honey, in: Capsule())
-                        .contentShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .help("Show the menu row")
+                    areaPill(area, current: current)
                 }
                 Spacer()
                 Menu {
-                    Button(hideMenuRow ? "Show menu row" : "Hide menu row") { hideMenuRow.toggle() }
                     Button(hideTipRow ? "Show tip row" : "Hide tip row") { hideTipRow.toggle() }
-                    Divider()
-                    Button(hideMenuRow && hideTipRow ? "Show both rows" : "Hide both rows") {
-                        let hide = !(hideMenuRow && hideTipRow)
-                        hideMenuRow = hide
-                        hideTipRow = hide
-                    }
-                    .keyboardShortcut("m", modifiers: [.command, .shift])
+                        .keyboardShortcut("m", modifiers: [.command, .shift])
                 } label: {
-                    Image(systemName: hideMenuRow || hideTipRow ? "chevron.down.square" : "chevron.up.square")
+                    Image(systemName: hideTipRow ? "chevron.down.square" : "chevron.up.square")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(Butter.cocoa)
                         .padding(5)
@@ -131,7 +191,7 @@ struct ButterTopBar: View {
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
-                .help("Hide or show the menu row and the tip row (\u{21E7}\u{2318}M)")
+                .help("Hide or show the tip row (\u{21E7}\u{2318}M)")
                 ButterUpdateButton()
                 Menu {
                     Button(browserPanelVisible ? "Hide browser panel" : "Show browser panel", action: onToggleBrowser)
@@ -158,24 +218,6 @@ struct ButterTopBar: View {
             }
             .padding(.horizontal, 18).padding(.vertical, 10)
 
-            if current.items.count > 1 && !hideMenuRow {
-                HStack(spacing: 6) {
-                    ForEach(current.items) { item in
-                        Button { onOpen(item.id) } label: {
-                            Text(item.title)
-                                .font(.system(size: 12, weight: .semibold))
-                                .padding(.horizontal, 11).padding(.vertical, 5)
-                                .foregroundStyle(section == item.id ? Butter.cocoa : Butter.cocoa.opacity(0.7))
-                                .background(section == item.id ? Butter.honey : Color.clear, in: Capsule())
-                                .contentShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .help(item.hint)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 18).padding(.bottom, 9)
-            }
             if !hideTipRow, let item = ButterNav.item(for: section) {
                 HStack(spacing: 8) {
                     Image(systemName: "lightbulb.fill").foregroundStyle(Butter.coral)
@@ -198,7 +240,6 @@ struct ButterTopBar: View {
                 .onAppear { barWidth = proxy.size.width }
                 .onChange(of: proxy.size.width) { barWidth = $0 }
         })
-        .animation(.easeInOut(duration: 0.18), value: hideMenuRow)
         .animation(.easeInOut(duration: 0.18), value: hideTipRow)
     }
 }

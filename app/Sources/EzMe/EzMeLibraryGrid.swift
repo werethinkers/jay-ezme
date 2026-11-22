@@ -537,6 +537,11 @@ struct LibraryPosterTile: View {
     let isVideo: Bool
     @State private var image: NSImage?
 
+    init(path: String, isVideo: Bool) {
+        self.path = path
+        self.isVideo = isVideo
+    }
+
     var body: some View {
         Color.clear
         .overlay { if let image { Image(nsImage: image).resizable().scaledToFill() } }

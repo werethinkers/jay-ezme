@@ -145,7 +145,11 @@ final class WishStudioModel: ObservableObject {
         started = true
         store.load(directory: directory)
         builder.model = self
-        let remembered = store.app(id: store.lastAppID) != nil ? store.lastAppID : (store.apps.first?.id ?? "")
+        var remembered = store.app(id: store.lastAppID) != nil ? store.lastAppID : (store.apps.first?.id ?? "")
+        if let asked = UserDefaults.standard.string(forKey: "keydoWishOpenApp"), !asked.isEmpty {
+            UserDefaults.standard.removeObject(forKey: "keydoWishOpenApp")
+            if store.app(id: asked) != nil { remembered = asked }
+        }
         loadApp(remembered, saveCurrent: false)
         status = defaultStatus
     }
