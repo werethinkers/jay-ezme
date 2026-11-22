@@ -38,6 +38,10 @@ final class FinderModel: ObservableObject {
         let saved = UserDefaults.standard.double(forKey: "keydoFinderIconSize")
         return saved >= 64 ? saved : 112
     }() { didSet { UserDefaults.standard.set(iconSize, forKey: "keydoFinderIconSize") } }
+    static let hiddenKey = "keydoFinderHiddenPaths"
+    /// Files and folders the person hid. They stay exactly where they are; KeyDo just does not show them until the passcode is entered.
+    @Published var hiddenPaths: Set<String> = Set(UserDefaults.standard.stringArray(forKey: FinderModel.hiddenKey) ?? [])
+    @Published var showProtected = false
     var anchor: URL?
     var dragSet: [URL] = []
 
@@ -61,7 +65,7 @@ final class FinderModel: ObservableObject {
         pinned = paths.map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
     }
 
-    func stop() { watcher?.cancel(); watcher = nil }
+    func stop() { watcher?.cancel(); watcher = nil; showProtected = false }
 
     // MARK: Places
 
@@ -99,6 +103,10 @@ final class FinderModel: ObservableObject {
 
     func go(_ url: URL, remember: Bool = true) {
         var target = url
+        if isProtected(url) && !showProtected {
+            guard HiddenAccess.unlock("files") else { message = "That folder is hidden. Enter your passcode to open it."; return }
+            showProtected = true
+        }
         var isDir: ObjCBool = false
         if !FileManager.default.fileExists(atPath: target.path, isDirectory: &isDir) { message = "That folder is not there any more."; return }
         if !isDir.boolValue { target = url.deletingLastPathComponent() }
@@ -162,6 +170,7 @@ final class FinderModel: ObservableObject {
         let q = query.trimmingCharacters(in: .whitespaces)
         var list = entries
         if !q.isEmpty { list = list.filter { $0.name.localizedCaseInsensitiveContains(q) } }
+        if !showProtected && !hiddenPaths.isEmpty { list = list.filter { !isProtected($0.url) } }
         let up = ascending
         list.sort { a, b in
             if a.isFolder != b.isFolder { return a.isFolder }
@@ -274,6 +283,7 @@ final class FinderModel: ObservableObject {
         if FileManager.default.fileExists(atPath: destination.path) { message = "A file called \"\(name)\" is already here."; return }
         do {
             try FileManager.default.moveItem(at: url, to: destination)
+            remapHidden(from: url, to: destination)
             reload()
             selection = [destination]
             message = "Renamed to \"\(name)\"."
@@ -286,7 +296,7 @@ final class FinderModel: ObservableObject {
         var done = 0
         var failed = 0
         for u in urls {
-            if (try? FileManager.default.trashItem(at: u, resultingItemURL: nil)) != nil { done += 1 } else { failed += 1 }
+            if (try? FileManager.default.trashItem(at: u, resultingItemURL: nil)) != nil { done += 1; remapHidden(from: u, to: nil) } else { failed += 1 }
         }
         selection = []
         reload()
@@ -334,7 +344,7 @@ final class FinderModel: ObservableObject {
             if dest.path == source.path || dest.path.hasPrefix(source.path + "/") { skipped += 1; continue }
             let target = unique(dest.appendingPathComponent(source.lastPathComponent))
             do {
-                if copy || !sameVolume(source, dest) { try fm.copyItem(at: source, to: target) } else { try fm.moveItem(at: source, to: target) }
+                if copy || !sameVolume(source, dest) { try fm.copyItem(at: source, to: target) } else { try fm.moveItem(at: source, to: target); remapHidden(from: source, to: target) }
                 done += 1
             } catch { skipped += 1 }
         }
@@ -361,6 +371,51 @@ final class FinderModel: ObservableObject {
             self?.reload()
             self?.message = ok ? "Created \"\(zip.lastPathComponent)\"." : "Could not compress these items."
         }
+    }
+
+    // MARK: Hide with passcode
+
+    func isHidden(_ url: URL) -> Bool { hiddenPaths.contains(url.standardizedFileURL.path) }
+
+    func isProtected(_ url: URL) -> Bool {
+        let p = url.standardizedFileURL.path
+        return hiddenPaths.contains { p == $0 || p.hasPrefix($0 + "/") }
+    }
+
+    private func saveHidden() { UserDefaults.standard.set(Array(hiddenPaths), forKey: FinderModel.hiddenKey) }
+
+    /// Keeps the hidden list right when a hidden item is renamed, moved or deleted.
+    func remapHidden(from old: URL, to new: URL?) {
+        let oldPath = old.standardizedFileURL.path
+        var changed = false
+        var updated = hiddenPaths
+        for path in hiddenPaths where path == oldPath || path.hasPrefix(oldPath + "/") {
+            updated.remove(path)
+            changed = true
+            if let new { updated.insert(new.standardizedFileURL.path + String(path.dropFirst(oldPath.count))) }
+        }
+        if changed { hiddenPaths = updated; saveHidden() }
+    }
+
+    func hide(_ urls: [URL]) {
+        if !AppPasscode.isSet {
+            guard HiddenAccess.unlock("files") else { message = "Choose a passcode to hide files."; return }
+        }
+        for u in urls { hiddenPaths.insert(u.standardizedFileURL.path) }
+        saveHidden()
+        selection = []
+        message = "Hid \(urls.count) item(s). They stay in this folder. Use Protected files and your passcode to see them."
+    }
+
+    func unhide(_ urls: [URL]) {
+        for u in urls { hiddenPaths.remove(u.standardizedFileURL.path) }
+        saveHidden()
+        message = "Unhid \(urls.count) item(s)."
+    }
+
+    func toggleProtected() {
+        if showProtected { showProtected = false; selection = []; message = "Hidden items are hidden again."; return }
+        if HiddenAccess.unlock("files") { showProtected = true; message = hiddenPaths.isEmpty ? "Nothing is hidden yet. Right-click a file and choose Hide." : "Showing hidden items." }
     }
 
     func pin(_ url: URL) {

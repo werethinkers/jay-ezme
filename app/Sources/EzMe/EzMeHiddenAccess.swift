@@ -20,17 +20,17 @@ enum HiddenAccess {
     }
 
     /// True when the person may see hidden items now.
-    @MainActor static func unlock() -> Bool {
+    @MainActor static func unlock(_ what: String = "shortcuts") -> Bool {
         if Date().timeIntervalSince(lastUnlock) < graceSeconds { return true }
         NSApp.activate(ignoringOtherApps: true)
-        return AppPasscode.isSet ? ask() : create()
+        return AppPasscode.isSet ? ask(what) : create(what)
     }
 
-    @MainActor private static func ask() -> Bool {
-        var message = "Hidden shortcuts are protected. Enter your 6-digit passcode to show them."
+    @MainActor private static func ask(_ what: String) -> Bool {
+        var message = "Hidden \(what) are protected. Enter your 6-digit passcode to show them."
         while true {
             let alert = NSAlert()
-            alert.messageText = "Show hidden shortcuts"
+            alert.messageText = "Show hidden \(what)"
             alert.informativeText = message
             let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
             field.placeholderString = "6-digit passcode"
@@ -59,11 +59,11 @@ enum HiddenAccess {
         }
     }
 
-    @MainActor private static func create() -> Bool {
+    @MainActor private static func create(_ what: String) -> Bool {
         var message = "Choose a 6-digit passcode. It also protects deleting apps."
         while true {
             let alert = NSAlert()
-            alert.messageText = "Protect hidden shortcuts"
+            alert.messageText = "Protect hidden \(what)"
             alert.informativeText = message
             let first = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
             first.placeholderString = "New 6-digit passcode"

@@ -1,16 +1,13 @@
-# KeyDo 4.57
+# KeyDo 4.58
 
-**My Files Finder: big, friendly and easy to use**
-- Big icons with real previews of pictures, videos, PDFs and documents. A slider makes them smaller or bigger, and KeyDo remembers your size.
-- Point at a file and buttons appear: Quick Look and Rename. The file lifts slightly so you can see which one you are on.
-- Rename right on the name: double-click the name, press Return, use the pencil, or New folder (it opens ready to name). Return saves, Escape cancels.
-- Select one file by clicking, a range with Shift-click, add or remove with Command-click, drag a box on empty space to select everything inside it, or press Command-A. Drag any selected files to a folder to move them all (Option copies). Space opens Quick Look.
-- The list view has the same selection, rename and hover buttons.
+**Hide files in My Files > Finder, with your passcode**
+- Right-click a file or folder (or use the bar above the list) and choose **Hide with passcode**. It stays exactly where it is on your Mac, but KeyDo no longer shows it.
+- Press **Protected files** and enter your 6-digit passcode, the same one used for hidden collections, to see hidden items. They show with a small lock and can be unhidden any time. Leaving the Finder tab hides them again, and opening a hidden folder by its path asks for the passcode too.
+- Renaming, moving or trashing a hidden item keeps it hidden. Note: this hides items inside KeyDo only. They are still visible in the macOS Finder and other apps, and the files are not encrypted.
 
-**Separate buttons on the top menu**
-- My Files, Collection Builder and Ez Tools each have their own button now. The top row scrolls sideways on a small window.
+**Ez Tools: cover picture and scrolling**
+- **Change cover** at the top of Ez Tools lets you use any picture; Reset brings back the colour cover. Right-click any tool tab and choose Change picture to give it your own picture.
+- The page now scrolls all the way down for every tool, including Font Creator, Image Studio, Resize and Crop and Video Editor. The cover and tool tabs stay at the top.
+- My Files and Collection Builder now fill the window height properly.
 
-**Ez Studio is now Ez Tools**
-- Cleaner page with a row of tool tabs like WishStudio: Image Studio, Image Edit, Resize and Crop, Video Editor, Photo Collage, Logo on Background, Bollywood 80s and Font Creator.
-
-**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched. The new Return, Space and Escape keys in Finder only work while a Finder file area is focused inside KeyDo.
+**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.

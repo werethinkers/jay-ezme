@@ -1,5 +1,7 @@
 // Ez Tools (was Ez Studio): every tool is its own tab, in a clean row like the apps in WishStudio.
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 struct EzToolDef: Identifiable {
     let id: String
@@ -43,14 +45,26 @@ struct EzToolTabs: View {
         }
     }
 
+    @State private var pictureRevision = 0
+
+    @ViewBuilder private func toolIcon(_ tool: EzToolDef) -> some View {
+        let _ = pictureRevision
+        if let picture = EzToolPictures.image(EzToolPictures.tabKey(tool.id)) {
+            Color.clear.frame(width: 34, height: 34)
+                .overlay { Image(nsImage: picture).resizable().scaledToFill() }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        } else {
+            Image(systemName: tool.symbol).font(.system(size: 15, weight: .bold)).foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(LinearGradient(colors: tool.colors, startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
     private func tab(_ tool: EzToolDef) -> some View {
         let on = selected == tool.id
         return Button { withAnimation(.easeInOut(duration: 0.15)) { selected = tool.id } } label: {
             HStack(spacing: 10) {
-                Image(systemName: tool.symbol).font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(on ? Color.white : Color.white)
-                    .frame(width: 34, height: 34)
-                    .background(LinearGradient(colors: tool.colors, startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 10))
+                toolIcon(tool)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(tool.title).font(.system(size: 13, weight: .bold, design: .rounded)).lineLimit(1)
                     Text(tool.hint).font(.system(size: 10, weight: .medium)).lineLimit(1).opacity(0.7)
@@ -63,5 +77,102 @@ struct EzToolTabs: View {
             .shadow(color: .black.opacity(on ? 0.08 : 0), radius: 5, y: 2)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button("Change picture…") { if EzToolPictures.choose(EzToolPictures.tabKey(tool.id)) { pictureRevision += 1 } }
+            if EzToolPictures.image(EzToolPictures.tabKey(tool.id)) != nil {
+                Button("Reset picture") { EzToolPictures.clear(EzToolPictures.tabKey(tool.id)); pictureRevision += 1 }
+            }
+        }
+    }
+}
+
+/// Your own pictures for Ez Tools: the page cover and a picture for each tool tab. Copies are kept inside KeyDo.
+enum EzToolPictures {
+    static let coverKey = "keydoEzToolsCoverPath"
+    static func tabKey(_ id: String) -> String { "keydoEzToolPic." + id }
+
+    private static var folder: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("KeyDo", isDirectory: true).appendingPathComponent("Covers", isDirectory: true)
+        try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        return base
+    }
+
+    static func image(_ key: String) -> NSImage? {
+        guard let path = UserDefaults.standard.string(forKey: key), !path.isEmpty else { return nil }
+        return NSImage(contentsOfFile: path)
+    }
+
+    /// Asks for a picture, keeps a copy, and remembers it. Returns true when something was chosen.
+    @MainActor @discardableResult static func choose(_ key: String) -> Bool {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = "Use picture"
+        guard panel.runModal() == .OK, let source = panel.url else { return false }
+        let ext = source.pathExtension.isEmpty ? "png" : source.pathExtension.lowercased()
+        let name = key.replacingOccurrences(of: ".", with: "-") + "-" + String(Int(Date().timeIntervalSince1970)) + "." + ext
+        let target = folder.appendingPathComponent(name)
+        do {
+            try FileManager.default.copyItem(at: source, to: target)
+        } catch { return false }
+        if let old = UserDefaults.standard.string(forKey: key), old != target.path { try? FileManager.default.removeItem(atPath: old) }
+        UserDefaults.standard.set(target.path, forKey: key)
+        return true
+    }
+
+    static func clear(_ key: String) {
+        if let old = UserDefaults.standard.string(forKey: key) { try? FileManager.default.removeItem(atPath: old) }
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+}
+
+/// The wide cover at the top of Ez Tools. Change it to any picture, or go back to the colour cover.
+struct EzToolsBanner: View {
+    @AppStorage(EzToolPictures.coverKey) private var coverPath = ""
+    @State private var hover = false
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            cover
+            LinearGradient(colors: [Color.black.opacity(0.0), Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+            HStack(alignment: .bottom, spacing: 14) {
+                Image(systemName: "wrench.and.screwdriver.fill").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
+                    .frame(width: 46, height: 46).background(Color.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Ez Tools").font(.system(size: 28, weight: .heavy, design: .rounded)).foregroundStyle(.white)
+                    Text("Pick a tool below. Draw, fix, resize, edit video and make fonts.").font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.9))
+                }
+                Spacer()
+                HStack(spacing: 8) {
+                    Button { if EzToolPictures.choose(EzToolPictures.coverKey) { coverPath = UserDefaults.standard.string(forKey: EzToolPictures.coverKey) ?? "" } } label: {
+                        Label("Change cover", systemImage: "photo.badge.plus")
+                    }
+                    if !coverPath.isEmpty {
+                        Button { EzToolPictures.clear(EzToolPictures.coverKey); coverPath = "" } label: { Label("Reset", systemImage: "arrow.uturn.backward") }
+                    }
+                }
+                .buttonStyle(.borderedProminent).tint(Color.black.opacity(0.45)).controlSize(.small)
+                .opacity(hover || coverPath.isEmpty ? 1 : 0.0)
+            }
+            .padding(.horizontal, 24).padding(.vertical, 14)
+        }
+        .frame(height: 124)
+        .frame(maxWidth: .infinity)
+        .clipped()
+        .onHover { hover = $0 }
+        .contextMenu {
+            Button("Change cover…") { if EzToolPictures.choose(EzToolPictures.coverKey) { coverPath = UserDefaults.standard.string(forKey: EzToolPictures.coverKey) ?? "" } }
+            if !coverPath.isEmpty { Button("Reset cover") { EzToolPictures.clear(EzToolPictures.coverKey); coverPath = "" } }
+        }
+    }
+
+    @ViewBuilder private var cover: some View {
+        if !coverPath.isEmpty, let image = NSImage(contentsOfFile: coverPath) {
+            Color.clear.overlay { Image(nsImage: image).resizable().scaledToFill() }.clipped()
+        } else {
+            LinearGradient(colors: [Color(red: 0.98, green: 0.50, blue: 0.35), Color(red: 0.92, green: 0.30, blue: 0.55), Color(red: 0.50, green: 0.36, blue: 0.92)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
     }
 }
