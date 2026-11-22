@@ -1,9 +1,9 @@
 {
-  "version": "4.55",
-  "build": 465,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.55-build465/EzMe-4.55-macOS.zip",
-  "sha256": "019b028e9cb77ec680236b540f8cf9354d9aacf92f20b665feecb2daff13c9b4",
-  "notes": "# KeyDo 4.55\n\n**Database Organizer is now My Files, with Finder built in**\n- New **Finder** tab (opens first): Desktop, Documents, Downloads, Pictures, other drives and any folder you add under My folders. Drag a folder onto the sidebar to pin it.\n- Back, forward, enclosing folder, a clickable path bar, Go to folder, list or icon view, search and sort.\n- Drag files and folders in from your Desktop or Finder, or between folders, to move them (Option copies). Dragging to another drive copies.\n- New folder, Rename, Duplicate, Copy, Cut, Paste, Move to, Copy to, Compress, Quick Look, Get info, Reveal in Finder and Move to Trash (recoverable).\n- Add to My Files library saves a file so you can tag it, add notes and search inside it. PDF and Word files can open in the KeyDo viewer.\n- The Organizer, Recent Files, Contacts, Links, Files, Media, Tables, Shortcuts and File Renamer tabs are unchanged.\n\n**One-row top menu**\n- The two rows of links are now one stylish row. Click a group (Library, Create, Apps & web, Setup) to open a menu with an icon and a short line for every page. The page you are on shows next to its group.\n\n**Home: your apps and links together**\n- Your apps and links shows AppDesigner, AppBuilder, WishStudio and Ezyourlife apps plus your saved links, with colourful chips to filter them. Tap one to open it; WishStudio opens that exact app.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-22T04:42:18Z",
+  "version": "4.56",
+  "build": 466,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.56-build466/EzMe-4.56-macOS.zip",
+  "sha256": "47833ba5a2be9183ff663fde4e15f28f9d3f3572af0391f063c7f29d5e173d32",
+  "notes": "# KeyDo 4.56\n\n**Research capture now downloads the real picture**\n- When you copy a picture in the browser and the browser puts only its web address on the clipboard, KeyDo now downloads the picture file from that address. Before, nothing but a link was left.\n- The file is saved in Pictures > KeyDo Research, so you can see and use it like any download, and it is listed in My Files (Media tab, collection Research) with the page address in its notes. The picture's own address is kept in the notes too.\n- Only real pictures are saved. Links to pages, videos and other files are ignored, and a picture you already saved is not saved twice.\n- Research capture never creates a shortcut.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-22T08:36:04Z",
   "minimumSystemVersion": "14.0"
 }
