@@ -189,10 +189,20 @@ struct LibraryGridView: View {
         return "\(clips.count)-\(h.finalize())"
     }
 
+    private static let tileGap: CGFloat = 16
+    private static let minTile: CGFloat = 220
+    /// Same number of equal columns for the whole grid, worked out from the real width, so every tile has exactly the same size and gap.
+    private func columns(for width: CGFloat) -> [GridItem] {
+        let usable = max(width - 8, LibraryGridView.minTile)
+        let count = max(1, Int((usable + LibraryGridView.tileGap) / (LibraryGridView.minTile + LibraryGridView.tileGap)))
+        return Array(repeating: GridItem(.flexible(minimum: 100), spacing: LibraryGridView.tileGap, alignment: .top), count: count)
+    }
+
     var body: some View {
+        GeometryReader { geo in
         ScrollView {
           LazyVStack(spacing: 0) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 300), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+            LazyVGrid(columns: columns(for: geo.size.width), alignment: .leading, spacing: LibraryGridView.tileGap) {
                 ForEach(clips.prefix(shown)) { clip in
                     LibraryGridCard(
                         clip: clip,
@@ -219,6 +229,7 @@ struct LibraryGridView: View {
         }
         .onChange(of: clips.first?.id) { _ in shown = LibraryGridView.firstBatch; LibraryThumbs.removeAll() }
         .onChange(of: clips.count) { count in if count < shown { shown = max(LibraryGridView.firstBatch, count) } }
+        }
         .onDisappear { LibraryThumbs.removeAll() }
         .sheet(item: $viewer) { start in LibraryMediaViewer(items: start.items, startIndex: start.index, collectionNames: collectionNames, onFinished: { edits in onViewerEdits?(edits); LibraryThumbs.removeAll() }) }
     }
@@ -240,9 +251,10 @@ struct LibraryGridCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            LibraryPreview(clip: clip, type: type, isVisible: visible)
-                .frame(height: 160)
+            LibraryPreview(clip: clip, type: type, isVisible: visible && hovering)
                 .frame(maxWidth: .infinity)
+                .frame(height: 160)
+                .clipShape(Rectangle())
                 .clipped()
                 .hoverEnlarge(path: [.image, .gif, .video, .pdf, .sheet, .word, .slides, .document].contains(type) ? clip.files.first : nil)
                 .overlay(alignment: .topLeading) { badge.padding(8) }
@@ -270,6 +282,7 @@ struct LibraryGridCard: View {
             .frame(maxWidth: .infinity, minHeight: 74, maxHeight: 74, alignment: .topLeading)
             .clipped()
         }
+        .frame(maxWidth: .infinity)
         .frame(height: 160 + 74)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
         .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -347,14 +360,14 @@ struct LibraryPreview: View {
             if let path = path {
                 ZStack {
                     LibraryPosterTile(path: path, isVideo: false)
-                    if isVisible { AnimatedGIFView(path: path) }
+                    if isVisible { AnimatedGIFView(path: path).frame(maxWidth: .infinity, maxHeight: .infinity).clipped().allowsHitTesting(false) }
                 }
             } else { missing("photo.on.rectangle.angled") }
         case .video:
             if let path = path {
                 ZStack {
                     LibraryPosterTile(path: path, isVideo: true)
-                    if isVisible { LoopingVideoView(url: URL(fileURLWithPath: path), limit: 10) }
+                    if isVisible { LoopingVideoView(url: URL(fileURLWithPath: path), limit: 10).frame(maxWidth: .infinity, maxHeight: .infinity).clipped().allowsHitTesting(false) }
                 }
             } else { missing("film") }
         case .music:
@@ -400,6 +413,8 @@ struct AnimatedGIFView: NSViewRepresentable {
         let view = NSImageView()
         view.imageScaling = .scaleProportionallyUpOrDown
         view.animates = true
+        view.wantsLayer = true
+        view.layer?.masksToBounds = true
         view.image = NSImage(contentsOfFile: path)
         view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
@@ -523,9 +538,8 @@ struct LibraryPosterTile: View {
     @State private var image: NSImage?
 
     var body: some View {
-        ZStack {
-            if let image { Image(nsImage: image).resizable().scaledToFill() }
-        }
+        Color.clear
+        .overlay { if let image { Image(nsImage: image).resizable().scaledToFill() } }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .task(id: path) {
