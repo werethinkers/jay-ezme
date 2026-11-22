@@ -80,7 +80,7 @@ enum VoiceRouter {
         ("Desktop apps", ["desktop apps", "mac apps"]),
         ("User guide", ["user guide", "help guide", "guide", "help"]),
         ("Browser", ["browser", "web browser", "internet", "safari"]),
-        ("Ez Studio", ["ez studio", "studio", "image studio"]),
+        ("Ez Studio", ["ez tools", "ez studio", "studio", "image studio", "tools"]),
         ("Settings", ["settings", "preferences"])
     ]
 
@@ -96,7 +96,7 @@ enum VoiceRouter {
         switch name {
         case "Collection Builder": return ["collection builder", "build a collection", "make a collection", "create a collection"]
         case "Prompt Builder": return ["prompt builder", "prompt maker", "prompt writer", "write a prompt"]
-        case "MyDatabase": return ["database organizer", "organizer", "document viewer", "my database", "mydatabase", "my data base", "database", "contacts database"]
+        case "MyDatabase": return ["my files", "finder", "database organizer", "organizer", "document viewer", "my database", "mydatabase", "my data base", "database", "contacts database"]
         default: return [name]
         }
     }

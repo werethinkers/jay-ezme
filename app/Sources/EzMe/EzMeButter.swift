@@ -28,7 +28,10 @@ enum ButterNav {
         return [
             ButterArea(id: "Home", title: "Home", icon: "house", items: items(0)),
             ButterArea(id: "Library", title: "Library", icon: "books.vertical", items: items(1)),
-            ButterArea(id: "Create", title: "Create", icon: "wand.and.stars", items: items(2)),
+            ButterArea(id: "Create", title: "Create", icon: "wand.and.stars", items: items(2).filter { $0.id != "Ez Studio" }),
+            ButterArea(id: "MyFiles", title: "My Files", icon: "folder.fill", items: [EzMeNavigation.Item(id: "My Files", title: "My Files", hint: "Browse every folder like Finder, and organize files, contacts, links and tables.")]),
+            ButterArea(id: "CollectionBuilder", title: "Collection Builder", icon: "square.stack.3d.up.fill", items: [EzMeNavigation.Item(id: "Collection Builder", title: "Collection Builder", hint: "Make a whole collection of shortcuts with AI.")]),
+            ButterArea(id: "EzTools", title: "Ez Tools", icon: "wrench.and.screwdriver.fill", items: [EzMeNavigation.Item(id: "Ez Studio", title: "Ez Tools", hint: "Draw and fix pictures, resize media, edit video and more.")]),
             ButterArea(id: "Apps", title: "Apps & web", icon: "globe", items: items(3)),
             ButterArea(id: "Setup", title: "Setup", icon: "gearshape", items: items(4)),
         ]
@@ -84,7 +87,9 @@ struct ButterTopBar: View {
         case "AppDesigner": return "paintpalette.fill"
         case "AppBuilder": return "wand.and.stars"
         case "WishStudio": return "party.popper.fill"
-        case "Ez Studio": return "sparkles.rectangle.stack.fill"
+        case "Ez Studio": return "wrench.and.screwdriver.fill"
+        case "My Files": return "folder.fill"
+        case "Collection Builder": return "square.stack.3d.up.fill"
         case "Ask KeyDo": return "bubble.left.and.text.bubble.right.fill"
         case "Shortcut ideas": return "lightbulb.fill"
         case "Marketplace": return "storefront.fill"
@@ -174,10 +179,15 @@ struct ButterTopBar: View {
             HStack(spacing: 6) {
                 topBarLogo
                     .padding(.trailing, 10)
-                ForEach(ButterNav.areas) { area in
-                    areaPill(area, current: current)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(ButterNav.areas) { area in
+                            areaPill(area, current: current)
+                        }
+                    }
+                    .padding(.vertical, 6).padding(.horizontal, 2)
                 }
-                Spacer()
+                Spacer(minLength: 0)
                 Menu {
                     Button(hideTipRow ? "Show tip row" : "Hide tip row") { hideTipRow.toggle() }
                         .keyboardShortcut("m", modifiers: [.command, .shift])
