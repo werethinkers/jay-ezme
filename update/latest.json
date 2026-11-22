@@ -1,9 +1,9 @@
 {
-  "version": "4.53",
-  "build": 463,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.53-build463/EzMe-4.53-macOS.zip",
-  "sha256": "2c04b880c469555330bfb84c1ad5825ff71cd48db84d44c6271ddbafe04fd332",
-  "notes": "# KeyDo 4.53\n\n**Collections grid: no more overlapping tiles**\n- Sorting, or switching between Video, Image and the other type tabs, now rebuilds the grid cleanly. Every tile has the same fixed size, and video and GIF previews are clipped to their tile, so nothing overlaps.\n\n**Hide or show the categories panel**\n- A new sidebar button at the top left of a collection hides or shows the categories list, so the grid can use the full width. KeyDo remembers your choice.\n\n**A neater Collections view**\n- Roomier header and spacing, Favourites and Sort together in one row, softer card borders and corners, and a single-line tag strip so tiles stay even.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-21T22:05:48Z",
+  "version": "4.54",
+  "build": 464,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.54-build464/EzMe-4.54-macOS.zip",
+  "sha256": "39fcdf8ceda11063407ab2bbc97ea8cb59b93dd88c3074ec1fe60b8d20c74c07",
+  "notes": "# KeyDo 4.54\n\n**Collections grid: videos no longer overlap**\n- Every tile is now exactly the same size, with the same gap on all sides. The columns are worked out from the window width, so tiles line up when you sort or switch tabs, and when you resize the window.\n- Video and GIF previews now show a still picture, and play only while your pointer is on that tile. A playing video can no longer draw over its neighbours, and the grid is lighter on memory.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-22T04:21:45Z",
   "minimumSystemVersion": "14.0"
 }
