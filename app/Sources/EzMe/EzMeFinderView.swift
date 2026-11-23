@@ -203,7 +203,7 @@ struct FinderView: View {
                 Button { makeFolder() } label: { Label("New folder", systemImage: "folder.badge.plus") }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
                 Button { model.paste() } label: { Label("Paste", systemImage: "doc.on.clipboard") }.disabled(!model.canPaste)
-                Button { model.toggleProtected() } label: { Label(model.showProtected ? "Hide protected again" : "Protected files", systemImage: model.showProtected ? "lock.open.fill" : "lock.fill") }
+                Button { model.toggleProtected() } label: { Label(model.showProtected ? "Close vault" : "Protected files", systemImage: model.showProtected ? "lock.open.fill" : "lock.fill") }
                     .tint(model.showProtected ? Butter.coral : nil)
                 Button { goText = model.current.path; showGoTo = true } label: { Label("Go to…", systemImage: "arrow.right.circle") }
                 Button { model.reload() } label: { Image(systemName: "arrow.clockwise") }.help("Refresh")
@@ -245,7 +245,7 @@ struct FinderView: View {
             Button("Move to…") { model.chooseFolder("Move here") { model.place(urls, into: $0, copy: false) } }
             Button("Copy to…") { model.chooseFolder("Copy here") { model.place(urls, into: $0, copy: true) } }
             Button("Add to My Files library") { model.addToLibrary(urls) }
-            if urls.contains(where: { model.isHidden($0) }) { Button("Unhide") { model.unhide(urls) } } else { Button("Hide with passcode") { model.hide(urls) } }
+            if urls.contains(where: { model.isHidden($0) }) { Button("Put back") { model.unhide(urls) } } else { Button("Move to secure vault") { model.hide(urls) } }
             Spacer()
             Button("Select none") { model.selection = [] }
             Button(role: .destructive) { model.trash(urls) } label: { Label("Trash", systemImage: "trash") }
@@ -362,7 +362,7 @@ struct FinderView: View {
         return VStack(spacing: 8) {
             ZStack(alignment: .topTrailing) {
                 FinderThumb(url: entry.url, side: side, isFolder: entry.isFolder)
-                    .opacity(model.isProtected(entry.url) ? 0.5 : 1)
+                    .opacity(1)
                     .overlay(alignment: .bottomLeading) { lockBadge(entry.url) }
                     .scaleEffect(isHover ? 1.04 : 1)
                     .animation(.easeOut(duration: 0.12), value: isHover)
@@ -479,7 +479,7 @@ struct FinderView: View {
         return HStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(nsImage: NSWorkspace.shared.icon(forFile: entry.url.path)).resizable().frame(width: 26, height: 26)
-                    .opacity(model.isProtected(entry.url) ? 0.5 : 1)
+                    .opacity(1)
                     .overlay(alignment: .bottomTrailing) { lockBadge(entry.url) }
                 if isRenaming {
                     FinderNameField(text: $renameText, center: false, commit: commitRename, cancel: cancelRename)
@@ -619,7 +619,7 @@ struct FinderView: View {
         Button("Compress") { model.compress(urls) }
         Divider()
         Button("Add to My Files library") { model.addToLibrary(urls) }
-        if urls.contains(where: { model.isHidden($0) }) { Button("Unhide") { model.unhide(urls) } } else { Button("Hide with passcode") { model.hide(urls) } }
+        if urls.contains(where: { model.isHidden($0) }) { Button("Put back") { model.unhide(urls) } } else { Button("Move to secure vault") { model.hide(urls) } }
         if let one = single, model.isFolder(one) { Button("Pin to My folders") { model.pin(one) } }
         Button("Copy path") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(urls.map { $0.path }.joined(separator: "\n"), forType: .string) }
         Divider()

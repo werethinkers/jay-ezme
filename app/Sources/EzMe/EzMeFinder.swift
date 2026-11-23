@@ -43,6 +43,7 @@ final class FinderModel: ObservableObject {
     /// Files and folders the person hid. They stay exactly where they are; KeyDo just does not show them until the passcode is entered.
     @Published var hiddenPaths: Set<String> = Set(UserDefaults.standard.stringArray(forKey: FinderModel.hiddenKey) ?? [])
     @Published var showProtected = false
+    private var beforeVault: URL?
     var anchor: URL?
     var dragSet: [URL] = []
 
@@ -57,13 +58,14 @@ final class FinderModel: ObservableObject {
     init() {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let desktop = home.appendingPathComponent("Desktop")
-        if let saved = UserDefaults.standard.string(forKey: FinderModel.lastKey), FileManager.default.fileExists(atPath: saved) {
+        if let saved = UserDefaults.standard.string(forKey: FinderModel.lastKey), FileManager.default.fileExists(atPath: saved), !saved.hasPrefix(FinderModel.vaultRoot.standardizedFileURL.path) {
             current = URL(fileURLWithPath: saved)
         } else {
             current = desktop
         }
         let paths = UserDefaults.standard.stringArray(forKey: FinderModel.pinnedKey) ?? []
         pinned = paths.map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
+        migrateLegacyHidden()
     }
 
     func stop() { watcher?.cancel(); watcher = nil; showProtected = false }
@@ -112,10 +114,11 @@ final class FinderModel: ObservableObject {
         if !FileManager.default.fileExists(atPath: target.path, isDirectory: &isDir) { message = "That folder is not there any more."; return }
         if !isDir.boolValue { target = url.deletingLastPathComponent() }
         if remember, target != current { backStack.append(current); forwardStack.removeAll() }
+        if !isProtected(target) { showProtected = false }
         current = target
         selection = []
         query = ""
-        UserDefaults.standard.set(target.path, forKey: FinderModel.lastKey)
+        if !isProtected(target) { UserDefaults.standard.set(target.path, forKey: FinderModel.lastKey) }
         syncButtons()
         reload()
         watch()
@@ -376,47 +379,119 @@ final class FinderModel: ObservableObject {
 
     // MARK: Hide with passcode
 
-    func isHidden(_ url: URL) -> Bool { hiddenPaths.contains(url.standardizedFileURL.path) }
+    // The secure vault: hidden items are moved out of their folder into KeyDo's own hidden folder
+    // (Application Support/KeyDo/Vault). They no longer show where they were, in KeyDo or in the Mac's Finder.
+    // The passcode opens the vault inside KeyDo. The files are not encrypted.
+    static var vaultRoot: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("KeyDo", isDirectory: true).appendingPathComponent("Vault", isDirectory: true)
+    }
+    private static var manifestURL: URL { vaultRoot.deletingLastPathComponent().appendingPathComponent("vault-origins.json") }
+
+    private func loadOrigins() -> [String: String] {
+        guard let data = try? Data(contentsOf: FinderModel.manifestURL), let map = try? JSONDecoder().decode([String: String].self, from: data) else { return [:] }
+        return map
+    }
+
+    private func saveOrigins(_ map: [String: String]) {
+        if let data = try? JSONEncoder().encode(map) { try? data.write(to: FinderModel.manifestURL, options: .atomic) }
+    }
+
+    private func prepareVault() {
+        try? FileManager.default.createDirectory(at: FinderModel.vaultRoot, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        var url = FinderModel.vaultRoot
+        var values = URLResourceValues()
+        values.isHidden = true
+        try? url.setResourceValues(values)
+    }
 
     func isProtected(_ url: URL) -> Bool {
-        let p = url.standardizedFileURL.path
-        return hiddenPaths.contains { p == $0 || p.hasPrefix($0 + "/") }
+        let p = url.standardizedFileURL.path, root = FinderModel.vaultRoot.standardizedFileURL.path
+        return p == root || p.hasPrefix(root + "/")
     }
+
+    func isHidden(_ url: URL) -> Bool { isProtected(url) }
 
     private func saveHidden() { UserDefaults.standard.set(Array(hiddenPaths), forKey: FinderModel.hiddenKey) }
 
-    /// Keeps the hidden list right when a hidden item is renamed, moved or deleted.
-    func remapHidden(from old: URL, to new: URL?) {
-        let oldPath = old.standardizedFileURL.path
-        var changed = false
-        var updated = hiddenPaths
-        for path in hiddenPaths where path == oldPath || path.hasPrefix(oldPath + "/") {
-            updated.remove(path)
-            changed = true
-            if let new { updated.insert(new.standardizedFileURL.path + String(path.dropFirst(oldPath.count))) }
+    /// Kept for the move, rename and delete code: nothing is hidden in place any more.
+    func remapHidden(from old: URL, to new: URL?) {}
+
+    /// Items hidden by an earlier version stayed in their folder. They are moved into the vault once.
+    private func migrateLegacyHidden() {
+        guard !hiddenPaths.isEmpty else { return }
+        let old = hiddenPaths.map { URL(fileURLWithPath: $0) }.filter { FileManager.default.fileExists(atPath: $0.path) }
+        hiddenPaths = []
+        saveHidden()
+        _ = moveToVault(old)
+    }
+
+    @discardableResult private func moveToVault(_ urls: [URL]) -> (moved: Int, failed: Int) {
+        prepareVault()
+        var origins = loadOrigins()
+        var moved = 0, failed = 0
+        for u in urls where !isProtected(u) {
+            let target = unique(FinderModel.vaultRoot.appendingPathComponent(u.lastPathComponent))
+            do {
+                try FileManager.default.moveItem(at: u, to: target)
+                origins[target.lastPathComponent] = u.standardizedFileURL.path
+                moved += 1
+            } catch { failed += 1 }
         }
-        if changed { hiddenPaths = updated; saveHidden() }
+        saveOrigins(origins)
+        return (moved, failed)
     }
 
     func hide(_ urls: [URL]) {
         if !AppPasscode.isSet {
             guard HiddenAccess.unlock("files") else { message = "Choose a passcode to hide files."; return }
         }
-        for u in urls { hiddenPaths.insert(u.standardizedFileURL.path) }
-        saveHidden()
+        let result = moveToVault(urls)
         selection = []
-        message = "Hid \(urls.count) item(s). They stay in this folder. Use Protected files and your passcode to see them."
+        reload()
+        message = result.failed == 0 ? "Moved \(result.moved) item(s) into the secure vault. They are no longer in this folder. Use Protected files and your passcode to see them or put them back."
+            : "Moved \(result.moved) item(s) into the vault. \(result.failed) could not be moved."
     }
 
+    /// Puts items from the vault back in the folder they came from (the Desktop if that folder is gone).
     func unhide(_ urls: [URL]) {
-        for u in urls { hiddenPaths.remove(u.standardizedFileURL.path) }
-        saveHidden()
-        message = "Unhid \(urls.count) item(s)."
+        var origins = loadOrigins()
+        let fm = FileManager.default
+        var back = 0
+        for u in urls where isProtected(u) {
+            let key = u.lastPathComponent
+            let topLevel = u.deletingLastPathComponent().standardizedFileURL.path == FinderModel.vaultRoot.standardizedFileURL.path
+            var folder = FinderModel.home.appendingPathComponent("Desktop")
+            var name = key
+            if topLevel, let origin = origins[key] {
+                let original = URL(fileURLWithPath: origin)
+                var isDir: ObjCBool = false
+                if fm.fileExists(atPath: original.deletingLastPathComponent().path, isDirectory: &isDir), isDir.boolValue { folder = original.deletingLastPathComponent() }
+                name = original.lastPathComponent
+            }
+            let target = unique(folder.appendingPathComponent(name))
+            if (try? fm.moveItem(at: u, to: target)) != nil { origins[key] = nil; back += 1 }
+        }
+        saveOrigins(origins)
+        reload()
+        message = "Put \(back) item(s) back where they came from."
     }
 
     func toggleProtected() {
-        if showProtected { showProtected = false; selection = []; message = "Hidden items are hidden again."; return }
-        if HiddenAccess.unlock("files") { showProtected = true; message = hiddenPaths.isEmpty ? "Nothing is hidden yet. Right-click a file and choose Hide." : "Showing hidden items." }
+        if showProtected {
+            showProtected = false
+            selection = []
+            go(beforeVault ?? FinderModel.home.appendingPathComponent("Desktop"))
+            message = "The vault is closed again."
+            return
+        }
+        if HiddenAccess.unlock("files") {
+            beforeVault = current
+            prepareVault()
+            showProtected = true
+            go(FinderModel.vaultRoot)
+            message = "Secure vault. Right-click an item and choose Put back to return it."
+        }
     }
 
     func pin(_ url: URL) {
