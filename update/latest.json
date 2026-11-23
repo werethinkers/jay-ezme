@@ -1,9 +1,9 @@
 {
-  "version": "4.59",
-  "build": 469,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.59-build469/EzMe-4.59-macOS.zip",
-  "sha256": "dbb24e70940a89b57ba1aa50409eeb01a4d63bdd8578b291f88ffec00c00aed8",
-  "notes": "# KeyDo 4.59\n\n**Finder eye button fixed**\n- The eye button on a file in My Files > Finder (and the Quick Look menu item and the Space key) no longer shows an \"unexpectedly quit\" error. Before, it started a separate macOS helper program that could crash. It now opens the normal macOS Quick Look window inside KeyDo.\n- Select several files and press Space to look through them with the arrow keys. Escape or Space closes the window.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-23T03:09:57Z",
+  "version": "4.60",
+  "build": 470,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.60-build470/EzMe-4.60-macOS.zip",
+  "sha256": "cccc7600d177fc4ec88a66d4719815b23351023a5ef1ee6dff3989d8d136792f",
+  "notes": "# KeyDo 4.60\n\n**Send a Font Creator font to WishStudio**\n- New **Send to WishStudio** button at the top of Font Creator. It saves the font if you have not saved it yet, copies its name, and opens WishStudio.\n- Every saved font was already in WishStudio's font lists. In WishStudio, choose a text, open Font and pick the name that starts with KeyDo (the search box finds it too). The 20 built-in KeyDo fonts can be sent the same way.\n- Fonts are drawn inside KeyDo, so they show in WishStudio designs and exported pictures. Word and web exports still use a normal font.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-23T03:23:06Z",
   "minimumSystemVersion": "14.0"
 }
