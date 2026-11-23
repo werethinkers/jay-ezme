@@ -4,6 +4,7 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 import QuickLookThumbnailing
+import QuickLookUI
 
 struct FinderEntry: Identifiable, Hashable {
     let url: URL
@@ -443,13 +444,7 @@ final class FinderModel: ObservableObject {
     func reveal(_ urls: [URL]) { NSWorkspace.shared.activateFileViewerSelecting(urls) }
 
     func quickLook(_ urls: [URL]) {
-        guard let first = urls.first else { return }
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/qlmanage")
-        process.arguments = ["-p", first.path]
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try? process.run()
+        FinderQuickLook.shared.show(urls)
     }
 
     func openInViewer(_ url: URL) {
@@ -559,5 +554,31 @@ struct FinderInfoSheet: View {
             Text(label).font(.caption.weight(.bold)).foregroundStyle(.secondary).frame(width: 70, alignment: .leading)
             Text(value).font(.system(size: 13)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+/// The normal macOS Quick Look window, inside KeyDo. Arrow keys move between files; Space or Escape closes it.
+@MainActor
+final class FinderQuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+    static let shared = FinderQuickLook()
+    private var items: [NSURL] = []
+
+    func show(_ urls: [URL]) {
+        let existing = urls.filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard !existing.isEmpty, let panel = QLPreviewPanel.shared() else { return }
+        items = existing.map { $0 as NSURL }
+        panel.dataSource = self
+        panel.delegate = self
+        panel.reloadData()
+        panel.currentPreviewItemIndex = 0
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    nonisolated func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int {
+        MainActor.assumeIsolated { items.count }
+    }
+
+    nonisolated func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        MainActor.assumeIsolated { index >= 0 && index < items.count ? items[index] : nil }
     }
 }
