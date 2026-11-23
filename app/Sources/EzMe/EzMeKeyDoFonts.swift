@@ -37,6 +37,10 @@ struct KeyDoFontStyle: Codable, Identifiable, Equatable {
     var builtIn: Bool = false
     /// Letters cut straight out of the picture, by character. They are drawn exactly as they look in the picture.
     var glyphs: [String: KeyDoGlyph]? = nil
+    /// Length of the small feet on stems and bars, as a fraction of the letter height. Nil or 0 for none (sans).
+    var serif: Double? = nil
+    /// How much thinner the horizontal strokes are than the vertical ones, 0 to 0.75. Nil or 0 for even strokes. Shows in Solid.
+    var contrast: Double? = nil
 
     var fontName: String { "KeyDo \u{00B7} " + name }
     static let modes = ["Solid", "Outline", "Dots", "Stencil", "Neon glow", "Shadow", "Inline", "3D block", "Sticker", "Gloss"]
@@ -194,7 +198,7 @@ enum KeyDoFonts {
     }()
 
     /// The width of a letter's box, in letter heights.
-    private static func boxWidth(_ ch: Character) -> CGFloat {
+    static func boxWidth(_ ch: Character) -> CGFloat {
         switch ch {
         case "I", ".", "!", "'", ":", ",": return 0.02
         case "-": return 0.5
@@ -262,7 +266,7 @@ enum KeyDoFonts {
     private static func advance(_ ch: Character, _ style: KeyDoFontStyle, _ height: CGFloat) -> CGFloat {
         if ch == " " { return boxWidth(ch) * CGFloat(style.width) * height }
         if let cut = glyph(style, ch) { return CGFloat(cut.aspect * cut.ratio) * height + CGFloat(style.spacing) * height }
-        return boxWidth(ch) * CGFloat(style.width) * height + CGFloat(style.weight) * height * 0.95 + CGFloat(style.spacing) * height
+        return boxWidth(ch) * CGFloat(style.width) * height + CGFloat(style.weight) * height * 0.95 + CGFloat(style.spacing) * height + CGFloat(style.serif ?? 0) * height * 2
     }
 
     private static func lineWidth(_ text: String, _ style: KeyDoFontStyle, _ height: CGFloat) -> CGFloat {
@@ -342,27 +346,32 @@ enum KeyDoFonts {
                 }
                 guard let strokes = shapes[ch] else { continue }
                 let boxW = boxWidth(ch) * CGFloat(style.width) * height
+                let serifPad = CGFloat(style.serif ?? 0) * height
                 func device(_ point: CGPoint) -> CGPoint {
                     let up = point.y * height
-                    let px = x + weight / 2 + point.x * boxW + up * tangent
+                    let px = x + weight / 2 + serifPad + point.x * boxW + up * tangent
                     let py = flipped ? box.minY + fromTop + (height - up) : box.maxY - fromTop - height + up
                     return CGPoint(x: px, y: py)
                 }
+                var drawn: [[CGPoint]] = strokes.map { $0.map { device($0) } }
+                if serifPad > 0.5 { drawn += serifLines(strokes, ch: ch, device: device, length: serifPad, down: flipped ? 1 : -1) }
                 let path = CGMutablePath()
-                for stroke in strokes {
+                for stroke in drawn {
                     guard let first = stroke.first else { continue }
-                    path.move(to: device(first))
-                    if stroke.count == 1 { path.addLine(to: device(first)) }
-                    for point in stroke.dropFirst() { path.addLine(to: device(point)) }
+                    path.move(to: first)
+                    if stroke.count == 1 { path.addLine(to: first) }
+                    for point in stroke.dropFirst() { path.addLine(to: point) }
                 }
+                let thinThick = style.mode == 0 && (style.contrast ?? 0) > 0.04
+                let shape: CGPath? = thinThick ? contrastShape(drawn, style: style, weight: weight) : nil
                 let tint = style.palette.isEmpty ? base : color(style.palette[counter % style.palette.count])
                 counter += 1
-                paint(path, style: style, weight: weight, height: height, tint: tint, in: context)
+                paint(path, shape: shape, style: style, weight: weight, height: height, tint: tint, in: context)
             }
         }
     }
 
-    private static func paint(_ path: CGPath, style: KeyDoFontStyle, weight: CGFloat, height: CGFloat, tint: NSColor, in context: CGContext) {
+    private static func paint(_ path: CGPath, shape: CGPath? = nil, style: KeyDoFontStyle, weight: CGFloat, height: CGFloat, tint: NSColor, in context: CGContext) {
         context.saveGState()
         context.setLineCap(style.cap == 1 ? .round : (style.cap == 2 ? .square : .butt))
         context.setLineJoin(style.join == 1 ? .round : (style.join == 2 ? .bevel : .miter))
@@ -417,9 +426,127 @@ enum KeyDoFonts {
             stroke(weight, tint)
             stroke(weight * 0.4, light, offset: CGSize(width: -weight * 0.12, height: weight * 0.12))
         default:
-            stroke(weight, tint)
+            if let shape {
+                context.addPath(shape)
+                context.setFillColor(tint.cgColor)
+                context.fillPath(using: .winding)
+            } else {
+                stroke(weight, tint)
+            }
         }
         context.restoreGState()
+    }
+
+    // MARK: Serifs and thick-and-thin strokes
+
+    private static func segmentDistance(_ p: CGPoint, _ a: CGPoint, _ b: CGPoint) -> CGFloat {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let lengthSquared = dx * dx + dy * dy
+        if lengthSquared < 0.000001 { return hypot(p.x - a.x, p.y - a.y) }
+        let t = min(1, max(0, ((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSquared))
+        return hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
+    }
+
+    /// Small feet where stems and bars end on the baseline, the top line or the small-letter line. Drawn in device space.
+    private static func serifLines(_ strokes: [[CGPoint]], ch: Character, device: (CGPoint) -> CGPoint, length: CGFloat, down: CGFloat) -> [[CGPoint]] {
+        guard ch.isLetter || ch.isNumber else { return [] }
+        let lower = ch.isLowercase
+        func level(_ y: CGFloat) -> Int {
+            if abs(y) < 0.07 { return 0 }
+            if abs(y - 1) < 0.07 { return 1 }
+            if lower, abs(y - 0.62) < 0.05 { return 1 }
+            return -1
+        }
+        func touchesOther(_ point: CGPoint, _ own: Int) -> Bool {
+            for (index, stroke) in strokes.enumerated() where index != own {
+                for i in 0..<max(0, stroke.count - 1) where segmentDistance(point, stroke[i], stroke[i + 1]) < 0.05 { return true }
+            }
+            return false
+        }
+        var result: [[CGPoint]] = []
+        for (index, stroke) in strokes.enumerated() where stroke.count >= 2 {
+            if hypot(stroke[0].x - stroke[stroke.count - 1].x, stroke[0].y - stroke[stroke.count - 1].y) < 0.02 { continue }
+            let ends: [(CGPoint, CGPoint)] = [(stroke[0], stroke[1]), (stroke[stroke.count - 1], stroke[stroke.count - 2])]
+            for (end, neighbour) in ends {
+                let lvl = level(end.y)
+                if lvl < 0 || touchesOther(end, index) { continue }
+                let a = device(end), b = device(neighbour)
+                if abs(b.y - a.y) >= abs(b.x - a.x) * 0.5 {
+                    result.append([CGPoint(x: a.x - length, y: a.y), CGPoint(x: a.x + length, y: a.y)])
+                } else {
+                    let sign: CGFloat = lvl == 1 ? down : -down
+                    result.append([a, CGPoint(x: a.x, y: a.y + sign * length * 0.8)])
+                }
+            }
+        }
+        return result
+    }
+
+    private static func addPolygon(_ path: CGMutablePath, _ points: [CGPoint]) {
+        guard points.count >= 3 else { return }
+        var area: CGFloat = 0
+        for i in 0..<points.count {
+            let a = points[i], b = points[(i + 1) % points.count]
+            area += a.x * b.y - b.x * a.y
+        }
+        let ordered = area < 0 ? Array(points.reversed()) : points
+        path.move(to: ordered[0])
+        for point in ordered.dropFirst() { path.addLine(to: point) }
+        path.closeSubpath()
+    }
+
+    private static func addDisc(_ path: CGMutablePath, _ centre: CGPoint, _ diameter: CGFloat) {
+        let r = max(0.5, diameter / 2)
+        addPolygon(path, (0..<14).map { k in
+            let angle = Double(k) / 14 * 2 * Double.pi
+            return CGPoint(x: centre.x + r * CGFloat(cos(angle)), y: centre.y + r * CGFloat(sin(angle)))
+        })
+    }
+
+    /// The letter as a filled shape whose horizontal strokes are thinner than its vertical ones.
+    private static func contrastShape(_ lines: [[CGPoint]], style: KeyDoFontStyle, weight: CGFloat) -> CGPath {
+        let c = CGFloat(min(0.75, max(0, style.contrast ?? 0)))
+        func horizontalness(_ a: CGPoint, _ b: CGPoint) -> CGFloat { abs(b.x - a.x) / max(0.0001, hypot(b.x - a.x, b.y - a.y)) }
+        func width(_ a: CGPoint, _ b: CGPoint) -> CGFloat { let h = horizontalness(a, b); return max(1, weight * (1 - c * h * h)) }
+        let path = CGMutablePath()
+        for line in lines {
+            if line.count == 1 { addDisc(path, line[0], weight); continue }
+            guard line.count >= 2 else { continue }
+            for i in 0..<(line.count - 1) {
+                var a = line[i], b = line[i + 1]
+                let w = width(a, b)
+                let dx = b.x - a.x, dy = b.y - a.y, length = hypot(dx, dy)
+                if length < 0.0001 { addDisc(path, a, w); continue }
+                let ux = dx / length, uy = dy / length
+                if style.cap == 2 {
+                    if i == 0 { a = CGPoint(x: a.x - ux * w / 2, y: a.y - uy * w / 2) }
+                    if i == line.count - 2 { b = CGPoint(x: b.x + ux * w / 2, y: b.y + uy * w / 2) }
+                }
+                let nx = -uy * w / 2, ny = ux * w / 2
+                addPolygon(path, [CGPoint(x: a.x + nx, y: a.y + ny), CGPoint(x: b.x + nx, y: b.y + ny), CGPoint(x: b.x - nx, y: b.y - ny), CGPoint(x: a.x - nx, y: a.y - ny)])
+            }
+            for i in 0..<line.count {
+                let first = i == 0, last = i == line.count - 1
+                if first || last {
+                    if style.cap == 1 { addDisc(path, line[i], first ? width(line[0], line[1]) : width(line[i - 1], line[i])) }
+                    continue
+                }
+                let wa = width(line[i - 1], line[i]), wb = width(line[i], line[i + 1])
+                let d1 = CGPoint(x: line[i].x - line[i - 1].x, y: line[i].y - line[i - 1].y)
+                let d2 = CGPoint(x: line[i + 1].x - line[i].x, y: line[i + 1].y - line[i].y)
+                let l1 = max(0.0001, hypot(d1.x, d1.y)), l2 = max(0.0001, hypot(d2.x, d2.y))
+                let smooth = (d1.x * d2.x + d1.y * d2.y) / (l1 * l2) > 0.9
+                if smooth || style.join == 1 {
+                    addDisc(path, line[i], min(wa, wb))
+                } else {
+                    let verticalFirst = horizontalness(line[i - 1], line[i]) < horizontalness(line[i], line[i + 1])
+                    let across = verticalFirst ? wa : wb, tall = verticalFirst ? wb : wa
+                    let p = line[i]
+                    addPolygon(path, [CGPoint(x: p.x - across / 2, y: p.y - tall / 2), CGPoint(x: p.x + across / 2, y: p.y - tall / 2), CGPoint(x: p.x + across / 2, y: p.y + tall / 2), CGPoint(x: p.x - across / 2, y: p.y + tall / 2)])
+                }
+            }
+        }
+        return path
     }
 
     // MARK: Pictures of text
@@ -509,6 +636,63 @@ enum KeyDoFontAnalyzer {
         if topCount > 0, bottomCount > 0 {
             let lean = atan((topSum / topCount - bottomSum / bottomCount) / (boxH * 0.66)) * 180 / Double.pi
             if abs(lean) > 4 { style.slant = min(20, max(-20, lean)) }
+        }
+
+        // Thick and thin: a pixel whose shortest run is sideways belongs to an upright stem, one whose shortest run is up and down to a bar.
+        var runAcross = [Int](repeating: 0, count: width * height), runUp = [Int](repeating: 0, count: width * height)
+        for y in minY...maxY {
+            var x = minX
+            while x <= maxX {
+                if mask[y * width + x] {
+                    var e = x
+                    while e + 1 <= maxX && mask[y * width + e + 1] { e += 1 }
+                    for k in x...e { runAcross[y * width + k] = e - x + 1 }
+                    x = e + 1
+                } else { x += 1 }
+            }
+        }
+        for x in minX...maxX {
+            var y = minY
+            while y <= maxY {
+                if mask[y * width + x] {
+                    var e = y
+                    while e + 1 <= maxY && mask[(e + 1) * width + x] { e += 1 }
+                    for k in y...e { runUp[k * width + x] = e - y + 1 }
+                    y = e + 1
+                } else { y += 1 }
+            }
+        }
+        var stemSamples: [Int] = [], barSamples: [Int] = []
+        for y in minY...maxY { for x in minX...maxX where mask[y * width + x] {
+            let a = runAcross[y * width + x], u = runUp[y * width + x]
+            if a < u { stemSamples.append(a) } else if u < a { barSamples.append(u) }
+        } }
+        func median(_ list: [Int]) -> Double { list.isEmpty ? 0 : Double(list.sorted()[list.count / 2]) }
+        let stem = median(stemSamples), bar = median(barSamples)
+        if stemSamples.count > 40, barSamples.count > 40, stem > 1 {
+            let c = 1 - bar / stem
+            if c > 0.2 { style.contrast = min(0.75, c); style.weight = min(0.3, max(0.05, stem / boxH)) }
+        }
+
+        // Serifs: the same number of runs just above the baseline (or below the top) but clearly wider at the very end.
+        func rowRuns(_ y: Int) -> [Int] {
+            var runs: [Int] = [], current = 0
+            for x in minX...maxX {
+                if mask[y * width + x] { current += 1 } else if current > 0 { runs.append(current); current = 0 }
+            }
+            if current > 0 { runs.append(current) }
+            return runs
+        }
+        if boxH >= 30 {
+            let band = max(1, Int(boxH * 0.03)), gap = Int(boxH * 0.14)
+            var best = 0.0
+            for (edge, inside) in [(maxY - band, maxY - gap), (minY + band, minY + gap)] {
+                let ends = rowRuns(edge), body = rowRuns(inside)
+                guard ends.count >= 2, ends.count == body.count else { continue }
+                let endMean = Double(ends.reduce(0, +)) / Double(ends.count), bodyMean = Double(body.reduce(0, +)) / Double(body.count)
+                if bodyMean > 0, endMean > bodyMean * 1.6 { best = max(best, (endMean - bodyMean) / 2 / boxH) }
+            }
+            if best > 0 { style.serif = min(0.22, max(0.05, best)) }
         }
 
         // Colours: the ones that cover a fair share of the letter.
@@ -722,5 +906,21 @@ extension KeyDoFontAnalyzer {
         result.palette = anyLight ? Array(colours.prefix(6)) : []
         result.found = result.glyphs.count
         return result
+    }
+}
+
+extension KeyDoFontAnalyzer {
+    /// Fits the width of the drawn letters to the proportions of the letters cut from the picture.
+    static func calibrate(_ style: inout KeyDoFontStyle, glyphs: [String: KeyDoGlyph]) {
+        var estimates: [Double] = []
+        for (key, glyph) in glyphs {
+            guard key.count == 1, let ch = key.first, ch.isUppercase || ch.isNumber, glyph.ratio > 0.9 else { continue }
+            let box = Double(KeyDoFonts.boxWidth(ch))
+            guard box >= 0.55 else { continue }
+            estimates.append((glyph.aspect * glyph.ratio - style.weight - 2 * (style.serif ?? 0)) / box)
+        }
+        guard !estimates.isEmpty else { return }
+        let sorted = estimates.sorted()
+        style.width = min(1.5, max(0.6, sorted[sorted.count / 2]))
     }
 }

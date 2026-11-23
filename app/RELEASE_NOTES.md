@@ -1,8 +1,9 @@
-# KeyDo 4.60
+# KeyDo 4.61
 
-**Send a Font Creator font to WishStudio**
-- New **Send to WishStudio** button at the top of Font Creator. It saves the font if you have not saved it yet, copies its name, and opens WishStudio.
-- Every saved font was already in WishStudio's font lists. In WishStudio, choose a text, open Font and pick the name that starts with KeyDo (the search box finds it too). The 20 built-in KeyDo fonts can be sent the same way.
-- Fonts are drawn inside KeyDo, so they show in WishStudio designs and exported pictures. Word and web exports still use a normal font.
+**Font Creator draws the whole alphabet more like your letter**
+- It now reads serifs (small feet on stems) and thick-and-thin strokes from your picture, as well as thickness, corners, lean and colours. Every other letter is drawn with the same serifs and the same thick and thin.
+- The letter width is fitted to the letters you typed, so the drawn letters have the same proportions as yours.
+- New **Serifs** and **Thick & thin** sliders, and a **check strip**: your letter on top, KeyDo's drawing of the same letter below, so you can tune until they match. Thick & thin shows in the Solid style.
+- Detection is a best guess. A single letter with one stem (I, L, T) may not show serifs, so use the slider.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.

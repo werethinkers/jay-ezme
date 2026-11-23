@@ -91,9 +91,13 @@ struct FontCreatorApp: View {
                 TextField("Font name", text: $fontName).textFieldStyle(.roundedBorder)
                 let binding = Binding<KeyDoFontStyle>(get: { self.draft ?? draft }, set: { self.draft = $0 })
                 HStack { Text("Thickness").font(.caption).frame(width: 80, alignment: .leading); Slider(value: binding.weight, in: 0.04...0.3) }
-                HStack { Text("Width").font(.caption).frame(width: 80, alignment: .leading); Slider(value: binding.width, in: 0.7...1.3) }
+                HStack { Text("Width").font(.caption).frame(width: 80, alignment: .leading); Slider(value: binding.width, in: 0.6...1.5) }
                 HStack { Text("Lean").font(.caption).frame(width: 80, alignment: .leading); Slider(value: binding.slant, in: -20...20) }
                 HStack { Text("Spacing").font(.caption).frame(width: 80, alignment: .leading); Slider(value: binding.spacing, in: 0...0.2) }
+                HStack { Text("Serifs").font(.caption).frame(width: 80, alignment: .leading); Slider(value: Binding(get: { self.draft?.serif ?? 0 }, set: { self.draft?.serif = $0 }), in: 0...0.22) }
+                HStack { Text("Thick & thin").font(.caption).frame(width: 80, alignment: .leading); Slider(value: Binding(get: { self.draft?.contrast ?? 0 }, set: { self.draft?.contrast = $0 }), in: 0...0.75) }
+                Text("KeyDo reads the stroke thickness, corners, lean, serifs and thick-and-thin from your letter, then draws every other letter the same way. Thick & thin shows in the Solid style.")
+                    .font(.caption2).foregroundStyle(.secondary)
                 Picker("Corners", selection: binding.cap) { Text("Flat").tag(0); Text("Round").tag(1); Text("Square").tag(2) }.pickerStyle(.segmented)
                 Picker("Style", selection: binding.mode) { ForEach(0..<KeyDoFontStyle.modes.count, id: \.self) { Text(KeyDoFontStyle.modes[$0]).tag($0) } }
                 if !draft.palette.isEmpty {
@@ -102,6 +106,7 @@ struct FontCreatorApp: View {
                         ForEach(draft.palette, id: \.self) { hex in Circle().fill(Color(nsColor: NSColor(templateHex: hex))).frame(width: 18, height: 18) }
                     }
                 }
+                if !ownGlyphs.isEmpty { compareStrip }
                 Text("3. Make the rest with AI").font(.system(size: 13, weight: .bold, design: .rounded))
                 Text("AI draws the other letters in the same style from your picture. Your own letters are never replaced. Each sheet uses one AI picture of your credits.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -131,6 +136,29 @@ struct FontCreatorApp: View {
             }
         }
         .padding(12).background(Butter.cream.opacity(0.7), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    @ViewBuilder private var compareStrip: some View {
+        if let style = draft {
+            let keys = Array(ownGlyphs.keys.sorted().prefix(10))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Check: your letter on top, KeyDo\u{2019}s drawing of the same letter below. Adjust the sliders until they match.").font(.caption).foregroundStyle(.secondary)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) { ForEach(keys, id: \.self) { key in compareCell(key, style) } }
+                }
+            }
+        }
+    }
+
+    private func compareCell(_ key: String, _ style: KeyDoFontStyle) -> some View {
+        var plain = style
+        plain.glyphs = nil
+        return VStack(spacing: 2) {
+            if let glyph = ownGlyphs[key], let picture = NSImage(data: glyph.png) { Image(nsImage: picture).resizable().scaledToFit().frame(width: 64, height: 64) }
+            if let drawn = KeyDoFonts.image(key, style: plain, width: 200, height: 200, color: NSColor(Butter.cocoa), background: nil) { Image(nsImage: drawn).resizable().scaledToFit().frame(width: 64, height: 64) }
+            Text(key).font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(6).background(Color.white, in: RoundedRectangle(cornerRadius: 8))
     }
 
     private func gallery(_ styles: [KeyDoFontStyle]) -> some View {
@@ -176,6 +204,7 @@ struct FontCreatorApp: View {
         if cleaned.isEmpty { ownGlyphs = [:]; rebuildGlyphs(); return }
         let result = KeyDoFontAnalyzer.capture(letter, letters: lettersText)
         ownGlyphs = result.glyphs
+        if var fitted = draft, !ownGlyphs.isEmpty { KeyDoFontAnalyzer.calibrate(&fitted, glyphs: ownGlyphs); draft = fitted }
         rebuildGlyphs()
         if !result.palette.isEmpty { draft?.palette = result.palette }
         notice = result.found == result.expected ? "Copied \(result.found) letter\(result.found == 1 ? "" : "s") exactly from your picture. The other letters follow the same look."
