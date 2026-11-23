@@ -12,6 +12,18 @@ struct EzToolDef: Identifiable {
 }
 
 enum EzTools {
+    static let home = EzToolDef(id: "Home", title: "Home", hint: "All your tools", symbol: "house.fill",
+                                colors: [Color(red: 0.98, green: 0.50, blue: 0.35), Color(red: 0.92, green: 0.30, blue: 0.55)])
+    static let details: [String: (category: String, text: String)] = [
+        "Image Studio": ("AI pictures", "Describe a picture and draw it with AI, or start from one of yours."),
+        "ChatGPT Image Edit": ("AI pictures", "Fix, restyle or change a picture by telling AI what to do."),
+        "Media Resizer": ("Resize", "Crop and resize to any size or shape, ready for WhatsApp, Instagram or print."),
+        "Video Editor": ("Video", "Cut, join and trim video clips and save them as shortcuts or files."),
+        "Photo Collage": ("Photo tool", "Put many photos into one neat picture."),
+        "Logo on Background": ("Photo tool", "Place your logo on a scene or a plain colour in one step."),
+        "Bollywood 80s": ("Photo tool", "Turn a photo into a retro Bollywood film poster."),
+        "Font Creator": ("Fonts", "Make a whole alphabet from one letter and use it in WishStudio.")
+    ]
     static let all: [EzToolDef] = [
         EzToolDef(id: "Image Studio", title: "Image Studio", hint: "Draw pictures with AI", symbol: "paintbrush.pointed.fill",
                   colors: [Color(red: 0.93, green: 0.35, blue: 0.62), Color(red: 0.55, green: 0.36, blue: 0.96)]),
@@ -39,6 +51,7 @@ struct EzToolTabs: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
+                tab(EzTools.home)
                 ForEach(EzTools.all) { tool in tab(tool) }
             }
             .padding(.vertical, 4).padding(.horizontal, 2)
@@ -130,6 +143,7 @@ enum EzToolPictures {
 
 /// The wide cover at the top of Ez Tools. Change it to any picture, or go back to the colour cover.
 struct EzToolsBanner: View {
+    var showsTitle = true
     @AppStorage(EzToolPictures.coverKey) private var coverPath = ""
     @State private var hover = false
 
@@ -138,11 +152,13 @@ struct EzToolsBanner: View {
             cover
             LinearGradient(colors: [Color.black.opacity(0.0), Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
             HStack(alignment: .bottom, spacing: 14) {
-                Image(systemName: "wrench.and.screwdriver.fill").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
-                    .frame(width: 46, height: 46).background(Color.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Ez Tools").font(.system(size: 28, weight: .heavy, design: .rounded)).foregroundStyle(.white)
-                    Text("Pick a tool below. Draw, fix, resize, edit video and make fonts.").font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.9))
+                if showsTitle {
+                    Image(systemName: "wrench.and.screwdriver.fill").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
+                        .frame(width: 46, height: 46).background(Color.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Ez Tools").font(.system(size: 28, weight: .heavy, design: .rounded)).foregroundStyle(.white)
+                        Text("Pick a tool below. Draw, fix, resize, edit video and make fonts.").font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.9))
+                    }
                 }
                 Spacer()
                 HStack(spacing: 8) {
@@ -174,5 +190,63 @@ struct EzToolsBanner: View {
         } else {
             LinearGradient(colors: [Color(red: 0.98, green: 0.50, blue: 0.35), Color(red: 0.92, green: 0.30, blue: 0.55), Color(red: 0.50, green: 0.36, blue: 0.92)], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
+    }
+}
+
+// MARK: - Home page (same look as the WishStudio home)
+
+struct EzToolsHeader: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "wrench.and.screwdriver.fill")
+                .font(.system(size: 24)).foregroundStyle(Color.white)
+                .frame(width: 48, height: 48)
+                .background(RoundedRectangle(cornerRadius: 14).fill(LinearGradient(colors: [Color(red: 0.98, green: 0.50, blue: 0.35), Color(red: 0.92, green: 0.30, blue: 0.55), Color(red: 0.50, green: 0.36, blue: 0.92)], startPoint: .topLeading, endPoint: .bottomTrailing)))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Ez Tools").font(.system(size: 23, weight: .bold, design: .rounded))
+                Text("Draw, fix, resize, edit video and make fonts. Pick a tool to begin.").font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(18)
+    }
+}
+
+struct EzToolsHome: View {
+    @Binding var selected: String
+    @State private var pictureRevision = 0
+
+    var body: some View {
+        let _ = pictureRevision
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                EzToolsBanner(showsTitle: false).frame(height: 124).clipShape(RoundedRectangle(cornerRadius: 18))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Choose a tool to get started").font(.system(size: 25, weight: .bold, design: .rounded))
+                    Text("Each tool opens in its own tab. Right-click a card to give it your own picture.")
+                        .foregroundStyle(.secondary).frame(maxWidth: 780, alignment: .leading)
+                }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 236, maximum: 300), spacing: 16)], alignment: .leading, spacing: 16) {
+                    ForEach(EzTools.all) { tool in card(tool) }
+                }
+            }
+            .padding(26)
+            .frame(maxWidth: 1260, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 40)
+        }
+    }
+
+    private func card(_ tool: EzToolDef) -> some View {
+        let key = EzToolPictures.tabKey(tool.id)
+        let picture = UserDefaults.standard.string(forKey: key) ?? ""
+        let detail = EzTools.details[tool.id]
+        return AppGalleryCard(title: tool.title, description: detail?.text ?? tool.hint, sample: "", category: detail?.category ?? "Tool",
+                              icon: tool.symbol, iconPath: "", coverPath: FileManager.default.fileExists(atPath: picture) ? picture : "", credits: "",
+                              colors: tool.colors, action: { withAnimation(.easeInOut(duration: 0.15)) { selected = tool.id } }, showsCredits: false, badge: "TOOL")
+            .contextMenu {
+                Button("Change picture\u{2026}") { if EzToolPictures.choose(key) { pictureRevision += 1 } }
+                if !picture.isEmpty { Button("Reset picture") { EzToolPictures.clear(key); pictureRevision += 1 } }
+            }
     }
 }

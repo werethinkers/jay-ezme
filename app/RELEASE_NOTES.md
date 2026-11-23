@@ -1,9 +1,8 @@
-# KeyDo 4.62
+# KeyDo 4.63
 
-**Hide in My Files now really moves the file**
-- **Move to secure vault** (was Hide with passcode) moves the file or folder out of its place into KeyDo's own hidden vault. It no longer shows where it was, in KeyDo or in the Mac's Finder.
-- **Protected files** asks for your passcode and opens the vault. Right-click an item and choose **Put back** to return it to the folder it came from (the Desktop if that folder is gone).
-- Items hidden with an earlier version are moved into the vault the first time you open this version.
-- The vault is hidden and locked inside KeyDo, but the files are not encrypted.
+**Ez Tools has a Home page, in the same look as WishStudio**
+- Ez Tools opens on a Home page: a header with the Ez Tools icon, your cover picture, then "Choose a tool to get started" with a grid of tool cards, the same cards WishStudio uses.
+- Press a card to open that tool in its own tab. A new **Home** tab at the start of the tool row brings you back.
+- Right-click a card to give it your own picture, as before with the tabs.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.
