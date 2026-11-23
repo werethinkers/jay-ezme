@@ -1,9 +1,9 @@
 {
-  "version": "4.61",
-  "build": 471,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.61-build471/EzMe-4.61-macOS.zip",
-  "sha256": "1edd25cc4fe609ead024fc68461fff13a128771a74a26eb59e13e8dce149e782",
-  "notes": "# KeyDo 4.61\n\n**Font Creator draws the whole alphabet more like your letter**\n- It now reads serifs (small feet on stems) and thick-and-thin strokes from your picture, as well as thickness, corners, lean and colours. Every other letter is drawn with the same serifs and the same thick and thin.\n- The letter width is fitted to the letters you typed, so the drawn letters have the same proportions as yours.\n- New **Serifs** and **Thick & thin** sliders, and a **check strip**: your letter on top, KeyDo's drawing of the same letter below, so you can tune until they match. Thick & thin shows in the Solid style.\n- Detection is a best guess. A single letter with one stem (I, L, T) may not show serifs, so use the slider.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-23T05:39:58Z",
+  "version": "4.62",
+  "build": 473,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.62-build473/EzMe-4.62-macOS.zip",
+  "sha256": "81be5060894d690b00f3df1f8eab972cd6dc9e0639c15df4dd8c620a8acee1b3",
+  "notes": "# KeyDo 4.62\n\n**Hide in My Files now really moves the file**\n- **Move to secure vault** (was Hide with passcode) moves the file or folder out of its place into KeyDo's own hidden vault. It no longer shows where it was, in KeyDo or in the Mac's Finder.\n- **Protected files** asks for your passcode and opens the vault. Right-click an item and choose **Put back** to return it to the folder it came from (the Desktop if that folder is gone).\n- Items hidden with an earlier version are moved into the vault the first time you open this version.\n- The vault is hidden and locked inside KeyDo, but the files are not encrypted.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-23T06:09:24Z",
   "minimumSystemVersion": "14.0"
 }
