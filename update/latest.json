@@ -1,9 +1,9 @@
 {
-  "version": "4.62",
-  "build": 473,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.62-build473/EzMe-4.62-macOS.zip",
-  "sha256": "81be5060894d690b00f3df1f8eab972cd6dc9e0639c15df4dd8c620a8acee1b3",
-  "notes": "# KeyDo 4.62\n\n**Hide in My Files now really moves the file**\n- **Move to secure vault** (was Hide with passcode) moves the file or folder out of its place into KeyDo's own hidden vault. It no longer shows where it was, in KeyDo or in the Mac's Finder.\n- **Protected files** asks for your passcode and opens the vault. Right-click an item and choose **Put back** to return it to the folder it came from (the Desktop if that folder is gone).\n- Items hidden with an earlier version are moved into the vault the first time you open this version.\n- The vault is hidden and locked inside KeyDo, but the files are not encrypted.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-23T06:09:24Z",
+  "version": "4.63",
+  "build": 474,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.63-build474/EzMe-4.63-macOS.zip",
+  "sha256": "998d31445e9a75972fc4e10ffef7e0eccede17a0e3b73953b5cdbdb65b2f4a76",
+  "notes": "# KeyDo 4.63\n\n**Ez Tools has a Home page, in the same look as WishStudio**\n- Ez Tools opens on a Home page: a header with the Ez Tools icon, your cover picture, then \"Choose a tool to get started\" with a grid of tool cards, the same cards WishStudio uses.\n- Press a card to open that tool in its own tab. A new **Home** tab at the start of the tool row brings you back.\n- Right-click a card to give it your own picture, as before with the tabs.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-23T09:36:23Z",
   "minimumSystemVersion": "14.0"
 }
