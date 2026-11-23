@@ -45,6 +45,8 @@ struct FontCreatorApp: View {
                     Text("My fonts (\(saved.count))").tag(2)
                 }.labelsHidden().pickerStyle(.segmented)
 
+                wishBar
+
                 if tab == 0 { makeSection }
                 if tab == 1 { gallery(KeyDoFonts.builtIn) }
                 if tab == 2 {
@@ -243,6 +245,39 @@ struct FontCreatorApp: View {
         }
         rebuildGlyphs()
         if added > 0 { notice = "AI drew \(added) letters in your style. Your own letters stay as they are." }
+    }
+
+    /// One button to use the font in WishStudio: saves it if needed, copies its name, and opens WishStudio.
+    private var wishBar: some View {
+        let name = current?.fontName ?? ""
+        return HStack(spacing: 10) {
+            Image(systemName: "party.popper.fill").foregroundStyle(Butter.coral)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name.isEmpty ? "Pick or make a font to use it in WishStudio" : "Use \u{201C}\(name)\u{201D} in WishStudio").font(.system(size: 13, weight: .bold, design: .rounded))
+                Text("Saved fonts appear in every WishStudio font list. In WishStudio, choose a text, open Font and pick it (the name starts with KeyDo \u{00B7}).")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button { sendToWishStudio() } label: { Label("Send to WishStudio", systemImage: "paperplane.fill") }
+                .buttonStyle(.borderedProminent).tint(Butter.coral).disabled(name.isEmpty)
+        }
+        .padding(12)
+        .background(Butter.cream, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Butter.honey, lineWidth: 1))
+    }
+
+    private func sendToWishStudio() {
+        guard let style = current else { return }
+        var fontName = style.fontName
+        if tab == 0 {
+            saveDraft()
+            fontName = draft?.fontName ?? fontName
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(fontName, forType: .string)
+        UserDefaults.standard.set(fontName, forKey: "keydoWishNewFont")
+        NotificationCenter.default.post(name: .keydoOpenSection, object: nil, userInfo: ["section": "WishStudio"])
+        notice = "\u{201C}\(fontName)\u{201D} is ready in WishStudio, and its name is copied."
     }
 
     private func saveDraft() {

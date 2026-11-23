@@ -1,7 +1,8 @@
-# KeyDo 4.59
+# KeyDo 4.60
 
-**Finder eye button fixed**
-- The eye button on a file in My Files > Finder (and the Quick Look menu item and the Space key) no longer shows an "unexpectedly quit" error. Before, it started a separate macOS helper program that could crash. It now opens the normal macOS Quick Look window inside KeyDo.
-- Select several files and press Space to look through them with the arrow keys. Escape or Space closes the window.
+**Send a Font Creator font to WishStudio**
+- New **Send to WishStudio** button at the top of Font Creator. It saves the font if you have not saved it yet, copies its name, and opens WishStudio.
+- Every saved font was already in WishStudio's font lists. In WishStudio, choose a text, open Font and pick the name that starts with KeyDo (the search box finds it too). The 20 built-in KeyDo fonts can be sent the same way.
+- Fonts are drawn inside KeyDo, so they show in WishStudio designs and exported pictures. Word and web exports still use a normal font.
 
 **Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.
