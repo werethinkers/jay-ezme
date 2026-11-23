@@ -1,9 +1,9 @@
 {
-  "version": "4.58",
-  "build": 468,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.58-build468/EzMe-4.58-macOS.zip",
-  "sha256": "332def7752161e4c9359dccd175b644bece04e35b08c5e5f5781c913e4934a17",
-  "notes": "# KeyDo 4.58\n\n**Hide files in My Files > Finder, with your passcode**\n- Right-click a file or folder (or use the bar above the list) and choose **Hide with passcode**. It stays exactly where it is on your Mac, but KeyDo no longer shows it.\n- Press **Protected files** and enter your 6-digit passcode, the same one used for hidden collections, to see hidden items. They show with a small lock and can be unhidden any time. Leaving the Finder tab hides them again, and opening a hidden folder by its path asks for the passcode too.\n- Renaming, moving or trashing a hidden item keeps it hidden. Note: this hides items inside KeyDo only. They are still visible in the macOS Finder and other apps, and the files are not encrypted.\n\n**Ez Tools: cover picture and scrolling**\n- **Change cover** at the top of Ez Tools lets you use any picture; Reset brings back the colour cover. Right-click any tool tab and choose Change picture to give it your own picture.\n- The page now scrolls all the way down for every tool, including Font Creator, Image Studio, Resize and Crop and Video Editor. The cover and tool tabs stay at the top.\n- My Files and Collection Builder now fill the window height properly.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-22T15:36:30Z",
+  "version": "4.59",
+  "build": 469,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.59-build469/EzMe-4.59-macOS.zip",
+  "sha256": "dbb24e70940a89b57ba1aa50409eeb01a4d63bdd8578b291f88ffec00c00aed8",
+  "notes": "# KeyDo 4.59\n\n**Finder eye button fixed**\n- The eye button on a file in My Files > Finder (and the Quick Look menu item and the Space key) no longer shows an \"unexpectedly quit\" error. Before, it started a separate macOS helper program that could crash. It now opens the normal macOS Quick Look window inside KeyDo.\n- Select several files and press Space to look through them with the arrow keys. Escape or Space closes the window.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-23T03:09:57Z",
   "minimumSystemVersion": "14.0"
 }
