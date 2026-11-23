@@ -1,9 +1,9 @@
 {
-  "version": "4.60",
-  "build": 470,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.60-build470/EzMe-4.60-macOS.zip",
-  "sha256": "cccc7600d177fc4ec88a66d4719815b23351023a5ef1ee6dff3989d8d136792f",
-  "notes": "# KeyDo 4.60\n\n**Send a Font Creator font to WishStudio**\n- New **Send to WishStudio** button at the top of Font Creator. It saves the font if you have not saved it yet, copies its name, and opens WishStudio.\n- Every saved font was already in WishStudio's font lists. In WishStudio, choose a text, open Font and pick the name that starts with KeyDo (the search box finds it too). The 20 built-in KeyDo fonts can be sent the same way.\n- Fonts are drawn inside KeyDo, so they show in WishStudio designs and exported pictures. Word and web exports still use a normal font.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-23T03:23:06Z",
+  "version": "4.61",
+  "build": 471,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.61-build471/EzMe-4.61-macOS.zip",
+  "sha256": "1edd25cc4fe609ead024fc68461fff13a128771a74a26eb59e13e8dce149e782",
+  "notes": "# KeyDo 4.61\n\n**Font Creator draws the whole alphabet more like your letter**\n- It now reads serifs (small feet on stems) and thick-and-thin strokes from your picture, as well as thickness, corners, lean and colours. Every other letter is drawn with the same serifs and the same thick and thin.\n- The letter width is fitted to the letters you typed, so the drawn letters have the same proportions as yours.\n- New **Serifs** and **Thick & thin** sliders, and a **check strip**: your letter on top, KeyDo's drawing of the same letter below, so you can tune until they match. Thick & thin shows in the Solid style.\n- Detection is a best guess. A single letter with one stem (I, L, T) may not show serifs, so use the slider.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-23T05:39:58Z",
   "minimumSystemVersion": "14.0"
 }
