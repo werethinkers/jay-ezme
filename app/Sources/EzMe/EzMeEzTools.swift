@@ -119,10 +119,10 @@ enum EzToolPictures {
     /// Asks for a picture, keeps a copy, and remembers it. Returns true when something was chosen.
     @MainActor @discardableResult static func choose(_ key: String) -> Bool {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.image]
+        panel.allowedContentTypes = [.image, .gif, .movie, .mpeg4Movie, .quickTimeMovie]
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
-        panel.prompt = "Use picture"
+        panel.prompt = "Use as cover"
         guard panel.runModal() == .OK, let source = panel.url else { return false }
         let ext = source.pathExtension.isEmpty ? "png" : source.pathExtension.lowercased()
         let name = key.replacingOccurrences(of: ".", with: "-") + "-" + String(Int(Date().timeIntervalSince1970)) + "." + ext
@@ -141,32 +141,45 @@ enum EzToolPictures {
     }
 }
 
-/// The wide cover at the top of Ez Tools. Change it to any picture, or go back to the colour cover.
+/// The wide cover. On Home it is the Ez Tools cover; on a tool it is that tool's own cover. Image, GIF or video.
 struct EzToolsBanner: View {
     var showsTitle = true
-    @AppStorage(EzToolPictures.coverKey) private var coverPath = ""
+    var toolId: String? = nil
+    var height: CGFloat = 124
+    @AppStorage private var coverPath: String
     @State private var hover = false
+
+    init(showsTitle: Bool = true, toolId: String? = nil, height: CGFloat = 124) {
+        self.showsTitle = showsTitle
+        self.toolId = toolId
+        self.height = height
+        _coverPath = AppStorage(wrappedValue: "", toolId == nil ? EzToolPictures.coverKey : EzToolPictures.tabKey(toolId!))
+    }
+
+    private var key: String { toolId == nil ? EzToolPictures.coverKey : EzToolPictures.tabKey(toolId!) }
+    private var tool: EzToolDef? { EzTools.all.first { $0.id == toolId } }
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             cover
-            LinearGradient(colors: [Color.black.opacity(0.0), Color.black.opacity(0.55)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Color.black.opacity(0.0), Color.black.opacity(showsTitle ? 0.55 : 0.2)], startPoint: .top, endPoint: .bottom).allowsHitTesting(false)
             HStack(alignment: .bottom, spacing: 14) {
                 if showsTitle {
-                    Image(systemName: "wrench.and.screwdriver.fill").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
+                    Image(systemName: tool?.symbol ?? "wrench.and.screwdriver.fill").font(.system(size: 20, weight: .bold)).foregroundStyle(.white)
                         .frame(width: 46, height: 46).background(Color.white.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Ez Tools").font(.system(size: 28, weight: .heavy, design: .rounded)).foregroundStyle(.white)
-                        Text("Pick a tool below. Draw, fix, resize, edit video and make fonts.").font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.9))
+                        Text(tool?.title ?? "Ez Tools").font(.system(size: 28, weight: .heavy, design: .rounded)).foregroundStyle(.white)
+                        Text(tool.map { EzTools.details[$0.id]?.text ?? $0.hint } ?? "Pick a tool below. Draw, fix, resize, edit video and make fonts.")
+                            .font(.system(size: 13, weight: .medium)).foregroundStyle(.white.opacity(0.9)).lineLimit(1)
                     }
                 }
                 Spacer()
                 HStack(spacing: 8) {
-                    Button { if EzToolPictures.choose(EzToolPictures.coverKey) { coverPath = UserDefaults.standard.string(forKey: EzToolPictures.coverKey) ?? "" } } label: {
-                        Label("Change cover", systemImage: "photo.badge.plus")
+                    Button { if EzToolPictures.choose(key) { coverPath = UserDefaults.standard.string(forKey: key) ?? "" } } label: {
+                        Label(coverPath.isEmpty ? "Add cover" : "Change cover", systemImage: "photo.badge.plus")
                     }
                     if !coverPath.isEmpty {
-                        Button { EzToolPictures.clear(EzToolPictures.coverKey); coverPath = "" } label: { Label("Reset", systemImage: "arrow.uturn.backward") }
+                        Button { EzToolPictures.clear(key); coverPath = "" } label: { Label("Reset", systemImage: "arrow.uturn.backward") }
                     }
                 }
                 .buttonStyle(.borderedProminent).tint(Color.black.opacity(0.45)).controlSize(.small)
@@ -174,21 +187,21 @@ struct EzToolsBanner: View {
             }
             .padding(.horizontal, 24).padding(.vertical, 14)
         }
-        .frame(height: 124)
+        .frame(height: height)
         .frame(maxWidth: .infinity)
         .clipped()
         .onHover { hover = $0 }
         .contextMenu {
-            Button("Change cover…") { if EzToolPictures.choose(EzToolPictures.coverKey) { coverPath = UserDefaults.standard.string(forKey: EzToolPictures.coverKey) ?? "" } }
-            if !coverPath.isEmpty { Button("Reset cover") { EzToolPictures.clear(EzToolPictures.coverKey); coverPath = "" } }
+            Button("Change cover\u{2026}") { if EzToolPictures.choose(key) { coverPath = UserDefaults.standard.string(forKey: key) ?? "" } }
+            if !coverPath.isEmpty { Button("Reset cover") { EzToolPictures.clear(key); coverPath = "" } }
         }
     }
 
     @ViewBuilder private var cover: some View {
-        if !coverPath.isEmpty, let image = NSImage(contentsOfFile: coverPath) {
-            Color.clear.overlay { Image(nsImage: image).resizable().scaledToFill() }.clipped()
+        if !coverPath.isEmpty, FileManager.default.fileExists(atPath: coverPath) {
+            EzCoverMedia(path: coverPath).id(coverPath)
         } else {
-            LinearGradient(colors: [Color(red: 0.98, green: 0.50, blue: 0.35), Color(red: 0.92, green: 0.30, blue: 0.55), Color(red: 0.50, green: 0.36, blue: 0.92)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: tool?.colors ?? [Color(red: 0.98, green: 0.50, blue: 0.35), Color(red: 0.92, green: 0.30, blue: 0.55), Color(red: 0.50, green: 0.36, blue: 0.92)], startPoint: .topLeading, endPoint: .bottomTrailing)
         }
     }
 }
@@ -223,7 +236,7 @@ struct EzToolsHome: View {
                 EzToolsBanner(showsTitle: false).frame(height: 124).clipShape(RoundedRectangle(cornerRadius: 18))
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Choose a tool to get started").font(.system(size: 25, weight: .bold, design: .rounded))
-                    Text("Each tool opens in its own tab. Right-click a card to give it your own picture.")
+                    Text("Each tool opens in its own tab. Use the picture button on a card to give it your own picture, GIF or video.")
                         .foregroundStyle(.secondary).frame(maxWidth: 780, alignment: .leading)
                 }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 236, maximum: 300), spacing: 16)], alignment: .leading, spacing: 16) {
@@ -244,8 +257,15 @@ struct EzToolsHome: View {
         return AppGalleryCard(title: tool.title, description: detail?.text ?? tool.hint, sample: "", category: detail?.category ?? "Tool",
                               icon: tool.symbol, iconPath: "", coverPath: FileManager.default.fileExists(atPath: picture) ? picture : "", credits: "",
                               colors: tool.colors, action: { withAnimation(.easeInOut(duration: 0.15)) { selected = tool.id } }, showsCredits: false, badge: "TOOL")
+            .overlay(alignment: .topTrailing) {
+                Button { if EzToolPictures.choose(key) { pictureRevision += 1 } } label: {
+                    Image(systemName: "photo.badge.plus").font(.system(size: 12, weight: .bold)).foregroundStyle(.white)
+                        .padding(7).background(Color.black.opacity(0.45), in: Circle())
+                }
+                .buttonStyle(.plain).padding(10).help("Change this tool's picture, GIF or video")
+            }
             .contextMenu {
-                Button("Change picture\u{2026}") { if EzToolPictures.choose(key) { pictureRevision += 1 } }
+                Button("Change picture, GIF or video\u{2026}") { if EzToolPictures.choose(key) { pictureRevision += 1 } }
                 if !picture.isEmpty { Button("Reset picture") { EzToolPictures.clear(key); pictureRevision += 1 } }
             }
     }
