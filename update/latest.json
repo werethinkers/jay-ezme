@@ -1,9 +1,9 @@
 {
-  "version": "4.63",
-  "build": 474,
-  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.63-build474/EzMe-4.63-macOS.zip",
-  "sha256": "998d31445e9a75972fc4e10ffef7e0eccede17a0e3b73953b5cdbdb65b2f4a76",
-  "notes": "# KeyDo 4.63\n\n**Ez Tools has a Home page, in the same look as WishStudio**\n- Ez Tools opens on a Home page: a header with the Ez Tools icon, your cover picture, then \"Choose a tool to get started\" with a grid of tool cards, the same cards WishStudio uses.\n- Press a card to open that tool in its own tab. A new **Home** tab at the start of the tool row brings you back.\n- Right-click a card to give it your own picture, as before with the tabs.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
-  "published": "2026-11-23T09:36:23Z",
+  "version": "4.64",
+  "build": 475,
+  "url": "https://github.com/werethinkers/jay-ezme/releases/download/v4.64-build475/EzMe-4.64-macOS.zip",
+  "sha256": "aedd980c7e3cda2c68a45fbe1d03de84e34c58344faade6c4607757f98a128f2",
+  "notes": "# KeyDo 4.64\n\n**Every Ez Tool has its own cover: picture, GIF or video**\n- On the Ez Tools Home page each card has a picture button. Press it to choose an image, GIF or video for that tool only.\n- Each tool page now opens with its own banner showing that tool's cover, with a **Change cover** button. Changing one tool no longer changes the others.\n- The Home page keeps its own cover under the header.\n- Tool tabs show a picture or GIF cover as their icon. A video cover shows on the card and the banner, and the tab keeps its coloured icon.\n\n**Keyboard safety:** checked. The key tap, popup, voice and every mode that swallows keys are untouched.",
+  "published": "2026-11-24T05:19:30Z",
   "minimumSystemVersion": "14.0"
 }
