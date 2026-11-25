@@ -11,6 +11,7 @@ struct KeyDoSidebarPanel: View {
     var onNavigate: (String) -> Void
 
     @State private var accountPopoverShowing = false
+    @ObservedObject private var credits = CreditsCenter.shared
     private let panelWidth: CGFloat = 232
 
     var body: some View {
@@ -119,7 +120,10 @@ struct KeyDoSidebarPanel: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(.white)
                         .lineLimit(1).truncationMode(.middle)
-                    tierPill
+                    HStack(spacing: 8) {
+                        tierPill
+                        creditsLine(compact: true)
+                    }
                 }
                 Spacer()
                 Image(systemName: "chevron.up.chevron.down")
@@ -159,6 +163,21 @@ struct KeyDoSidebarPanel: View {
                 }
             }
             Divider()
+            // Credits row
+            HStack(spacing: 8) {
+                Image(systemName: "bolt.circle.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Butter.honey)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(credits.balance.formatted()) credits")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("available this month")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            Divider()
             Button(role: .destructive) {
                 accountPopoverShowing = false
                 onSignOut()
@@ -174,6 +193,18 @@ struct KeyDoSidebarPanel: View {
     }
 
     // MARK: Helpers
+
+    @ViewBuilder
+    private func creditsLine(compact: Bool) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: "bolt.fill")
+                .font(.system(size: compact ? 8 : 10))
+                .foregroundStyle(Butter.honey)
+            Text(compact ? "\(credits.balance.formatted())" : "\(credits.balance.formatted()) credits")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(.white.opacity(0.65))
+        }
+    }
 
     private func avatarCircle(_ name: String, size: CGFloat, font: CGFloat) -> some View {
         Text(String((name.first ?? "?").uppercased()))
