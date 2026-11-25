@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyDo Creator Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #18181f;
+    --surface2: #22222c;
+    --border: #2a2a38;
+    --text: #e8e8f0;
+    --muted: #8888a8;
+    --accent: #7c6af7;
+    --accent2: #5b4ee0;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --cyan: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Auth */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 380px; }
+  .auth-box h1 { font-size: 22px; margin-bottom: 6px; }
+  .auth-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+  .auth-box input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; }
+  .auth-box input:focus { border-color: var(--accent); }
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; cursor: pointer; font-weight: 600; }
+  .btn:hover { background: var(--accent2); }
+  .btn-sm { padding: 6px 14px; font-size: 13px; border-radius: 6px; }
+  .btn-block { width: 100%; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { background: var(--surface2); }
+  #auth-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
+
+  /* Layout */
+  #app { display: none; max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .avatar-lg { width: 48px; height: 48px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; flex-shrink: 0; }
+  .topbar-name { font-size: 20px; font-weight: 700; }
+  .topbar-sub { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-purple { background: #3b1f8c; color: #c4b5fd; }
+  .badge-green { background: #064e3b; color: #34d399; }
+  .badge-gray { background: var(--surface2); color: var(--muted); }
+
+  /* Stats */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 700; }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card-accent { border-top: 3px solid var(--accent); }
+  .card-green { border-top: 3px solid var(--green); }
+  .card-yellow { border-top: 3px solid var(--yellow); }
+  .card-cyan { border-top: 3px solid var(--cyan); }
+
+  /* Section */
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+  .section-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .section-title { font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 20px; font-size: 12px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .04em; }
+  td { padding: 12px 20px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  /* Profile edit */
+  .profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px; }
+  .profile-grid label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .profile-grid input, .profile-grid textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 14px; outline: none; }
+  .profile-grid input:focus, .profile-grid textarea:focus { border-color: var(--accent); }
+  .profile-grid textarea { resize: vertical; min-height: 80px; }
+  .full-col { grid-column: 1 / -1; }
+  .profile-actions { padding: 0 20px 20px; display: flex; gap: 10px; }
+
+  /* Credits */
+  .credits-bar-bg { background: var(--surface2); border-radius: 6px; height: 10px; margin-top: 8px; overflow: hidden; }
+  .credits-bar { background: var(--accent); height: 10px; border-radius: 6px; transition: width .6s; }
+
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 460px; max-width: 95vw; }
+  .modal h3 { font-size: 17px; margin-bottom: 20px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .modal input, .modal textarea, .modal select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 14px; margin-bottom: 14px; outline: none; }
+  .modal textarea { resize: vertical; min-height: 80px; }
+  .modal input:focus, .modal textarea:focus, .modal select:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 14px; display: none; z-index: 200; max-width: 320px; }
+  #toast.show { display: block; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+
+  .text-muted { color: var(--muted); }
+  .flex-gap { display: flex; gap: 8px; align-items: center; }
+  .empty-state { text-align: center; padding: 40px; color: var(--muted); }
+  .empty-state h3 { font-size: 16px; color: var(--text); margin-bottom: 6px; }
+
+  /* Publish pack form */
+  #publish-form { display: none; padding: 20px; border-top: 1px solid var(--border); }
+  #publish-form input, #publish-form textarea, #publish-form select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; }
+  #publish-form label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Auth screen -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>🎨 Creator Dashboard</h1>
+    <p>Sign in with your KeyDo account to manage your packs and profile</p>
+    <input type="email" id="creator-email" placeholder="Email" autocomplete="email">
+    <input type="password" id="creator-pass" placeholder="Password" autocomplete="current-password">
+    <button class="btn btn-block" onclick="signIn()">Sign In</button>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="app">
+  <!-- Header -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="avatar-lg" id="avatar-initial">?</div>
+      <div>
+        <div class="topbar-name" id="creator-display-name">Loading…</div>
+        <div class="topbar-sub flex-gap">
+          <span id="creator-email-display">—</span>
+          <span class="badge badge-purple" id="creator-verified-badge" style="display:none">✓ Verified</span>
+          <span class="badge badge-green">Creator</span>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-sm btn-ghost" onclick="signOut()">Sign Out</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="cards">
+    <div class="card card-accent">
+      <div class="card-label">Published Packs</div>
+      <div class="card-value" id="stat-packs">—</div>
+    </div>
+    <div class="card card-green">
+      <div class="card-label">Total Installs</div>
+      <div class="card-value" id="stat-installs">—</div>
+    </div>
+    <div class="card card-yellow">
+      <div class="card-label">Total Earnings</div>
+      <div class="card-value" id="stat-earnings">—</div>
+      <div class="card-sub">Lifetime</div>
+    </div>
+    <div class="card card-cyan">
+      <div class="card-label">Monthly Credits</div>
+      <div class="card-value" id="stat-credits">—</div>
+      <div class="card-sub" id="stat-credits-sub">/ mo quota</div>
+    </div>
+  </div>
+
+  <!-- Credits Usage -->
+  <div class="section" id="credits-section" style="margin-bottom:24px">
+    <div class="section-header"><span class="section-title">Credits Remaining</span></div>
+    <div style="padding:16px 20px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)">
+        <span>Used this month</span>
+        <span id="credits-pct">—</span>
+      </div>
+      <div class="credits-bar-bg">
+        <div class="credits-bar" id="credits-bar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Packs -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">My Packs</span>
+      <button class="btn btn-sm" onclick="togglePublishForm()">+ Publish New Pack</button>
+    </div>
+    <div id="publish-form">
+      <label>Pack Name</label>
+      <input type="text" id="pack-name" placeholder="e.g. Sales Pro Starter">
+      <label>Description</label>
+      <textarea id="pack-desc" placeholder="What does this pack include?"></textarea>
+      <label>Category</label>
+      <select id="pack-category">
+        <option value="sales">Sales</option>
+        <option value="support">Customer Support</option>
+        <option value="hr">HR</option>
+        <option value="developer">Developer</option>
+        <option value="general">General</option>
+        <option value="international">International</option>
+      </select>
+      <label>Price (₹, leave 0 for free)</label>
+      <input type="number" id="pack-price" value="0" min="0">
+      <div class="flex-gap">
+        <button class="btn btn-sm" onclick="publishPack()">Publish Pack</button>
+        <button class="btn btn-sm btn-ghost" onclick="togglePublishForm()">Cancel</button>
+      </div>
+    </div>
+    <div id="packs-loading" class="loading" style="padding:32px;text-align:center;color:var(--muted)">Loading…</div>
+    <table id="packs-table" style="display:none">
+      <thead><tr><th>Pack Name</th><th>Category</th><th>Installs</th><th>Rating</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="packs-body"></tbody>
+    </table>
+    <div id="packs-empty" class="empty-state" style="display:none">
+      <h3>No packs yet</h3>
+      <p>Publish your first shortcut pack to the KeyDo Store</p>
+    </div>
+  </div>
+
+  <!-- Profile -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">My Profile</span></div>
+    <div class="profile-grid">
+      <div>
+        <label>Display Name</label>
+        <input type="text" id="p-name" placeholder="Your creator name">
+      </div>
+      <div>
+        <label>Website</label>
+        <input type="url" id="p-website" placeholder="https://yoursite.com">
+      </div>
+      <div>
+        <label>Twitter / X Handle</label>
+        <input type="text" id="p-twitter" placeholder="@handle">
+      </div>
+      <div>
+        <label>Avatar URL</label>
+        <input type="url" id="p-avatar" placeholder="https://…/avatar.jpg">
+      </div>
+      <div class="full-col">
+        <label>Bio</label>
+        <textarea id="p-bio" placeholder="Tell the community about yourself…"></textarea>
+      </div>
+    </div>
+    <div class="profile-actions">
+      <button class="btn btn-sm" onclick="saveProfile()">Save Profile</button>
+    </div>
+  </div>
+
+  <!-- Subscription info -->
+  <div class="section">
+    <div class="section-header"><span class="section-title">My Subscription</span></div>
+    <div style="padding:16px 20px">
+      <div style="display:flex;gap:24px;flex-wrap:wrap">
+        <div><div class="card-label">Plan</div><div id="sub-tier" style="font-size:18px;font-weight:700">—</div></div>
+        <div><div class="card-label">Status</div><div id="sub-status" style="font-size:18px;font-weight:700">—</div></div>
+        <div><div class="card-label">Monthly Quota</div><div id="sub-quota" style="font-size:18px;font-weight:700">—</div></div>
+      </div>
+      <p style="margin-top:16px;font-size:13px;color:var(--muted)">
+        To upgrade your plan, visit <a href="https://ezme.ezyourlife.com/#pricing" target="_blank" style="color:var(--cyan)">ezme.ezyourlife.com</a> or use the in-app upgrade sheet.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vfmuqfbmklupzzqfhdjz.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbXVxZmJta2x1cHp6cWZoZGp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE2NzcxOTAsImV4cCI6MjA0NzI1MzE5MH0.2w2V2m5oNv5VKNKZ0_2NRoP6aXhz-MNQG6Mm62fBCpw';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+let currentUser = null;
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3000);
+}
+
+async function signIn() {
+  const email = document.getElementById('creator-email').value.trim();
+  const pass = document.getElementById('creator-pass').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Check creator role
+  const { data: roles } = await sb.from('admin_roles').select('role').eq('user_id', data.user.id);
+  const isCreator = roles && roles.some(r => ['super_admin','admin','creator'].includes(r.role));
+  if (!isCreator) {
+    // Also check is_creator flag
+    const { data: sub } = await sb.from('subscriptions').select('is_creator').eq('user_id', data.user.id).single();
+    if (!sub || !sub.is_creator) {
+      await sb.auth.signOut();
+      errEl.textContent = 'Creator access required. Apply to become a creator from the KeyDo app.';
+      errEl.style.display = 'block';
+      return;
+    }
+  }
+
+  currentUser = data.user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('creator-email-display').textContent = email;
+  document.getElementById('avatar-initial').textContent = email[0].toUpperCase();
+  loadAll();
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function loadAll() {
+  await Promise.all([loadProfile(), loadSubscription(), loadPacks()]);
+}
+
+async function loadProfile() {
+  const { data, error } = await sb.from('creator_profiles')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .single();
+
+  if (data) {
+    document.getElementById('creator-display-name').textContent = data.display_name || 'Creator';
+    document.getElementById('avatar-initial').textContent = (data.display_name||'?')[0].toUpperCase();
+    document.getElementById('p-name').value = data.display_name || '';
+    document.getElementById('p-bio').value = data.bio || '';
+    document.getElementById('p-website').value = data.website || '';
+    document.getElementById('p-twitter').value = data.twitter || '';
+    document.getElementById('p-avatar').value = data.avatar_url || '';
+    document.getElementById('stat-packs').textContent = data.packs_published;
+    document.getElementById('stat-installs').textContent = data.total_installs.toLocaleString();
+    document.getElementById('stat-earnings').textContent = '₹' + Number(data.total_earnings).toLocaleString();
+    if (data.is_verified) document.getElementById('creator-verified-badge').style.display = 'inline-block';
+  }
+}
+
+async function loadSubscription() {
+  const { data } = await sb.from('subscriptions')
+    .select('tier, status, monthly_credits_quota, credits_used_this_month')
+    .eq('user_id', currentUser.id)
+    .single();
+
+  if (data) {
+    document.getElementById('sub-tier').textContent = data.tier;
+    document.getElementById('sub-status').textContent = data.status || 'active';
+    document.getElementById('sub-quota').textContent = (data.monthly_credits_quota || 0) + ' credits';
+    document.getElementById('stat-credits').textContent = data.monthly_credits_quota || 0;
+
+    const used = data.credits_used_this_month || 0;
+    const quota = data.monthly_credits_quota || 1;
+    const pct = Math.min(100, Math.round((used / quota) * 100));
+    document.getElementById('credits-pct').textContent = `${used} / ${quota} (${pct}%)`;
+    document.getElementById('credits-bar').style.width = pct + '%';
+    document.getElementById('stat-credits-sub').textContent = `/ ${quota} quota`;
+  }
+}
+
+async function loadPacks() {
+  document.getElementById('packs-loading').style.display = 'block';
+  document.getElementById('packs-table').style.display = 'none';
+  document.getElementById('packs-empty').style.display = 'none';
+
+  const { data, error } = await sb.from('store_packs')
+    .select('id, name, category, install_count, rating, is_published, created_at')
+    .eq('author_id', currentUser.id)
+    .order('created_at', { ascending: false });
+
+  document.getElementById('packs-loading').style.display = 'none';
+
+  if (error || !data || data.length === 0) {
+    document.getElementById('packs-empty').style.display = 'block';
+    return;
+  }
+
+  document.getElementById('packs-table').style.display = 'table';
+  document.getElementById('packs-body').innerHTML = data.map(p => `
+    <tr>
+      <td><strong>${p.name}</strong></td>
+      <td><span class="badge badge-gray">${p.category}</span></td>
+      <td>${(p.install_count||0).toLocaleString()}</td>
+      <td>${p.rating ? '⭐ ' + Number(p.rating).toFixed(1) : '—'}</td>
+      <td>${p.is_published
+        ? '<span class="badge badge-green">Live</span>'
+        : '<span class="badge badge-gray">Draft</span>'}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="togglePackPublish('${p.id}',${p.is_published})">
+          ${p.is_published ? 'Unpublish' : 'Publish'}
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+async function saveProfile() {
+  const display_name = document.getElementById('p-name').value.trim();
+  const bio = document.getElementById('p-bio').value.trim();
+  const website = document.getElementById('p-website').value.trim();
+  const twitter = document.getElementById('p-twitter').value.trim();
+  const avatar_url = document.getElementById('p-avatar').value.trim();
+
+  const { error } = await sb.from('creator_profiles')
+    .update({ display_name, bio, website, twitter, avatar_url, updated_at: new Date().toISOString() })
+    .eq('user_id', currentUser.id);
+
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Profile saved');
+  document.getElementById('creator-display-name').textContent = display_name || 'Creator';
+  if (display_name) document.getElementById('avatar-initial').textContent = display_name[0].toUpperCase();
+}
+
+function togglePublishForm() {
+  const f = document.getElementById('publish-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+async function publishPack() {
+  const name = document.getElementById('pack-name').value.trim();
+  const description = document.getElementById('pack-desc').value.trim();
+  const category = document.getElementById('pack-category').value;
+  const price = parseFloat(document.getElementById('pack-price').value) || 0;
+
+  if (!name) { showToast('Pack name required', 'error'); return; }
+
+  const { error } = await sb.from('store_packs').insert({
+    name,
+    description,
+    category,
+    price,
+    author_id: currentUser.id,
+    is_published: true,
+    install_count: 0
+  });
+
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Pack published!');
+  togglePublishForm();
+  document.getElementById('pack-name').value = '';
+  document.getElementById('pack-desc').value = '';
+  document.getElementById('pack-price').value = '0';
+  loadPacks();
+
+  // Increment packs_published
+  await sb.rpc('increment_packs_published', { p_user_id: currentUser.id }).catch(() => {});
+}
+
+async function togglePackPublish(id, current) {
+  const { error } = await sb.from('store_packs')
+    .update({ is_published: !current })
+    .eq('id', id).eq('author_id', currentUser.id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast(current ? 'Pack unpublished' : 'Pack published');
+  loadPacks();
+}
+</script>
+</body>
+</html>

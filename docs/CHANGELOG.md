@@ -5,6 +5,33 @@ Format: date · version · what changed · how it was done · commands run.
 
 ---
 
+## 2026-11-25 — Admin panel, creator dashboard, admin roles & creator backfill
+
+**What changed:**
+- Added `is_creator` column to `public.subscriptions`
+- Created `public.admin_roles` table (roles: super_admin, admin, creator, eco_partner, developer, publisher)
+- Created `public.creator_profiles` table (display_name, bio, avatar, website, twitter, packs_published, total_installs, total_earnings, is_verified)
+- Created `public.ecosystem_partners` table (company, contact, partner_type, api_key)
+- Backfilled all 5 founding users: Pro tier, 3000 credits/month, is_creator=true, super_admin + creator roles, verified creator profiles
+- Built `guide/admin/index.html` — auth-gated admin panel (users, subscriptions, creators, eco partners, roles, store)
+- Built `guide/creator/index.html` — creator dashboard (pack management, profile, subscription info, credits usage)
+- Saved `backend/0006_admin_roles_creators.sql` with full schema + seed SQL
+
+**How it was done:** SQL via Lovable `query_database` tool; HTML files written directly to repo.
+
+**Commands run:**
+```sql
+ALTER TABLE public.subscriptions ADD COLUMN IF NOT EXISTS is_creator boolean NOT NULL DEFAULT false;
+CREATE TABLE IF NOT EXISTS public.admin_roles (...);
+CREATE TABLE IF NOT EXISTS public.creator_profiles (...);
+CREATE TABLE IF NOT EXISTS public.ecosystem_partners (...);
+UPDATE public.subscriptions SET is_creator = true WHERE user_id IN (SELECT id FROM auth.users);
+INSERT INTO public.admin_roles ... SELECT ... FROM auth.users ON CONFLICT DO NOTHING;
+INSERT INTO public.creator_profiles ... SELECT ... FROM auth.users ON CONFLICT DO NOTHING;
+```
+
+---
+
 ## 2026-11-25 · v5.0
 
 ### Database migrations (backend/)

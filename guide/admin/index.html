@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyDo Admin Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #18181f;
+    --surface2: #22222c;
+    --border: #2a2a38;
+    --text: #e8e8f0;
+    --muted: #8888a8;
+    --accent: #7c6af7;
+    --accent2: #5b4ee0;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --cyan: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* Auth */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; width: 380px; }
+  .auth-box h1 { font-size: 22px; margin-bottom: 6px; }
+  .auth-box p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+  .auth-box input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; }
+  .auth-box input:focus { border-color: var(--accent); }
+  .btn { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; cursor: pointer; width: 100%; font-weight: 600; }
+  .btn:hover { background: var(--accent2); }
+  .btn-sm { width: auto; padding: 6px 14px; font-size: 13px; border-radius: 6px; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { background: var(--surface2); }
+  .btn-red { background: #7f1d1d; }
+  .btn-red:hover { background: #991b1b; }
+  #auth-error { color: var(--red); font-size: 13px; margin-top: 10px; display: none; }
+
+  /* Layout */
+  #app { display: none; }
+  .sidebar { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; overflow-y: auto; }
+  .sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .sidebar-logo span { font-size: 18px; font-weight: 700; }
+  .sidebar-logo small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; cursor: pointer; color: var(--muted); font-size: 14px; transition: all .15s; }
+  .nav-item:hover, .nav-item.active { background: var(--surface2); color: var(--text); }
+  .nav-item.active { border-left: 3px solid var(--accent); padding-left: 17px; }
+  .nav-icon { font-size: 16px; }
+  .main { margin-left: 220px; padding: 28px 32px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .topbar h2 { font-size: 20px; font-weight: 700; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .user-chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--muted); }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .card-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .card-value { font-size: 28px; font-weight: 700; }
+  .card-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .card-accent { border-top: 3px solid var(--accent); }
+  .card-green { border-top: 3px solid var(--green); }
+  .card-yellow { border-top: 3px solid var(--yellow); }
+  .card-cyan { border-top: 3px solid var(--cyan); }
+
+  /* Tables */
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+  .section-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .section-title { font-size: 15px; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 20px; font-size: 12px; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: .04em; }
+  td { padding: 12px 20px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  .badge-purple { background: #3b1f8c; color: #c4b5fd; }
+  .badge-green { background: #064e3b; color: #34d399; }
+  .badge-yellow { background: #78350f; color: #fbbf24; }
+  .badge-blue { background: #0c4a6e; color: #38bdf8; }
+  .badge-red { background: #7f1d1d; color: #f87171; }
+  .badge-gray { background: var(--surface2); color: var(--muted); }
+
+  /* Page sections */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; color: var(--muted); }
+
+  /* Modal */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 460px; max-width: 95vw; }
+  .modal h3 { font-size: 17px; margin-bottom: 20px; }
+  .modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .modal select, .modal input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; color: var(--text); font-size: 14px; margin-bottom: 14px; outline: none; }
+  .modal select:focus, .modal input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 20px; font-size: 14px; display: none; z-index: 200; max-width: 320px; }
+  #toast.show { display: block; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error { border-color: var(--red); color: var(--red); }
+
+  .flex-gap { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .text-muted { color: var(--muted); }
+  .truncate { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- Auth screen -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <h1>🔐 KeyDo Admin</h1>
+    <p>Sign in with your admin account</p>
+    <input type="email" id="admin-email" placeholder="Email" autocomplete="email">
+    <input type="password" id="admin-pass" placeholder="Password" autocomplete="current-password">
+    <button class="btn" onclick="signIn()">Sign In</button>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <span>⌨️ KeyDo</span>
+      <small>Admin Panel</small>
+    </div>
+    <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+      <span class="nav-icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('users')" id="nav-users">
+      <span class="nav-icon">👥</span> Users
+    </div>
+    <div class="nav-item" onclick="showPage('subscriptions')" id="nav-subscriptions">
+      <span class="nav-icon">💳</span> Subscriptions
+    </div>
+    <div class="nav-item" onclick="showPage('creators')" id="nav-creators">
+      <span class="nav-icon">🎨</span> Creators
+    </div>
+    <div class="nav-item" onclick="showPage('partners')" id="nav-partners">
+      <span class="nav-icon">🤝</span> Eco Partners
+    </div>
+    <div class="nav-item" onclick="showPage('roles')" id="nav-roles">
+      <span class="nav-icon">🛡️</span> Roles & Access
+    </div>
+    <div class="nav-item" onclick="showPage('store')" id="nav-store">
+      <span class="nav-icon">🏪</span> Store / Packs
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">Dashboard</h2>
+      <div class="topbar-actions">
+        <span class="user-chip" id="current-user-chip">—</span>
+        <button class="btn btn-sm btn-ghost" onclick="signOut()">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="cards" id="dash-cards">
+        <div class="card card-accent"><div class="card-label">Total Users</div><div class="card-value" id="stat-users">—</div></div>
+        <div class="card card-green"><div class="card-label">Pro Users</div><div class="card-value" id="stat-pro">—</div></div>
+        <div class="card card-yellow"><div class="card-label">Creators</div><div class="card-value" id="stat-creators">—</div></div>
+        <div class="card card-cyan"><div class="card-label">Store Packs</div><div class="card-value" id="stat-packs">—</div></div>
+      </div>
+      <div class="cards">
+        <div class="card"><div class="card-label">Super Admins</div><div class="card-value" id="stat-superadmin">—</div></div>
+        <div class="card"><div class="card-label">Eco Partners</div><div class="card-value" id="stat-partners">—</div></div>
+        <div class="card"><div class="card-label">Free Users</div><div class="card-value" id="stat-free">—</div></div>
+        <div class="card"><div class="card-label">Teams Users</div><div class="card-value" id="stat-teams">—</div></div>
+      </div>
+
+      <div class="section">
+        <div class="section-header"><span class="section-title">Recent Users</span></div>
+        <div id="recent-users-loading" class="loading">Loading…</div>
+        <table id="recent-users-table" style="display:none">
+          <thead><tr><th>User</th><th>Tier</th><th>Roles</th><th>Joined</th></tr></thead>
+          <tbody id="recent-users-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Users -->
+    <div class="page" id="page-users">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">All Users</span>
+          <button class="btn btn-sm" onclick="loadUsers()">↻ Refresh</button>
+        </div>
+        <div id="users-loading" class="loading">Loading…</div>
+        <table id="users-table" style="display:none">
+          <thead><tr><th>User</th><th>Tier</th><th>Credits Quota</th><th>Creator</th><th>Roles</th><th>Actions</th></tr></thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Subscriptions -->
+    <div class="page" id="page-subscriptions">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Subscriptions</span>
+          <button class="btn btn-sm" onclick="loadSubscriptions()">↻ Refresh</button>
+        </div>
+        <div id="subs-loading" class="loading">Loading…</div>
+        <table id="subs-table" style="display:none">
+          <thead><tr><th>User</th><th>Tier</th><th>Status</th><th>Quota / mo</th><th>Creator</th><th>Actions</th></tr></thead>
+          <tbody id="subs-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Creators -->
+    <div class="page" id="page-creators">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Creator Profiles</span>
+          <button class="btn btn-sm" onclick="loadCreators()">↻ Refresh</button>
+        </div>
+        <div id="creators-loading" class="loading">Loading…</div>
+        <table id="creators-table" style="display:none">
+          <thead><tr><th>Creator</th><th>Packs</th><th>Installs</th><th>Earnings</th><th>Verified</th><th>Actions</th></tr></thead>
+          <tbody id="creators-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Partners -->
+    <div class="page" id="page-partners">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Ecosystem Partners</span>
+          <div class="flex-gap">
+            <button class="btn btn-sm" onclick="showAddPartner()">+ Add Partner</button>
+            <button class="btn btn-sm btn-ghost" onclick="loadPartners()">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="partners-loading" class="loading">Loading…</div>
+        <table id="partners-table" style="display:none">
+          <thead><tr><th>Company</th><th>Contact</th><th>Type</th><th>Active</th><th>API Key</th><th>Joined</th></tr></thead>
+          <tbody id="partners-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Roles -->
+    <div class="page" id="page-roles">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Admin Roles</span>
+          <button class="btn btn-sm" onclick="showGrantRole()">+ Grant Role</button>
+        </div>
+        <div id="roles-loading" class="loading">Loading…</div>
+        <table id="roles-table" style="display:none">
+          <thead><tr><th>User</th><th>Role</th><th>Notes</th><th>Granted</th><th>Actions</th></tr></thead>
+          <tbody id="roles-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Store -->
+    <div class="page" id="page-store">
+      <div class="section">
+        <div class="section-header">
+          <span class="section-title">Store Packs</span>
+          <button class="btn btn-sm btn-ghost" onclick="loadStore()">↻ Refresh</button>
+        </div>
+        <div id="store-loading" class="loading">Loading…</div>
+        <table id="store-table" style="display:none">
+          <thead><tr><th>Pack</th><th>Author</th><th>Category</th><th>Installs</th><th>Rating</th><th>Status</th></tr></thead>
+          <tbody id="store-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Grant Role -->
+<div class="modal-bg" id="modal-grant-role">
+  <div class="modal">
+    <h3>Grant Role</h3>
+    <label>User ID</label>
+    <input type="text" id="grant-user-id" placeholder="UUID of user">
+    <label>Role</label>
+    <select id="grant-role-select">
+      <option value="super_admin">super_admin</option>
+      <option value="admin">admin</option>
+      <option value="creator">creator</option>
+      <option value="eco_partner">eco_partner</option>
+      <option value="developer">developer</option>
+      <option value="publisher">publisher</option>
+    </select>
+    <label>Notes (optional)</label>
+    <input type="text" id="grant-role-notes" placeholder="Reason or context">
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-ghost" onclick="closeModal('modal-grant-role')">Cancel</button>
+      <button class="btn btn-sm" onclick="grantRole()">Grant</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add Partner -->
+<div class="modal-bg" id="modal-add-partner">
+  <div class="modal">
+    <h3>Add Ecosystem Partner</h3>
+    <label>Company Name</label>
+    <input type="text" id="partner-company" placeholder="Acme Corp">
+    <label>Contact Email</label>
+    <input type="email" id="partner-email" placeholder="contact@acme.com">
+    <label>Partner Type</label>
+    <select id="partner-type">
+      <option value="reseller">reseller</option>
+      <option value="integration">integration</option>
+      <option value="enterprise">enterprise</option>
+      <option value="api_consumer">api_consumer</option>
+    </select>
+    <label>Notes (optional)</label>
+    <input type="text" id="partner-notes" placeholder="">
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-ghost" onclick="closeModal('modal-add-partner')">Cancel</button>
+      <button class="btn btn-sm" onclick="addPartner()">Add Partner</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit Subscription -->
+<div class="modal-bg" id="modal-edit-sub">
+  <div class="modal">
+    <h3>Edit Subscription</h3>
+    <input type="hidden" id="edit-sub-user-id">
+    <label>Tier</label>
+    <select id="edit-sub-tier">
+      <option value="free">free</option>
+      <option value="pro">pro</option>
+      <option value="teams">teams</option>
+    </select>
+    <label>Status</label>
+    <select id="edit-sub-status">
+      <option value="active">active</option>
+      <option value="canceled">canceled</option>
+      <option value="past_due">past_due</option>
+    </select>
+    <label>Monthly Credits Quota</label>
+    <input type="number" id="edit-sub-quota" placeholder="3000">
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-ghost" onclick="closeModal('modal-edit-sub')">Cancel</button>
+      <button class="btn btn-sm" onclick="saveSub()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://vfmuqfbmklupzzqfhdjz.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZmbXVxZmJta2x1cHp6cWZoZGp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE2NzcxOTAsImV4cCI6MjA0NzI1MzE5MH0.2w2V2m5oNv5VKNKZ0_2NRoP6aXhz-MNQG6Mm62fBCpw';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+let currentUser = null;
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3000);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+async function signIn() {
+  const email = document.getElementById('admin-email').value.trim();
+  const pass = document.getElementById('admin-pass').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // Check admin role
+  const { data: roles } = await sb.from('admin_roles').select('role').eq('user_id', data.user.id);
+  const isAdmin = roles && roles.some(r => ['super_admin','admin'].includes(r.role));
+  if (!isAdmin) {
+    await sb.auth.signOut();
+    errEl.textContent = 'Access denied. Admin role required.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  currentUser = data.user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('current-user-chip').textContent = email.split('@')[0];
+  loadDashboard();
+}
+
+async function signOut() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  document.getElementById('page-title').textContent = {
+    dashboard: 'Dashboard', users: 'Users', subscriptions: 'Subscriptions',
+    creators: 'Creators', partners: 'Eco Partners', roles: 'Roles & Access', store: 'Store / Packs'
+  }[name];
+
+  if (name === 'users') loadUsers();
+  else if (name === 'subscriptions') loadSubscriptions();
+  else if (name === 'creators') loadCreators();
+  else if (name === 'partners') loadPartners();
+  else if (name === 'roles') loadRoles();
+  else if (name === 'store') loadStore();
+}
+
+async function loadDashboard() {
+  const { data: users } = await sb.from('subscriptions').select('tier, is_creator');
+  if (users) {
+    document.getElementById('stat-users').textContent = users.length;
+    document.getElementById('stat-pro').textContent = users.filter(u => u.tier === 'pro').length;
+    document.getElementById('stat-creators').textContent = users.filter(u => u.is_creator).length;
+    document.getElementById('stat-free').textContent = users.filter(u => u.tier === 'free').length;
+    document.getElementById('stat-teams').textContent = users.filter(u => u.tier === 'teams').length;
+  }
+  const { data: roles } = await sb.from('admin_roles').select('role');
+  if (roles) {
+    document.getElementById('stat-superadmin').textContent = roles.filter(r => r.role === 'super_admin').length;
+  }
+  const { data: partners } = await sb.from('ecosystem_partners').select('id');
+  document.getElementById('stat-partners').textContent = partners ? partners.length : 0;
+
+  const { data: packs } = await sb.from('store_packs').select('id');
+  document.getElementById('stat-packs').textContent = packs ? packs.length : '—';
+
+  // Recent users
+  const { data: recent } = await sb
+    .from('subscriptions')
+    .select('user_id, tier, is_creator, created_at, admin_roles(role)')
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  document.getElementById('recent-users-loading').style.display = 'none';
+  if (recent && recent.length) {
+    document.getElementById('recent-users-table').style.display = 'table';
+    const tbody = document.getElementById('recent-users-body');
+    tbody.innerHTML = recent.map(u => `
+      <tr>
+        <td><span class="truncate text-muted" style="font-size:11px">${u.user_id.slice(0,16)}…</span></td>
+        <td>${tierBadge(u.tier)}</td>
+        <td>${(u.admin_roles||[]).map(r=>roleBadge(r.role)).join(' ')}</td>
+        <td>${fmtDate(u.created_at)}</td>
+      </tr>`).join('');
+  }
+}
+
+async function loadUsers() {
+  document.getElementById('users-loading').style.display = 'block';
+  document.getElementById('users-table').style.display = 'none';
+
+  const { data, error } = await sb
+    .from('subscriptions')
+    .select('user_id, tier, monthly_credits_quota, is_creator, created_at, admin_roles(role)');
+
+  document.getElementById('users-loading').style.display = 'none';
+  if (error || !data) { showToast('Error loading users', 'error'); return; }
+
+  document.getElementById('users-table').style.display = 'table';
+  document.getElementById('users-body').innerHTML = data.map(u => `
+    <tr>
+      <td><code style="font-size:11px;color:var(--muted)">${u.user_id.slice(0,20)}…</code></td>
+      <td>${tierBadge(u.tier)}</td>
+      <td>${u.monthly_credits_quota ?? '—'}</td>
+      <td>${u.is_creator ? '<span class="badge badge-purple">Creator</span>' : '<span class="badge badge-gray">—</span>'}</td>
+      <td class="flex-gap">${(u.admin_roles||[]).map(r=>roleBadge(r.role)).join(' ')}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="openEditSub('${u.user_id}','${u.tier}','active',${u.monthly_credits_quota||0})">Edit Sub</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadSubscriptions() {
+  document.getElementById('subs-loading').style.display = 'block';
+  document.getElementById('subs-table').style.display = 'none';
+
+  const { data, error } = await sb
+    .from('subscriptions')
+    .select('user_id, tier, status, monthly_credits_quota, is_creator');
+
+  document.getElementById('subs-loading').style.display = 'none';
+  if (error || !data) { showToast('Error loading subscriptions', 'error'); return; }
+
+  document.getElementById('subs-table').style.display = 'table';
+  document.getElementById('subs-body').innerHTML = data.map(u => `
+    <tr>
+      <td><code style="font-size:11px;color:var(--muted)">${u.user_id.slice(0,20)}…</code></td>
+      <td>${tierBadge(u.tier)}</td>
+      <td>${statusBadge(u.status || 'active')}</td>
+      <td>${u.monthly_credits_quota ?? '—'}</td>
+      <td>${u.is_creator ? '✅' : '—'}</td>
+      <td><button class="btn btn-sm btn-ghost" onclick="openEditSub('${u.user_id}','${u.tier}','${u.status||'active'}',${u.monthly_credits_quota||0})">Edit</button></td>
+    </tr>`).join('');
+}
+
+async function loadCreators() {
+  document.getElementById('creators-loading').style.display = 'block';
+  document.getElementById('creators-table').style.display = 'none';
+
+  const { data, error } = await sb
+    .from('creator_profiles')
+    .select('user_id, display_name, packs_published, total_installs, total_earnings, is_verified, created_at');
+
+  document.getElementById('creators-loading').style.display = 'none';
+  if (error || !data) { showToast('Error loading creators', 'error'); return; }
+
+  document.getElementById('creators-table').style.display = 'table';
+  document.getElementById('creators-body').innerHTML = data.map(c => `
+    <tr>
+      <td>
+        <div class="flex-gap">
+          <div class="avatar">${(c.display_name||'?')[0]}</div>
+          <span>${c.display_name}</span>
+        </div>
+      </td>
+      <td>${c.packs_published}</td>
+      <td>${c.total_installs.toLocaleString()}</td>
+      <td>₹${Number(c.total_earnings).toLocaleString()}</td>
+      <td>${c.is_verified ? '<span class="badge badge-green">Verified</span>' : '<span class="badge badge-gray">Unverified</span>'}</td>
+      <td>
+        <button class="btn btn-sm btn-ghost" onclick="toggleVerify('${c.user_id}',${c.is_verified})">
+          ${c.is_verified ? 'Unverify' : 'Verify'}
+        </button>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadPartners() {
+  document.getElementById('partners-loading').style.display = 'block';
+  document.getElementById('partners-table').style.display = 'none';
+
+  const { data, error } = await sb
+    .from('ecosystem_partners')
+    .select('id, company_name, contact_email, partner_type, is_active, api_key, created_at')
+    .order('created_at', { ascending: false });
+
+  document.getElementById('partners-loading').style.display = 'none';
+  if (error || !data) { showToast('Error loading partners', 'error'); return; }
+
+  document.getElementById('partners-table').style.display = 'table';
+  document.getElementById('partners-body').innerHTML = data.map(p => `
+    <tr>
+      <td><strong>${p.company_name}</strong></td>
+      <td><a href="mailto:${p.contact_email}" style="color:var(--cyan)">${p.contact_email}</a></td>
+      <td><span class="badge badge-blue">${p.partner_type}</span></td>
+      <td>${p.is_active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}</td>
+      <td><code style="font-size:10px;color:var(--muted)">${(p.api_key||'').slice(0,16)}…</code></td>
+      <td>${fmtDate(p.created_at)}</td>
+    </tr>`).join('');
+}
+
+async function loadRoles() {
+  document.getElementById('roles-loading').style.display = 'block';
+  document.getElementById('roles-table').style.display = 'none';
+
+  const { data, error } = await sb
+    .from('admin_roles')
+    .select('id, user_id, role, notes, granted_at')
+    .order('granted_at', { ascending: false });
+
+  document.getElementById('roles-loading').style.display = 'none';
+  if (error || !data) { showToast('Error loading roles', 'error'); return; }
+
+  document.getElementById('roles-table').style.display = 'table';
+  document.getElementById('roles-body').innerHTML = data.map(r => `
+    <tr>
+      <td><code style="font-size:11px;color:var(--muted)">${r.user_id.slice(0,20)}…</code></td>
+      <td>${roleBadge(r.role)}</td>
+      <td class="text-muted">${r.notes || '—'}</td>
+      <td>${fmtDate(r.granted_at)}</td>
+      <td>
+        <button class="btn btn-sm btn-red" onclick="revokeRole('${r.id}')">Revoke</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function loadStore() {
+  document.getElementById('store-loading').style.display = 'block';
+  document.getElementById('store-table').style.display = 'none';
+
+  const { data, error } = await sb
+    .from('store_packs')
+    .select('id, name, category, install_count, rating, is_published, author_id')
+    .order('install_count', { ascending: false });
+
+  document.getElementById('store-loading').style.display = 'none';
+  if (error) { showToast('No store packs table yet', 'error'); return; }
+  if (!data || data.length === 0) {
+    document.getElementById('store-table').style.display = 'table';
+    document.getElementById('store-body').innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:28px">No packs published yet</td></tr>';
+    return;
+  }
+
+  document.getElementById('store-table').style.display = 'table';
+  document.getElementById('store-body').innerHTML = data.map(p => `
+    <tr>
+      <td><strong>${p.name}</strong></td>
+      <td><code style="font-size:11px;color:var(--muted)">${(p.author_id||'').slice(0,12)}…</code></td>
+      <td><span class="badge badge-blue">${p.category||'—'}</span></td>
+      <td>${(p.install_count||0).toLocaleString()}</td>
+      <td>⭐ ${p.rating ? Number(p.rating).toFixed(1) : '—'}</td>
+      <td>${p.is_published ? '<span class="badge badge-green">Live</span>' : '<span class="badge badge-gray">Draft</span>'}</td>
+    </tr>`).join('');
+}
+
+function openEditSub(userId, tier, status, quota) {
+  document.getElementById('edit-sub-user-id').value = userId;
+  document.getElementById('edit-sub-tier').value = tier;
+  document.getElementById('edit-sub-status').value = status;
+  document.getElementById('edit-sub-quota').value = quota;
+  document.getElementById('modal-edit-sub').classList.add('show');
+}
+
+async function saveSub() {
+  const userId = document.getElementById('edit-sub-user-id').value;
+  const tier = document.getElementById('edit-sub-tier').value;
+  const status = document.getElementById('edit-sub-status').value;
+  const quota = parseInt(document.getElementById('edit-sub-quota').value) || 0;
+
+  const { error } = await sb.from('subscriptions')
+    .update({ tier, status, monthly_credits_quota: quota })
+    .eq('user_id', userId);
+
+  closeModal('modal-edit-sub');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Subscription updated');
+  loadSubscriptions();
+}
+
+function showGrantRole() {
+  document.getElementById('grant-user-id').value = '';
+  document.getElementById('grant-role-notes').value = '';
+  document.getElementById('modal-grant-role').classList.add('show');
+}
+
+async function grantRole() {
+  const userId = document.getElementById('grant-user-id').value.trim();
+  const role = document.getElementById('grant-role-select').value;
+  const notes = document.getElementById('grant-role-notes').value.trim();
+
+  if (!userId) { showToast('User ID required', 'error'); return; }
+
+  const { error } = await sb.from('admin_roles')
+    .insert({ user_id: userId, role, notes, granted_by: currentUser.id });
+
+  closeModal('modal-grant-role');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Role granted');
+  loadRoles();
+}
+
+async function revokeRole(id) {
+  if (!confirm('Revoke this role?')) return;
+  const { error } = await sb.from('admin_roles').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Role revoked');
+  loadRoles();
+}
+
+async function toggleVerify(userId, current) {
+  const { error } = await sb.from('creator_profiles')
+    .update({ is_verified: !current })
+    .eq('user_id', userId);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast(current ? 'Verification removed' : 'Creator verified');
+  loadCreators();
+}
+
+function showAddPartner() {
+  document.getElementById('partner-company').value = '';
+  document.getElementById('partner-email').value = '';
+  document.getElementById('partner-notes').value = '';
+  document.getElementById('modal-add-partner').classList.add('show');
+}
+
+async function addPartner() {
+  const company_name = document.getElementById('partner-company').value.trim();
+  const contact_email = document.getElementById('partner-email').value.trim();
+  const partner_type = document.getElementById('partner-type').value;
+  const notes = document.getElementById('partner-notes').value.trim();
+
+  if (!company_name || !contact_email) { showToast('Company name and email required', 'error'); return; }
+
+  const { error } = await sb.from('ecosystem_partners')
+    .insert({ company_name, contact_email, partner_type, notes });
+
+  closeModal('modal-add-partner');
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('Partner added');
+  loadPartners();
+}
+
+// Helpers
+function tierBadge(tier) {
+  const map = { pro: 'badge-purple', free: 'badge-gray', teams: 'badge-cyan' };
+  return `<span class="badge ${map[tier]||'badge-gray'}">${tier}</span>`;
+}
+function statusBadge(s) {
+  const map = { active: 'badge-green', canceled: 'badge-red', past_due: 'badge-yellow' };
+  return `<span class="badge ${map[s]||'badge-gray'}">${s}</span>`;
+}
+function roleBadge(r) {
+  const map = { super_admin: 'badge-purple', admin: 'badge-blue', creator: 'badge-yellow', eco_partner: 'badge-cyan', developer: 'badge-green', publisher: 'badge-green' };
+  return `<span class="badge ${map[r]||'badge-gray'}">${r}</span>`;
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+
+// Close modals on background click
+document.querySelectorAll('.modal-bg').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('show'); });
+});
+</script>
+</body>
+</html>
