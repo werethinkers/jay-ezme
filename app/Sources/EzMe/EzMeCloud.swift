@@ -129,7 +129,7 @@ final class EzMeCloud: ObservableObject {
 
     // MARK: - OAuth sign-in (Apple + Google via Supabase)
 
-    func prepareAppleSignIn(request: ASAuthorizationAppleIDProvider.Request) {
+    func prepareAppleSignIn(request: ASAuthorizationAppleIDRequest) {
         let raw = Self.randomURLSafe(32)
         pendingAppleNonce = raw
         request.requestedScopes = [.email, .fullName]
