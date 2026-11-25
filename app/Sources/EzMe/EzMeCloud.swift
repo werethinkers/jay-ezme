@@ -58,6 +58,8 @@ final class EzMeCloud: ObservableObject {
     private var pendingAppleNonce: String?
     private var googleAuthSession: ASWebAuthenticationSession?
     private let webAuthContext = WebAuthContext()
+    @Published var pendingOTPEmail: String? = nil
+    private var pendingOTPPassword: String = ""
 
     struct ManifestEntry: Codable {
         var sha: String?
@@ -102,7 +104,12 @@ final class EzMeCloud: ObservableObject {
                     if let newSession = try? Self.decodeSession(data) {
                         await finishSignIn(newSession, onSignedIn: onSignedIn)
                     } else {
-                        fail("Account created. Open the confirmation email we sent to \(email), then come back and sign in.")
+                        await MainActor.run {
+                            isWorking = false
+                            status = ""
+                            pendingOTPEmail = email
+                            pendingOTPPassword = password
+                        }
                     }
                 } else {
                     let data = try await Self.authRequest(path: "/auth/v1/token?grant_type=password", body: body)
@@ -112,6 +119,28 @@ final class EzMeCloud: ObservableObject {
                 fail(Self.describe(error))
             }
         }
+    }
+
+    func verifyEmailOTP(code: String, onSignedIn: @escaping (String) -> Void) {
+        guard let email = pendingOTPEmail, !isWorking else { return }
+        let token = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard token.count == 6 else { lastError = "Enter the 6-digit code from your email."; return }
+        lastError = nil; isWorking = true; status = "Verifying code..."
+        let pwd = pendingOTPPassword
+        Task {
+            do {
+                let verifyBody = try JSONSerialization.data(withJSONObject: ["type": "signup", "email": email, "token": token])
+                _ = try await Self.authRequest(path: "/auth/v1/verify", body: verifyBody)
+                let loginBody = try JSONSerialization.data(withJSONObject: ["email": email, "password": pwd])
+                let data = try await Self.authRequest(path: "/auth/v1/token?grant_type=password", body: loginBody)
+                await MainActor.run { pendingOTPEmail = nil; pendingOTPPassword = "" }
+                await finishSignIn(try Self.decodeSession(data), onSignedIn: onSignedIn)
+            } catch { fail(Self.describe(error)) }
+        }
+    }
+
+    func cancelOTP() {
+        pendingOTPEmail = nil; pendingOTPPassword = ""; lastError = nil; status = ""
     }
 
     func sendPasswordReset(email rawEmail: String) {
@@ -793,6 +822,48 @@ final class EzMeCloud: ObservableObject {
 
 // MARK: - UI
 
+struct EzMeCloudOTPView: View {
+    @ObservedObject var cloud: EzMeCloud
+    var email: String
+    var onSignedIn: (String) -> Void
+    @State private var code = ""
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            if let logo = ezMeBrandImage() {
+                Image(nsImage: logo).resizable().scaledToFit().frame(width: 150, height: 100)
+            }
+            Image(systemName: "envelope.badge.fill").font(.system(size: 48)).foregroundStyle(.purple)
+            Text("Check your email").font(.system(size: 26, weight: .bold, design: .rounded))
+            Text("We sent a 6-digit code to **\(email)**.\nEnter it below to verify your account.")
+                .font(.body).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 400)
+            TextField("6-digit code", text: $code)
+                .font(.system(size: 32, weight: .semibold, design: .monospaced))
+                .multilineTextAlignment(.center)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 200)
+                .onChange(of: code) { v in if v.count > 6 { code = String(v.prefix(6)) } }
+            Button(action: { cloud.verifyEmailOTP(code: code, onSignedIn: onSignedIn) }) {
+                Text("Verify").font(.headline).frame(width: 200, height: 26)
+            }
+            .buttonStyle(.borderedProminent).controlSize(.large)
+            .disabled(cloud.isWorking || code.count < 6)
+            Button("Back to sign in") { cloud.cancelOTP() }.buttonStyle(.link).font(.caption)
+            if cloud.isWorking {
+                HStack(spacing: 8) { ProgressView().controlSize(.small); Text(cloud.status).foregroundStyle(.secondary) }
+            }
+            if let error = cloud.lastError {
+                Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange).frame(maxWidth: 400)
+            }
+            Spacer()
+        }
+        .padding(28)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(LinearGradient(colors: [Color.blue.opacity(0.04), Color.purple.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
+    }
+}
+
 struct EzMeCloudSignInView: View {
     @ObservedObject var cloud: EzMeCloud
     var onSignedIn: (String) -> Void
@@ -805,6 +876,9 @@ struct EzMeCloudSignInView: View {
     private func submit() { cloud.signIn(email: email, password: password, create: creating, onSignedIn: onSignedIn) }
 
     var body: some View {
+        if let otpEmail = cloud.pendingOTPEmail {
+            EzMeCloudOTPView(cloud: cloud, email: otpEmail, onSignedIn: onSignedIn)
+        } else {
         VStack(spacing: 18) {
             Spacer()
             if let logo = ezMeBrandImage() {
@@ -874,6 +948,7 @@ struct EzMeCloudSignInView: View {
         .padding(28)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LinearGradient(colors: [Color.blue.opacity(0.04), Color.purple.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        } // end else (OTP pending)
     }
 }
 

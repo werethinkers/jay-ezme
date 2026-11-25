@@ -2,6 +2,73 @@
 
 ---
 
+## 2026-11-26 — feat: Resend SMTP + email OTP verification for new accounts
+
+**What changed:**
+- Enabled custom SMTP in Supabase Auth → Emails → SMTP Settings:
+  - Host: `smtp.resend.com`, Port: 465, Username: `resend`
+  - Sender name: `KeyDo`, Sender email: `onboarding@resend.dev`
+  - Sign-in emails now come from "KeyDo" instead of raw supabase hostname.
+- Updated "Confirm sign up" email template:
+  - Subject: "Your KeyDo verification code"
+  - Body: Shows `{{ .Token }}` (6-digit OTP) prominently instead of a magic link.
+- Updated `app/Sources/EzMe/EzMeCloud.swift`:
+  - Added `EzMeCloudOTPView` — a 6-digit code entry screen shown after account creation.
+  - Added `verifyEmailOTP(code:onSignedIn:)` — POSTs to `/auth/v1/verify` with the OTP, then signs in with password on success.
+  - Added `cancelOTP()` — goes back to sign-in form.
+  - Modified `signIn(create:)` — after successful signup without auto-session (email confirmation required), sets `pendingOTPEmail` to trigger the OTP screen instead of showing "check your email" error.
+  - `EzMeCloudSignInView` now shows `EzMeCloudOTPView` when `pendingOTPEmail` is set.
+
+**How it was done:** Browser automation in Supabase dashboard for SMTP and templates; Swift code edits to EzMeCloud.swift.
+
+**Note:** To use a custom from-address (e.g. `noreply@ezyourlife.com`), verify that domain in Resend dashboard → Domains, then update the Sender email in Supabase Auth → Emails → SMTP Settings.
+
+---
+
+## 2026-11-26 — fix: Enable Apple Sign In + upgrade 5 more users to Pro
+
+**What changed:**
+- Enabled Apple Sign In in Supabase Auth → Providers → Apple on project `cmwnjexfpcfpoeyemxhb`.
+  - Client IDs field set to `com.ezme.mac` (the native macOS bundle ID — no OAuth secret key needed for native Apple Sign In).
+  - Toggle switched to Enabled, settings saved successfully.
+- Upgraded 5 users from free → pro tier (3000 credits/month): abhijayjain0@gmail.com, ceo@ezyourlife.com, vjayjain5@gmail.com, werethinkers@gmail.com, jainjayhiral@gmail.com.
+- **Email branding**: Sign-in emails show `cmwnjexfpcfpoeyemxhb.supabase.co` because Supabase's default email templates are locked without custom SMTP. Fix: set up Resend SMTP (free tier) in Supabase Auth → SMTP Settings, then edit the email templates to say "KeyDo".
+
+**Remaining prerequisite (must be done by user in Apple Developer Portal):**
+- Go to developer.apple.com → Certificates, Identifiers & Profiles → Identifiers → find `com.ezme.mac` → Edit → enable "Sign in with Apple" capability → Save.
+- Without this, Apple Sign In button will fail even with Supabase configured correctly.
+
+**How it was done:** Browser automation in Supabase dashboard; SQL via Supabase MCP execute_sql tool.
+
+---
+
+## 2026-11-26 — fix: Switch Supabase project to user-owned instance for Google Sign In
+
+**What changed:**
+- Updated `app/Sources/EzMe/EzMeUpdater.swift` lines 28–29: switched `supabaseURL` from `vfmuqfbmklupzzqfhdjz.supabase.co` (Lovable-owned, inaccessible) to `cmwnjexfpcfpoeyemxhb.supabase.co` (user-owned "ezmylife02", Google OAuth already configured).
+- Updated `supabaseKey` to the publishable key for `cmwnjexfpcfpoeyemxhb`.
+- Added `keydo://auth/callback` to the redirect URLs list on `cmwnjexfpcfpoeyemxhb` (Supabase Auth → URL Configuration). Total redirect URLs now: 6.
+- Root cause of Google Sign In error `{"code":400,"error_code":"validation_failed","msg":"Unsupported provider: missing OAuth secret"}`: the app was connecting to Lovable's Supabase project which the user cannot access or configure.
+
+**Migrations run on cmwnjexfpcfpoeyemxhb (2026-11-26):**
+- 0001 app_releases_and_events ✅ (run earlier)
+- 0002 cloud_workspace ✅ (run earlier)
+- 0003 subscriptions ✅ — subscriptions, team_members tables, trigger, RPCs
+- 0004 marketplace ✅ — marketplace_packs/installs/ratings/purchases tables, RPCs, 4 seed packs
+- 0005 challenges_wall ✅ — challenge_progress/completions, wall_posts/likes/comments tables, RPCs, 4 seed posts
+- 0006 admin_roles_creators ✅ — admin_roles, creator_profiles, ecosystem_partners tables, is_creator column, founder backfill
+- All 14 expected tables verified present via information_schema query.
+
+**Subscription backfill (2026-11-26):**
+- Ran backfill SQL to give all 88 existing users a subscription row (the trigger only fires for NEW users).
+- Result: 83 users → free/active, 5 founding users → pro/active (3000 credits, is_creator=true).
+- Founding pro users: abhijayjain3@gmail.com, work.abhijayjain@gmail.com, work.arinjayjain@gmail.com, jaykumarjain@gmail.com, vjayjain@gmail.com.
+- Also backfilled admin_roles (super_admin + creator) and creator_profiles for the 5 pro users.
+
+**How it was done:** Claude Code session; Chrome browser automation to add redirect URL; manual `EzMeUpdater.swift` edit.
+
+---
+
 ## 2026-11-25 — Local build notarized and stapled
 
 **What changed:**
