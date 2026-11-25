@@ -39,8 +39,19 @@
 	<key>NSMicrophoneUsageDescription</key>
 	<string>KeyDo uses the microphone when you choose voice input for builder prompts and details.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>EzMe captures a selected screen area when you choose Crop screen.</string>
+	<string>KeyDo captures a selected screen area when you choose Crop screen.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>EzMe converts chosen voice input into text for builder prompts and details.</string>
+	<string>KeyDo converts chosen voice input into text for builder prompts and details.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.ezme.mac.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>keydo</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

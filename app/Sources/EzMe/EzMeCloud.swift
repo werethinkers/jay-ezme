@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 import Foundation
 import CryptoKit
+import AuthenticationServices
 
 // Cloud accounts and sync.
 // People sign in with email and password (Supabase Auth in the Lovable Cloud project). Their workspace lives in the cloud:
@@ -43,9 +44,9 @@ final class EzMeCloud: ObservableObject {
 
     @Published private(set) var session: EzMeCloudSession?
     @Published var status = ""
-    @Published private(set) var isWorking = false
+    @Published var isWorking = false
     @Published private(set) var lastSynced: Date?
-    @Published private(set) var lastError: String?
+    @Published var lastError: String?
 
     private var profile: URL?
     private var manifest: [String: ManifestEntry] = [:]
@@ -54,6 +55,9 @@ final class EzMeCloud: ObservableObject {
     private var syncing = false
     private var pullRequested = false
     private var activationObserver: NSObjectProtocol?
+    private var pendingAppleNonce: String?
+    private var googleAuthSession: ASWebAuthenticationSession?
+    private let webAuthContext = WebAuthContext()
 
     struct ManifestEntry: Codable {
         var sha: String?
@@ -123,7 +127,105 @@ final class EzMeCloud: ObservableObject {
         }
     }
 
-    private func finishSignIn(_ newSession: EzMeCloudSession, onSignedIn: @escaping (String) -> Void) async {
+    // MARK: - OAuth sign-in (Apple + Google via Supabase)
+
+    func prepareAppleSignIn(request: ASAuthorizationAppleIDProvider.Request) {
+        let raw = Self.randomURLSafe(32)
+        pendingAppleNonce = raw
+        request.requestedScopes = [.email, .fullName]
+        request.nonce = Self.sha256(raw)
+    }
+
+    func completeAppleSignIn(result: Result<ASAuthorization, Error>, onSignedIn: @escaping (String) -> Void) {
+        switch result {
+        case .success(let auth):
+            guard let cred = auth.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = cred.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8) else {
+                fail("Apple didn't return an identity token."); return
+            }
+            isWorking = true; status = "Signing in with Apple..."
+            let nonce = pendingAppleNonce; pendingAppleNonce = nil
+            Task {
+                do {
+                    var params: [String: Any] = ["access_token": idToken]
+                    if let n = nonce { params["nonce"] = n }
+                    let body = try JSONSerialization.data(withJSONObject: params)
+                    let data = try await Self.authRequest(path: "/auth/v1/token?grant_type=apple", body: body)
+                    await finishSignIn(try Self.decodeSession(data), onSignedIn: onSignedIn)
+                } catch { fail(Self.describe(error)) }
+            }
+        case .failure(let error):
+            if (error as? ASAuthorizationError)?.code != .canceled { fail(error.localizedDescription) }
+        }
+    }
+
+    func signInWithGoogle(onSignedIn: @escaping (String) -> Void) {
+        guard !isWorking else { return }
+        isWorking = true; status = "Opening Google sign-in..."
+        var comps = URLComponents(string: Self.supabaseURL + "/auth/v1/authorize")!
+        comps.queryItems = [
+            URLQueryItem(name: "provider", value: "google"),
+            URLQueryItem(name: "redirect_to", value: "keydo://auth/callback")
+        ]
+        guard let authURL = comps.url else { fail("Could not build sign-in URL."); return }
+        let session = ASWebAuthenticationSession(url: authURL, callbackURLScheme: "keydo") { [weak self] callbackURL, error in
+            Task { @MainActor in
+                guard let self else { return }
+                self.googleAuthSession = nil
+                if let error {
+                    if (error as? ASWebAuthenticationSessionError)?.code == .canceledLogin { self.isWorking = false }
+                    else { self.fail(error.localizedDescription) }
+                    return
+                }
+                guard let url = callbackURL else { self.fail("No callback URL received."); return }
+                await self.handleOAuthCallback(url, onSignedIn: onSignedIn)
+            }
+        }
+        session.presentationContextProvider = webAuthContext
+        session.prefersEphemeralWebBrowserSession = false
+        googleAuthSession = session
+        session.start()
+    }
+
+    private func handleOAuthCallback(_ url: URL, onSignedIn: @escaping (String) -> Void) async {
+        let fragment = url.fragment ?? ""
+        var params: [String: String] = [:]
+        for part in fragment.split(separator: "&") {
+            let kv = part.split(separator: "=", maxSplits: 1)
+            if kv.count == 2 { params[String(kv[0])] = String(kv[1]).removingPercentEncoding ?? String(kv[1]) }
+        }
+        guard let accessToken = params["access_token"], let refreshToken = params["refresh_token"] else {
+            fail("OAuth callback missing tokens. Enable the Google provider in your Supabase dashboard.")
+            return
+        }
+        let expiresAt = Double(params["expires_at"] ?? "") ?? (Date().timeIntervalSince1970 + 3600)
+        do {
+            let newSession = try await Self.fetchOAuthUser(accessToken: accessToken, refreshToken: refreshToken, expiresAt: expiresAt)
+            await finishSignIn(newSession, onSignedIn: onSignedIn)
+        } catch { fail(Self.describe(error)) }
+    }
+
+    nonisolated private static func fetchOAuthUser(accessToken: String, refreshToken: String, expiresAt: Double) async throws -> EzMeCloudSession {
+        var req = URLRequest(url: URL(string: supabaseURL + "/auth/v1/user")!, timeoutInterval: 30)
+        req.setValue(supabaseKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
+        let (data, response) = try await URLSession.shared.data(for: req)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw EzMeCloudError.message("Could not fetch user profile from OAuth session.")
+        }
+        struct Meta: Decodable { var full_name: String?; var name: String? }
+        struct User: Decodable { var id: String; var email: String?; var user_metadata: Meta? }
+        let user = try JSONDecoder().decode(User.self, from: data)
+        guard let email = user.email, !email.isEmpty else {
+            throw EzMeCloudError.message("The OAuth account has no email address.")
+        }
+        return EzMeCloudSession(accessToken: accessToken, refreshToken: refreshToken, expiresAt: expiresAt,
+                                userID: user.id, email: email.lowercased(),
+                                name: user.user_metadata?.full_name ?? user.user_metadata?.name)
+    }
+
+    func finishSignIn(_ newSession: EzMeCloudSession, onSignedIn: @escaping (String) -> Void) async {
         do {
             store(newSession)
             status = "Loading your workspace..."
@@ -150,7 +252,7 @@ final class EzMeCloud: ObservableObject {
         }
     }
 
-    private func fail(_ message: String) {
+    func fail(_ message: String) {
         isWorking = false
         status = ""
         lastError = message
@@ -750,6 +852,13 @@ struct EzMeCloudSignInView: View {
             if !creating {
                 Button("Forgot password?") { cloud.sendPasswordReset(email: email) }.buttonStyle(.link).font(.caption)
             }
+            HStack(spacing: 10) {
+                Rectangle().fill(.secondary.opacity(0.25)).frame(height: 1)
+                Text("or").font(.caption).foregroundStyle(.secondary)
+                Rectangle().fill(.secondary.opacity(0.25)).frame(height: 1)
+            }
+            .frame(width: 320)
+            KeyDoOAuthButtons(cloud: cloud, onSignedIn: onSignedIn)
             if cloud.isWorking {
                 HStack(spacing: 8) { ProgressView().controlSize(.small); Text(cloud.status).foregroundStyle(.secondary) }
             } else if !cloud.status.isEmpty {

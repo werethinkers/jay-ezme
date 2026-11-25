@@ -33,11 +33,11 @@ printf 'APPL????' > "$APP/Contents/PkgInfo"
 plutil -lint "$APP/Contents/Info.plist"
 
 if [ -n "${SIGN_IDENTITY:-}" ]; then
-  echo "Signing with $SIGN_IDENTITY"
-  codesign --force --timestamp=none --sign "$SIGN_IDENTITY" "$APP"
+  echo "Signing with $SIGN_IDENTITY (hardened runtime)"
+  codesign --force --options runtime --entitlements "EzMe.entitlements" --sign "$SIGN_IDENTITY" "$APP"
 else
   echo "Signing ad-hoc (set SIGN_IDENTITY for a stable identity)"
-  codesign --force --sign - "$APP"
+  codesign --force --options runtime --entitlements "EzMe.entitlements" --sign - "$APP"
 fi
 codesign --verify --strict --verbose=2 "$APP"
 

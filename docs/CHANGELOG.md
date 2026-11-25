@@ -1,5 +1,30 @@
 # KeyDo — Change Log
 
+---
+
+## 2026-11-25 — Notarization, hardened runtime, Apple Sign In, Google Sign In
+
+**What changed:**
+- Created `app/EzMe.entitlements` — `com.apple.security.network.client` + `com.apple.developer.applesignin` for notarization (hardened runtime) and Sign in with Apple.
+- Updated `app/build.sh` — both signing branches now pass `--options runtime --entitlements "EzMe.entitlements"` to `codesign`, enabling notarization via `xcrun notarytool`.
+- Updated `app/Info.plist` — added `CFBundleURLTypes` with the `keydo://` custom URL scheme (OAuth callback); fixed leftover "EzMe captures" → "KeyDo captures" strings in NSScreenCaptureUsageDescription and NSSpeechRecognitionUsageDescription.
+- Created `app/Sources/EzMe/EzMeOAuthSignIn.swift`:
+  - `WebAuthContext` — `ASWebAuthenticationPresentationContextProviding` helper for the Google sign-in sheet.
+  - `KeyDoOAuthButtons` — SwiftUI view with Sign in with Apple (`SignInWithAppleButton`) and Sign in with Google buttons; wired into `EzMeCloudSignInView`.
+- Updated `app/Sources/EzMe/EzMeCloud.swift`:
+  - Added `import AuthenticationServices`.
+  - `prepareAppleSignIn(request:)` + `completeAppleSignIn(result:onSignedIn:)` — native `ASAuthorizationAppleIDProvider` flow; identity token posted to Supabase `/auth/v1/token?grant_type=apple` with SHA-256 nonce.
+  - `signInWithGoogle(onSignedIn:)` + `handleOAuthCallback` + `fetchOAuthUser` — `ASWebAuthenticationSession` → Supabase `/auth/v1/authorize?provider=google&redirect_to=keydo://auth/callback`; fragment-parsed access/refresh tokens; user profile fetched from `/auth/v1/user`.
+  - Stored properties added: `pendingAppleNonce`, `googleAuthSession`, `webAuthContext`.
+  - `EzMeCloudSignInView` updated with "or" divider + `KeyDoOAuthButtons`.
+
+**Prerequisites the user must complete (not in repo):**
+1. **Apple Sign In**: Enable "Sign in with Apple" capability for `com.ezme.mac` in Apple Developer portal (Certificates, Identifiers & Profiles → Identifiers). Then configure the Apple provider in Supabase Auth → Providers → Apple.
+2. **Google Sign In**: Create an OAuth 2.0 client ID in Google Cloud Console (macOS app type); configure in Supabase Auth → Providers → Google. Add `keydo://auth/callback` to Supabase Auth → URL Configuration → Additional redirect URLs.
+3. **Notarization**: After building with a Developer ID identity, run `xcrun notarytool submit EzMe-*.zip --apple-id <your-id> --team-id <team> --password <app-specific-password> --wait`, then `xcrun stapler staple EzMe.app`.
+
+**How it was done:** New Swift file + edits to 3 existing files + entitlements; no DB changes.
+
 Changes are logged in reverse chronological order per CLAUDE.md rule.
 Format: date · version · what changed · how it was done · commands run.
 
