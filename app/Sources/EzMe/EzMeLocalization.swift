@@ -71,7 +71,7 @@ enum L10n: String, CaseIterable {
 
 // MARK: - Runtime
 
-@MainActor final class KeyDoStrings: ObservableObject {
+final class KeyDoStrings: ObservableObject {
     static let shared = KeyDoStrings()
 
     @Published private(set) var language: String = "en"
