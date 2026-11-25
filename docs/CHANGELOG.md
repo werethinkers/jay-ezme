@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-11-25 — fix: ASAuthorizationAppleIDRequest type (build fix)
+
+**What changed:**
+- Fixed compile error in `EzMeCloud.swift:132`: `ASAuthorizationAppleIDProvider.Request` → `ASAuthorizationAppleIDRequest` (the correct AuthenticationServices type for the Sign in with Apple request object).
+- Commit `75797c7`; triggered build #316.
+
+**How it was done:** Inspected GitHub Actions build #315 log — `error: 'Request' is not a member type of class 'AuthenticationServices.ASAuthorizationAppleIDProvider'` at line 132.
+
+---
+
 ## 2026-11-25 — Supabase auth providers configured
 
 **What changed:**
