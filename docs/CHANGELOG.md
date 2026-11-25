@@ -2,6 +2,17 @@
 
 ---
 
+## 2026-11-25 — Supabase auth providers configured
+
+**What changed:**
+- Enabled Apple Sign In in Supabase Auth (Lovable project `5f041390-5f8c-439b-9bad-1b179e055700`) — "Managed by Lovable" mode; no Apple Developer credentials required.
+- Added `keydo://auth/callback` to Supabase Auth → Advanced → Redirect URLs (allowlist was 7/50, now 8/50), enabling the native macOS Google OAuth callback.
+- Google Sign In was already enabled (Lovable managed).
+
+**How it was done:** Lovable More → Users → Auth settings; no code changes.
+
+---
+
 ## 2026-11-25 — Notarization, hardened runtime, Apple Sign In, Google Sign In
 
 **What changed:**
