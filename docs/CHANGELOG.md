@@ -2,6 +2,19 @@
 
 ---
 
+## 2026-11-25 — Local build notarized and stapled
+
+**What changed:**
+- Built `EzMe-5.0-macOS.zip` locally on Mac with Xcode / Swift 6.3.3.
+- Signed with "Developer ID Application: abhijay jain (PY9D2VJ6VQ)" + hardened runtime + `EzMe.entitlements`.
+- Notarized via `xcrun notarytool submit` (Apple ID: abhijayjain0@gmail.com, team PY9D2VJ6VQ) — status: Accepted.
+- Ticket stapled with `xcrun stapler staple`; zip repackaged with `ditto`.
+- Output: `app/build/EzMe-5.0-macOS.zip` (18 MB), ready for distribution.
+
+**How it was done:** Local build + signing + notarization; no code changes.
+
+---
+
 ## 2026-11-25 — fix: ASAuthorizationAppleIDRequest type (build fix)
 
 **What changed:**
