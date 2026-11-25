@@ -19,5 +19,11 @@ A community wall where users share how they use KeyDo — experiences, tips and 
 ### International Starter Pack
 30 new international shortcut templates alongside the existing Indian packs: email replies (thanks, follow-up, out-of-office), professional signatures, sales sequences, support scripts, HR letters, developer shortcuts (standup, PR description), invoice and quotation templates, and common live-value shortcuts. No INR or GST — neutral global English.
 
+### Upgrade sheet close button fixed
+The × button on the subscription upgrade sheet now dismisses the sheet correctly on first tap.
+
+### Stable app identity — no more permission re-prompts on update
+KeyDo is now signed with an Apple Developer ID Application certificate. macOS recognises the same identity across updates, so Accessibility and Screen Recording permissions are granted once and kept — you will no longer be asked to re-approve them every time a new version is installed.
+
 ### Keyboard tap check ✓
 No changes to `miniJSlashTap`, `pickerActive`, `triggerTracking`, or any key-swallowing logic. The heartbeat watchdog is active.
