@@ -52,6 +52,7 @@ struct ButterTopBar: View {
     @Binding var section: String
     var browserPanelVisible: Bool
     var browserWidth: CGFloat
+    var onSidebarToggle: (() -> Void)? = nil
     var onPanelSize: (CGFloat) -> Void
     var onFullScreen: () -> Void
     var onToggleBrowser: () -> Void
@@ -177,6 +178,16 @@ struct ButterTopBar: View {
         let current = ButterNav.area(containing: section)
         VStack(spacing: 0) {
             HStack(spacing: 6) {
+                if let toggle = onSidebarToggle {
+                    Button(action: toggle) {
+                        Image(systemName: "sidebar.left")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Butter.cocoa)
+                            .frame(width: 30, height: 30)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Toggle side menu")
+                }
                 topBarLogo
                     .padding(.trailing, 10)
                 ScrollView(.horizontal, showsIndicators: false) {

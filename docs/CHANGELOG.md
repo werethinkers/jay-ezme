@@ -5,6 +5,18 @@ Format: date · version · what changed · how it was done · commands run.
 
 ---
 
+## 2026-11-25 — Overlay sidebar with account chip + sign-out
+
+**What changed:**
+- Added `EzMeSidebarPanel.swift` — `KeyDoSidebarPanel` struct: auto-hide overlay sidebar (232 pt wide, purple gradient, slides in from left edge over content without pushing it), scrollable nav list, account chip at bottom showing avatar initial + username + tier badge (Free/Pro/Teams with color), chevron menu with sign-out
+- `SidebarEdgeTrigger` struct: 10 pt invisible hover zone on the left edge triggers sidebar open
+- Edited `EzMe.swift`: added `@State var showOverlaySidebar=false`; wrapped `regularWorkspace` in a `ZStack` with the `KeyDoSidebarPanel` overlay (`.transition(.move(edge:.leading))`, `.zIndex(10)`) and `SidebarEdgeTrigger` (`.zIndex(11)`); wired `ButterTopBar` with new `onSidebarToggle` parameter; sign-out action does full db teardown (dir reset, clips/collections clear, `account.signOut()`)
+- Edited `EzMeButter.swift`: added `onSidebarToggle: (() -> Void)?` parameter to `ButterTopBar`; added `sidebar.left` hamburger button at left of top bar when handler is provided
+
+**How it was done:** SwiftUI overlay ZStack pattern; new file + small edits to existing files; no DB changes.
+
+---
+
 ## 2026-11-25 — Admin panel, creator dashboard, admin roles & creator backfill
 
 **What changed:**
